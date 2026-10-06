@@ -26,3 +26,12 @@
 ## 端口与网络
 
 暂无已配置服务或端口。
+
+## Git 操作（已验证）
+
+远程仓库：https://github.com/apppsd/trademind.git；主分支 main 跟踪 origin/main。
+
+- git status --short：检查工作区。
+- git push -u origin main：推送并建立分支跟踪关系。
+- git ls-remote origin refs/heads/main：核对远程分支提交。
+- git rev-parse HEAD：查看本地提交。
