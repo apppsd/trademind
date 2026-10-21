@@ -1,0 +1,55 @@
+name: trademind
+x-runtime: &runtime
+  image: trademind:local
+  build: .
+  init: true
+  volumes:
+    - type: bind
+      source: ./.env
+      target: /app/.env
+      read_only: true
+    - type: bind
+      source: ./config/t0-container.local.toml
+      target: /app/config/t0-container.local.toml
+      read_only: true
+    - type: bind
+      source: ./data/runtime/container
+      target: /app/data/runtime
+  restart: "no"
+services:
+  auto:
+    <<: *runtime
+    profiles: ["auto"]
+    environment: ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"]
+    entrypoint: ["python", "-m", "trademind.execution.auto_paper"]
+    command: ["--config", "config/t0-container.local.toml"]
+    ports:
+      - "127.0.0.1:8321:8321"
+    restart: unless-stopped
+    stop_grace_period: 150s
+    healthcheck:
+      test: ["CMD", "python", "-m", "trademind.execution.auto_paper", "--config", "config/t0-container.local.toml", "--health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+  workbench:
+    <<: *runtime
+    ports:
+      - "127.0.0.1:8321:8321"
+    command: ["--config", "config/t0-container.local.toml", "serve"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8321/', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+  paper:
+    <<: *runtime
+    profiles: ["paper"]
+    command: ["--config", "config/t0-container.local.toml", "t0-paper", "--steps", "12", "--probe-models"]
+  check:
+    <<: *runtime
+    profiles: ["check"]
+    entrypoint: ["python", "scripts/check_fast_startup.py"]
+    command: ["--config", "config/t0-container.local.toml", "--timeout", "40", "--output", "data/runtime/container-startup.json"]

@@ -1,0 +1,42 @@
+[
+  {
+    "instrument_id": "600519.SH",
+    "report_period": "2026H1",
+    "announce_date": "2026-07-28",
+    "available_at": "2026-07-28T20:00:00+08:00",
+    "metrics": {
+      "net_profit_yi": "760.2",
+      "roe": "16.8",
+      "yoy_profit_growth": "0.091"
+    },
+    "revision": 1,
+    "provider": "fixture"
+  },
+  {
+    "instrument_id": "600519.SH",
+    "report_period": "2026H1",
+    "announce_date": "2026-08-20",
+    "available_at": "2026-08-20T19:00:00+08:00",
+    "metrics": {
+      "net_profit_yi": "761.5",
+      "roe": "16.9",
+      "yoy_profit_growth": "0.093"
+    },
+    "revision": 2,
+    "supersedes_key": "600519.SH:2026H1:1",
+    "provider": "fixture"
+  },
+  {
+    "instrument_id": "600036.SH",
+    "report_period": "2026H1",
+    "announce_date": "2026-08-05",
+    "available_at": "2026-08-05T19:30:00+08:00",
+    "metrics": {
+      "net_profit_yi": "720.4",
+      "roe": "11.2",
+      "yoy_profit_growth": "0.042"
+    },
+    "revision": 1,
+    "provider": "fixture"
+  }
+]

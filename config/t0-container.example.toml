@@ -1,0 +1,34 @@
+# 2026-10-09 reference rates: docs/research/20261009-model-pricing.md
+# Conservative peak/cache-miss estimate; JEV reference FX, not a billing statement.
+mode = "paper"
+account_id = "paper-t0-container"
+universe = ["513050.SH", "513100.SH", "518880.SH"]
+[llm]
+provider = "deepseek"
+model = "deepseek-flash"
+[jev]
+provider = "jev_typesafe"
+base_url = "https://api.typesafe.ai"
+model = "jev-1.13.0"
+question_version = "qv-fast-1"
+[t0]
+enabled = true
+profile = "jev_fast_decision"
+model_input_cny_per_million = "2"
+model_output_cny_per_million = "8"
+jev_input_cny_per_million = "0.282786"
+jev_output_cny_per_million = "0"
+[paper]
+initial_cash = "500"
+[storage]
+url = "sqlite:///data/runtime/trademind.db"
+[data]
+# Free minute sources only: sina primary, Eastmoney (via AKShare) backup.
+# See t0-fast.example.toml for the bounded routing caps (same defaults apply
+# when omitted); biying (必盈) stays excluded until free 1m is evidenced.
+provider_pref = ["sina_etf", "akshare"]
+[risk]
+quote_max_age_seconds = 180
+[api]
+host = "0.0.0.0"
+port = 8321

@@ -1,0 +1,17 @@
+# Free all-market observation; no credentials and no model calls.
+mode = "paper"
+
+[market_access]
+markets = ["etf", "lof", "convertible_bond", "hk_stock", "futures"]
+# Add only permissions actually enabled in your account:
+# cn_fund, convertible_bond, hk_stock, futures
+confirmed_permissions = []
+cash_cny = "500"
+reserve_cny = "100"
+cash_hkd = "0"
+reserve_hkd = "0"
+request_timeout_seconds = 12
+scan_timeout_seconds = 60
+# Optional JSON instrument rules, verified against official/broker sources.
+# Copy config/market-rules.example.json to config/market-rules.local.json.
+rules_file = ""

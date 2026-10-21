@@ -1,0 +1,51 @@
+[
+  {
+    "news_id": "news-2026-0807-001",
+    "instrument_ids": [
+      "600036.SH"
+    ],
+    "title": "招商银行公布中期分红方案，机构调研明显升温",
+    "body": "公司公告中期分红方案并披露调研纪要，多家机构上调关注评级。本条为演示用虚构新闻，仅用于流水线验证，不构成任何事实。",
+    "event_time": "2026-08-07T21:30:00+08:00",
+    "published_at": "2026-08-07T22:10:00+08:00",
+    "available_at": "2026-08-07T22:15:00+08:00",
+    "source_uri": "fixture://news/news-2026-0807-001"
+  },
+  {
+    "news_id": "news-2026-0701-001",
+    "instrument_ids": [
+      "000858.SZ"
+    ],
+    "title": "五粮液宣布停牌一天",
+    "body": "公司股票于2026年7月6日停牌一天。演示停牌处理。",
+    "event_time": "2026-07-03T18:00:00+08:00",
+    "published_at": "2026-07-03T18:30:00+08:00",
+    "available_at": "2026-07-03T18:31:00+08:00",
+    "source_uri": "fixture://news/news-2026-0701-001"
+  },
+  {
+    "news_id": "news-future-9999",
+    "instrument_ids": [
+      "600519.SH"
+    ],
+    "title": "[未来] 该新闻 available_at 在回放窗口之后",
+    "body": "回放中不可见。",
+    "event_time": "2026-10-20T10:00:00+08:00",
+    "published_at": "2026-10-20T10:30:00+08:00",
+    "available_at": "2026-10-20T10:35:00+08:00",
+    "source_uri": "fixture://news/news-future-9999"
+  },
+  {
+    "news_id": "news-unknown-pubtime",
+    "instrument_ids": [
+      "601318.SH"
+    ],
+    "title": "行业政策讨论（公开时间不详）",
+    "body": "该记录公开时间未知，published_at 为空且有 missing_reason。",
+    "event_time": "2026-06-10T09:00:00+08:00",
+    "published_at": null,
+    "available_at": "2026-06-11T09:00:00+08:00",
+    "source_uri": "fixture://news/news-unknown-pubtime",
+    "missing_reason": "fixture source does not disclose publish time"
+  }
+]

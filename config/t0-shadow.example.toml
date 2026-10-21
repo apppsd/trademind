@@ -1,0 +1,83 @@
+# TradeMind T0 ETF Shadow Experiment Configuration (TASK-40 frozen)
+# Mode: paper with dedicated account and storage for isolated testing.
+mode = "paper"
+account_id = "t0-paper-001"
+universe_version = "univ-t0-etf-2026-10-08"
+universe = ["513050.SH", "513100.SH", "518880.SH"]
+
+[t0]
+enabled = true
+profile = "jev_deepseek"
+initial_cash = 500
+max_total_exposure = 300
+max_single_exposure = 200
+min_cash_reserve = 100
+stop_loss_ratio = 0.008
+max_daily_loss_ratio = 0.03
+consecutive_losses_limit = 3
+daily_new_orders_limit = 10
+daily_model_cost_limit_cny = 5.0
+daily_decision_call_budget = 100
+candidate_cooldown_seconds = 300
+quote_eval_interval_seconds = 60
+close_out_time = "14:55"
+no_new_entry_time = "14:50"
+whitelist = ["513050.SH", "513100.SH", "518880.SH"]
+# Set current verified CNY token prices before paid DeepSeek requests.
+# High-peak uncached CNY prices verified 2026-10-08; recheck official pricing before use.
+model_input_cny_per_million = 2
+model_output_cny_per_million = 8
+model_max_output_tokens = 1024
+
+[llm]
+provider = "deepseek"
+base_url = "https://api.deepseek.com"
+model = "deepseek-flash"
+temperature = 0.2
+timeout_s = 60
+max_repair_attempts = 1
+max_concurrent = 2
+daily_call_budget = 100
+
+[jev]
+provider = "jev_typesafe"
+base_url = "https://api.typesafe.cn"
+model = "SystemOne"
+timeout_s = 10
+batch_limit = 8
+question_version = "qv-2026-10-08"
+
+[risk]
+max_position_weight = 0.40
+max_total_exposure = 0.60
+max_daily_loss = 0.03
+max_order_notional = 200
+price_tolerance = 0.02
+intent_ttl_seconds = 180
+context_ttl_seconds = 300
+quote_max_age_seconds = 180
+max_open_positions = 1
+max_orders_per_day = 10
+policy_version = "risk-t0-2026-10-08"
+
+[paper]
+initial_cash = 500
+currency = "CNY"
+commission_rate = 0.0001
+commission_min = 0.1
+stamp_duty_rate_sell = 0.0
+transfer_fee_rate = 0.00001
+slippage_bps = 5
+fill_lag_bars = 1
+
+[data]
+fixtures_dir = "data/fixtures"
+provider_pref = ["akshare"]
+
+[storage]
+url = "sqlite:///data/runtime/t0_shadow.db"
+
+[api]
+host = "127.0.0.1"
+port = 8322
+token = ""

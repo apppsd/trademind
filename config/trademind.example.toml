@@ -1,0 +1,60 @@
+# TradeMind 配置示例。复制为 config/trademind.toml 后修改；该文件已 gitignore。
+# 密钥只写在这里或环境变量；不要提交进仓库或写进文档。
+
+mode = "paper"            # paper | shadow | replay（live 第一版无执行通道，会被拒绝启动）
+account_id = "paper-001"
+universe_version = "univ-2026-10-07"
+universe = ["600519.SH", "000001.SZ", "601318.SH", "600036.SH", "000858.SZ"]
+
+[llm]
+provider = "auto"         # auto: 有 key 走 DeepSeek，无 key 走显式 stub
+api_key = ""              # 或环境变量 TRADEMIND_DEEPSEEK_API_KEY
+base_url = "https://api.deepseek.com"
+model = "deepseek-flash"  # 2026-10-07 官方文档核验的当前模型名；可用 /models 探针复核
+temperature = 0.2
+timeout_s = 60
+max_concurrent = 4
+daily_call_budget = 500
+
+[jev]
+provider = "stub"         # stub | http（JEV endpoint 未提供前只能 stub）
+base_url = ""             # 用户提供 JEV 服务地址后填这里，或 env TRADEMIND_JEV_BASE_URL
+api_key = ""              # 或环境变量 TRADEMIND_JEV_API_KEY
+model = ""
+timeout_s = 10
+batch_limit = 8
+question_version = "qv-2026-10-07"
+
+[risk]
+# 模拟默认值（TASK-04 设定，仅模拟；实盘前须人工复核）
+max_position_weight = "0.20"
+max_total_exposure = "0.95"
+max_daily_loss = "0.03"
+max_order_notional = "200000"
+price_tolerance = "0.02"
+intent_ttl_seconds = 300
+context_ttl_seconds = 900
+max_open_positions = 10
+max_orders_per_day = 40
+
+[paper]
+initial_cash = "1000000"
+currency = "CNY"
+commission_rate = "0.00025"
+commission_min = "5"
+stamp_duty_rate_sell = "0.0005"
+transfer_fee_rate = "0.00001"
+slippage_bps = 5
+fill_lag_bars = 1
+
+[data]
+provider_pref = ["fixture", "akshare", "baostock", "tushare"]
+tushare_token = ""        # 或环境变量 TRADEMIND_TUSHARE_TOKEN
+
+[storage]
+url = "sqlite:///data/runtime/trademind.db"
+
+[api]
+host = "127.0.0.1"
+port = 8321
+token = ""                # 管理端写操作令牌；为空时写接口禁用。或 env TRADEMIND_API_TOKEN

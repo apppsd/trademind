@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+data/runtime/
+*.db
+*.sqlite3
+.env
+config/trademind.toml
+logs/
+
+config/*.local.toml
+config/*.local.json

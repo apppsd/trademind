@@ -1,0 +1,48 @@
+# Explicit paper profile, no credentials, pricing intentionally unconfigured.
+mode = "paper"
+account_id = "paper-t0-fast"
+universe = ["513050.SH", "513100.SH", "518880.SH"]
+[llm]
+provider = "deepseek"
+model = "deepseek-flash"
+[jev]
+provider = "jev_typesafe"
+base_url = "https://api.typesafe.ai"
+model = "jev-1.13.0"
+question_version = "qv-fast-1"
+[t0]
+enabled = true
+profile = "jev_fast_decision"
+strategy_refresh_seconds = 900
+strategy_ttl_seconds = 1200
+uncertain_refresh_seconds = 300
+fast_eval_seconds = 300
+strategy_request_limit = 30
+jev_request_limit = 60
+probe_request_limit = 10
+# Add operator-verified model_input/output_cny_per_million and
+# jev_input/output_cny_per_million to your ignored local copy before paid calls.
+# Official JEV 1.13: USD 0.042 / million INPUT tokens, OUTPUT free (2026-10-09).
+# Set jev_output_cny_per_million = "0" and convert input USD using verified FX.
+[paper]
+initial_cash = "500"
+[storage]
+url = "sqlite:///data/runtime/t0-fast-paper.db"
+[data]
+# Free minute sources only: sina primary, Eastmoney (via AKShare) backup.
+# fixture/tushare/baostock are not real paper minute fallbacks; the biying
+# (必盈) source stays excluded until its free 1m capability is evidenced.
+provider_pref = ["sina_etf", "akshare"]
+# Bounded quality-routing caps (TASK-20261014-04); defaults shown explicitly.
+minute_source_timeout_seconds = 10.0
+minute_max_sources = 3
+minute_round_timeout_seconds = 30.0
+minute_failure_backoff_seconds = 60.0
+minute_max_backoff_seconds = 900.0
+minute_daily_request_limit = 4000
+minute_cross_check_enabled = false
+minute_cross_check_interval_seconds = 900.0
+minute_cross_check_max_daily = 24
+minute_cross_check_tolerance_ratio = "0.005"
+[risk]
+quote_max_age_seconds = 180

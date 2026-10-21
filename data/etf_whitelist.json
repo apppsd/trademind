@@ -1,0 +1,54 @@
+[
+  {
+    "symbol": "513050.SH",
+    "name": "易方达中概互联50ETF",
+    "market": "XSHG",
+    "security_type": "etf",
+    "category": "cross_border",
+    "settlement_rule": "T+0",
+    "lot_size": 100,
+    "price_tick": "0.001",
+    "price_limit_ratio": "0.10",
+    "source_url": "http://www.sse.com.cn/assortment/fund/etf/list/etflist/detail.shtml?type=1&fundId=513050",
+    "effective_from": "2017-01-04"
+  },
+  {
+    "symbol": "513100.SH",
+    "name": "国泰纳斯达克100ETF",
+    "market": "XSHG",
+    "security_type": "etf",
+    "category": "cross_border",
+    "settlement_rule": "T+0",
+    "lot_size": 100,
+    "price_tick": "0.001",
+    "price_limit_ratio": "0.10",
+    "source_url": "http://www.sse.com.cn/assortment/fund/etf/list/etflist/detail.shtml?type=1&fundId=513100",
+    "effective_from": "2013-05-15"
+  },
+  {
+    "symbol": "518880.SH",
+    "name": "华安黄金ETF",
+    "market": "XSHG",
+    "security_type": "etf",
+    "category": "gold",
+    "settlement_rule": "T+0",
+    "lot_size": 100,
+    "price_tick": "0.001",
+    "price_limit_ratio": "0.10",
+    "source_url": "http://www.sse.com.cn/assortment/fund/etf/list/etflist/detail.shtml?type=1&fundId=518880",
+    "effective_from": "2013-07-29"
+  },
+  {
+    "symbol": "510050.SH",
+    "name": "华夏上证50ETF",
+    "market": "XSHG",
+    "security_type": "etf",
+    "category": "equity_domestic",
+    "settlement_rule": "T+1",
+    "lot_size": 100,
+    "price_tick": "0.001",
+    "price_limit_ratio": "0.10",
+    "source_url": "http://www.sse.com.cn/assortment/fund/etf/list/etflist/detail.shtml?type=1&fundId=510050",
+    "effective_from": "2005-02-23"
+  }
+]
