@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>TradeMind 工作台</title>
+<style>
+  body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; margin: 0; background: #0f1419; color: #d8dee6; }
+  header { padding: 12px 20px; background: #161b22; border-bottom: 1px solid #2d333b; display: flex; gap: 16px; align-items: center; }
+  header h1 { font-size: 16px; margin: 0; color: #58a6ff; }
+  .badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+  .ok { background: #1a3a2a; color: #3fb950; } .warn { background: #3a2a1a; color: #d29922; }
+  .bad { background: #3a1a1a; color: #f85149; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 20px; }
+  section { background: #161b22; border: 1px solid #2d333b; border-radius: 8px; padding: 12px; }
+  section h2 { font-size: 13px; margin: 0 0 8px; color: #8b949e; text-transform: uppercase; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #21262d; }
+  .mono { font-family: Consolas, monospace; font-size: 11px; }
+  button { background: #21262d; color: #58a6ff; border: 1px solid #2d333b; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  button:hover { background: #2d333b; }
+  input { background: #0d1117; color: #d8dee6; border: 1px solid #2d333b; border-radius: 6px; padding: 4px 8px; }
+  #banner { padding: 8px 20px; font-size: 13px; display: none; }
+</style>
+</head>
+<body>
+<div style="padding:10px 20px"><a href="/reports/daily" target="_blank" rel="noopener" style="color:#58a6ff">查看今天交易日报（资金 / 盈亏 / 模型费用）</a></div>
+<header>
+  <h1>TradeMind 工作台</h1>
+  <span id="mode" class="badge">…</span>
+  <span id="stub" class="badge">…</span>
+  <span id="kill" class="badge">…</span>
+  <input id="token" type="password" placeholder="控制令牌（可留空）" style="margin-left:auto">
+</header>
+<div id="banner" class="bad">kill switch 已触发：新增风险被阻止</div>
+<main>
+  <section>
+    <h2>账户</h2>
+    <table id="account"></table>
+  </section>
+  <section>
+    <h2>运行状态</h2>
+    <table id="status"></table>
+    <div style="margin-top:8px">
+      <input id="instrument" placeholder="600036.SH">
+      <button onclick="decide()">决策一次</button>
+      <button onclick="poll()">轮询成交</button>
+      <button onclick="kill(true)">触发 kill switch</button>
+      <button onclick="kill(false)">解除</button>
+    </div>
+  </section>
+  <section>
+    <h2>订单</h2>
+    <table id="orders"></table>
+  </section>
+  <section>
+    <h2>多市场行情观察</h2>
+    <select id="market-kind" onchange="refreshMarket()">
+      <option value="">全部</option><option value="etf">ETF</option><option value="lof">LOF</option>
+      <option value="convertible_bond">可转债</option><option value="hk_stock">港股</option>
+      <option value="futures">期货</option>
+    </select>
+    <p id="market-summary">尚未扫描</p>
+    <table id="market-assets"></table>
+  </section>
+  <section>
+    <h2>最近意图（决策链）</h2>
+    <table id="decisions"></table>
+  </section>
+</main>
+<script>
+async function j(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) { return { error: r.status + " " + (await r.text()).slice(0, 120) }; }
+  return r.json();
+}
+function rows(el, cols, data) {
+  const escape = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+  el.innerHTML = "<tr>" + cols.map(c => `<th>${c[1]}</th>`).join("") + "</tr>" +
+    data.map(d => "<tr>" + cols.map(c => `<td class="mono" ${d[c[0] + "_title"] ? `title="${escape(d[c[0] + "_title"])}"` : ""}>${escape(d[c[0]])}</td>`).join("") + "</tr>").join("");
+}
+let INSTRUMENT_NAMES = {};
+async function loadInstrumentNames() {
+  try { INSTRUMENT_NAMES = await j("/api/instrument-names") || {}; } catch (e) { /* codes stay as-is */ }
+}
+const instrZh = id => id ? (INSTRUMENT_NAMES[id] || id) : id;
+async function refreshMarket() {
+  const kind = document.getElementById("market-kind").value;
+  const report = await j('/api/market-observations?limit=50' + (kind ? '&kind=' + encodeURIComponent(kind) : ''));
+  document.getElementById("market-summary").textContent = report.error ||
+    `观察池 ${report.instrument_count || 0} 只 · 购买条件通过 ${report.purchase_conditions_met_count || 0} 只 · ${report.status} · 报告距今 ${Math.round(report.report_age_seconds || 0)} 秒（显示最多50只；观察数据不触发订单）`;
+  const data = (report.assets || []).map(a => ({...a, reasons: a.blocking_reasons.join('、'),
+    eligibility: a.purchase_conditions_met ? '条件通过' : '条件未通过',
+    execution: a.execution_supported ? '已有ETF引擎，仍须独立门禁' : '仅观察'}));
+  rows(document.getElementById('market-assets'),
+    [['instrument_id','代码'],['name','名称'],['kind','类别'],['price','价格'],['currency','币种'],
+     ['freshness','时效'],['eligibility','购买条件'],['reasons','原因'],['execution','模拟执行']],data);
+}
+async function refresh() {
+  const s = await j("/api/status");
+  if (s.error) { document.getElementById("status").innerHTML = `<tr><td>${s.error}</td></tr>`; return; }
+  document.getElementById("mode").textContent = s.mode + (s.live_available ? "" : " · live 不可用");
+  document.getElementById("mode").className = "badge " + (s.mode === "paper" ? "ok" : "warn");
+  const st = document.getElementById("stub");
+  st.textContent = s.is_stub_chain ? "STUB（无真实模型）" : `真实 provider: ${s.llm_provider}/${s.jev_provider}`;
+  st.className = "badge " + (s.is_stub_chain ? "warn" : "ok");
+  const k = document.getElementById("kill");
+  k.textContent = s.kill_switch.engaged ? "KILL SWITCH" : "运行中";
+  k.className = "badge " + (s.kill_switch.engaged ? "bad" : "ok");
+  document.getElementById("banner").style.display = s.kill_switch.engaged ? "block" : "none";
+  const ih = s.intraday_health || {};
+  rows(document.getElementById("status"),
+    [["llm_model", "LLM"], ["jev_provider", "JEV"], ["llm_capability_verified", "LLM能力已验证"],
+     ["universe_version", "标的池版本"], ["account_id", "账户"], ["health_status", "盘中策略状态"], ["auto_message", "自动监控"]],
+    [{...s,
+      health_status: ih.health_status || s.automatic?.health_status || "未评估",
+      auto_message: s.automatic?.active ? s.automatic.message : (ih.status_message_zh || "自动模式未运行")}]);
+  const a = await j("/api/account");
+  rows(document.getElementById("account"),
+    [["version", "版本"], ["cash", "现金"], ["reserved_cash", "预留"], ["market_value", "持仓市值"], ["equity", "净资产"]],
+    [a]);
+  const o = await j("/api/orders");
+  rows(document.getElementById("orders"),
+    [["order_id", "订单"], ["instr_zh", "标的"], ["side", "方向"], ["quantity", "数量"],
+     ["limit_price", "限价"], ["status", "状态"], ["filled_quantity", "已成交"]],
+    o.slice(0, 8).map(x => ({...x, instr_zh: instrZh(x.instrument_id),
+                             instr_zh_title: INSTRUMENT_NAMES[x.instrument_id] ? x.instrument_id : ""})));
+  const d = await j("/api/decisions");
+  rows(document.getElementById("decisions"),
+    [["decision_id", "决策"], ["instr_zh", "标的"], ["action", "动作"], ["target_weight", "目标权重"],
+     ["is_stub", "stub"], ["created_at", "时间"]],
+    d.slice(0, 8).map(x => ({...x, instr_zh: instrZh(x.instrument_id),
+                             instr_zh_title: INSTRUMENT_NAMES[x.instrument_id] ? x.instrument_id : ""})));
+}
+async function decide() {
+  const inst = document.getElementById("instrument").value || "600036.SH";
+  await j(`/api/control/decide/${inst}`, { method: "POST", headers: { "X-API-Token": token() } });
+  refresh();
+}
+async function poll() {
+  await j("/api/control/poll_fills", { method: "POST", headers: { "X-API-Token": token() } });
+  refresh();
+}
+async function kill(on) {
+  const reason = on ? "manual from web" : "";
+  await j(`/api/control/kill_switch?engaged=${on}&reason=${encodeURIComponent(reason)}`,
+    { method: "POST", headers: { "X-API-Token": token() } });
+  refresh();
+}
+function token() { return document.getElementById("token").value; }
+loadInstrumentNames().then(refresh);
+refresh(); setInterval(refresh, 5000);
+refreshMarket(); setInterval(refreshMarket, 10000);
+</script>
+</body>
+</html>

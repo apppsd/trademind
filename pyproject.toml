@@ -1,0 +1,37 @@
+[project]
+name = "trademind"
+version = "0.1.0"
+description = "AI-native dual-brain trading system: LLM research/decisions + JEV fast judgment + deterministic execution, risk and evaluation."
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+dependencies = [
+    "pydantic>=2.7",
+    "requests>=2.32",
+    "python-dotenv>=1.2,<2",
+]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
+data = ["akshare>=1.14", "baostock>=0.9", "tushare>=1.4"]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.setuptools.package-data]
+trademind = ["storage/schema.sql", "api/static/*.html"]
+
+[tool.setuptools.data-files]
+"share/trademind/fixtures" = ["data/fixtures/calendar_xshg.csv"]
+"share/trademind/fixtures/daily" = ["data/fixtures/daily/*.csv"]
+"share/trademind/fixtures/news" = ["data/fixtures/news/*.json"]
+"share/trademind/fixtures/fundamentals" = ["data/fixtures/fundamentals/*.json"]
