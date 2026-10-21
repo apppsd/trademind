@@ -1,0 +1,717 @@
+{
+  "schema_version": 1,
+  "purpose": "Task17-01 review baseline; hashes are change hints, not acceptance evidence",
+  "captured_at_utc": "2026-10-16T16:04:31.838009+00:00",
+  "automation_id": "trademind",
+  "task_baseline": {
+    "TASK-20261016-02": {
+      "path": "docs/tasks/TASK-20261016-02-协调自动会话与模型探针额度.md",
+      "status": "pending",
+      "owner": "",
+      "sha256": "7c3f2a10919936707d34b29dd08ad0eb02e7def9ebd099d160505773646c5a56"
+    },
+    "TASK-20261016-04": {
+      "path": "docs/tasks/TASK-20261016-04-评估买入触发窗口与模型调度覆盖.md",
+      "status": "pending",
+      "owner": "",
+      "sha256": "0e0a83533a56a1c7a546efe53ef02f9ffd85c1fb0b41f984fa5ba4cbff82e64b"
+    },
+    "TASK-20261016-06": {
+      "path": "docs/tasks/TASK-20261016-06-修复T0持仓跨日可卖数量重复增加.md",
+      "status": "in_progress",
+      "owner": "Claude Code",
+      "sha256": "f96e1cce1a2c744258882c8f4f9e143b7179630217dec95e685e8535986baf77"
+    },
+    "TASK-20261016-07": {
+      "path": "docs/tasks/TASK-20261016-07-修复模拟撮合对不合格分钟行情的使用.md",
+      "status": "in_progress",
+      "owner": "Claude Code",
+      "sha256": "e0d4e8b1b2cd29cd0cab8f1479fff2e49c7cc42c156abf56d410f193e69e6dfa"
+    },
+    "TASK-20261016-08": {
+      "path": "docs/tasks/TASK-20261016-08-修复快速链买入数量的费用预留.md",
+      "status": "in_progress",
+      "owner": "Claude Code",
+      "sha256": "a614063bc4761646c3e1c772a670d4b51e85f0714f804a4298aaf9e9246e108e"
+    },
+    "TASK-20261016-09": {
+      "path": "docs/tasks/TASK-20261016-09-补齐日内挂单失效撤销与恢复策略.md",
+      "status": "in_progress",
+      "owner": "Claude Code",
+      "sha256": "44346106275968e7b1b1f9be6dd367890a5631a2e067e6d2d5d4cce85fa48910"
+    },
+    "TASK-20261016-10": {
+      "path": "docs/tasks/TASK-20261016-10-校正当前入口文档与实际代码状态.md",
+      "status": "in_progress",
+      "owner": "Claude Code",
+      "sha256": "8d5c2772e6834999ce1fff2d751d7f541569f6fbf1bae4999850d0d71d6c9ec5"
+    },
+    "TASK-20261013-06": {
+      "path": "docs/tasks/TASK-20261013-06-修复后真实盘中验收.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "9e7ca24233877d61ff6b97151b6d013893f70c36b44ea95df11851dd3766854c"
+    },
+    "TASK-20261012-06": {
+      "path": "docs/tasks/TASK-20261012-06-分析今日零成交根因.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "e30043ba6c80241592624f7a807d0c5e42f13703af285efc962a10cd7c812ebd"
+    },
+    "TASK-20261017-08": {
+      "path": "docs/tasks/TASK-20261017-08-补齐OMS生命周期账户隔离.md",
+      "status": "pending",
+      "owner": "",
+      "sha256": "eb5700d63ff8000c075afc71182a8fdb0063bea667efde89c76712bc1dda8c23"
+    },
+    "TASK-20261017-09": {
+      "path": "docs/tasks/TASK-20261017-09-统一成交费用与账本费用证据.md",
+      "status": "pending",
+      "owner": "",
+      "sha256": "336d465eeabc44359cbe4cbf23353eb5327af2a6cbd3062b5d86dc434568379f"
+    },
+    "TASK-20261017-13": {
+      "path": "docs/tasks/TASK-20261017-13-限制分钟行情超时后台请求并发.md",
+      "status": "pending",
+      "owner": "",
+      "sha256": "58ca2e0638997a3a5dcbd06259fe74907b7f6bf269965ef43dc71271b540fb75"
+    },
+    "TASK-20261018-03": {
+      "path": "docs/tasks/TASK-20261018-03-修复记忆查询的跨时区时点过滤.md",
+      "status": "pending",
+      "owner": "",
+      "sha256": "0b92c01c5cf8042203b94415fcee1b50077b5c539402d47f6e1b14c9810b3ce1"
+    },
+    "TASK-20261018-05": {
+      "path": "docs/tasks/TASK-20261018-05-补齐反思成熟门禁与经验生成时点.md",
+      "status": "pending",
+      "owner": "",
+      "sha256": "bbf9482d62f4d30915d07a07937a4474fce7d86caa091ea4b447d1e88c584046"
+    },
+    "TASK-20261019-02": {
+      "path": "docs/tasks/TASK-20261019-02-校正结果标签成熟时点与终点取值.md",
+      "status": "pending",
+      "owner": "",
+      "sha256": "c2663e5978d2f21e7580b1fd510288ab1bcb8d2cd4aa030e1520b28bc2cd5e33"
+    },
+    "TASK-20261019-04": {
+      "path": "docs/tasks/TASK-20261019-04-保留日线历史时点可见修订.md",
+      "status": "pending",
+      "owner": "",
+      "sha256": "4b80606623ea105e9c8dd72cf31e63256fb1702331b38cb873599b0d006e862e"
+    },
+    "TASK-20261019-07": {
+      "path": "docs/tasks/TASK-20261019-07-建立执行端任务监听与认领闭环.md",
+      "status": "pending",
+      "owner": "",
+      "sha256": "a0fd01ac777950af4c94062bf969386db60fb300ea7d8bafce8ceb80c469c624"
+    },
+    "TASK-20261019-08": {
+      "path": "docs/tasks/TASK-20261019-08-复验候选成熟门禁与执行端登记.md",
+      "status": "completed",
+      "owner": "Codex",
+      "sha256": "65348d4bff626e5b755af923e559adc1245857635c759dfef81812de318831a2"
+    },
+    "TASK-20261019-09": {
+      "path": "docs/tasks/TASK-20261019-09-审查标签终点日线修订可见性.md",
+      "status": "completed",
+      "owner": "Codex",
+      "sha256": "cbf859eee6aa13dd382f3cb7f4f5319022e7fd6583575315a93a203cfa2fa825"
+    },
+    "TASK-20261019-10": {
+      "path": "docs/tasks/TASK-20261019-10-补齐结果成熟查询的日线可见时点.md",
+      "status": "pending",
+      "owner": "",
+      "sha256": "e87dfaf50fe4b3cccba1f31d9a872d501b05ec64ba76c4899e63b88689aaec70"
+    },
+    "TASK-20261019-11": {
+      "path": "docs/tasks/TASK-20261019-11-复验收盘候选与成熟修订修复.md",
+      "status": "completed",
+      "owner": "Codex",
+      "sha256": "db0ed624deaf087f73f640bd5ba8ae627905c1961f69ec79e863df9f4f384253"
+    }
+  },
+  "file_sha256": {
+    "pyproject.toml": "d2e44799c959fde8b97ba16e68619676d25d58d9efe232c50f642fa4d51204aa",
+    "requirements.txt": "0a511d0c10fec458377e7aa16ab8a4790d4b460922d868bb019ac6b4e8683032",
+    "src/trademind/__init__.py": "b43a056d9c62af5875e2ffac384cd8be8b5be66e969513e34c131e93eccae08d",
+    "src/trademind/agents/__init__.py": "70421eb27ca89ffff736a501a14d048e7ff4cb3a56bd3611d35826b9b59f9473",
+    "src/trademind/agents/fast_decider.py": "24ae0234301f9c417f44590422dde3ab71f55f294ecdf09819fca7ac5c7db86b",
+    "src/trademind/agents/fast_pipeline.py": "e30e88f7ac128c5b90c4287161ebdbe5153a96b8d9ad5892d8f9f2beb4f8ac90",
+    "src/trademind/agents/fast_prompts.py": "47916f8046f33dff2fc3c3837eecfc20d39f871c0c327fb3d141b7939722f3e3",
+    "src/trademind/agents/pipeline.py": "2f89f7d70d7245732db9163af266eb419e2e57c4d77e21d978b80a8d01c4e8f0",
+    "src/trademind/agents/prompts.py": "02a4d6bb8b18d81c7dbb54c94bef5042894d48bdf465e59f85282643aa277bb2",
+    "src/trademind/agents/research.py": "1dfba18a07924a620c9ae8c722d2816ed02710931cf920a837dd1cdcb600661f",
+    "src/trademind/agents/risk.py": "ba34f2574bfd1c23d708d2d7779a36bba6fbdcbe620695e174815cde42a42eb9",
+    "src/trademind/agents/strategy_planner.py": "696cf476109d858cdc81a20314c5ebcd64916c24ecb28a6603d3161b3e001a5e",
+    "src/trademind/agents/trader.py": "12bb65f79cd3850d50d6d052e3197e9aeea5b5cc873f425e38b35cbca4ab0752",
+    "src/trademind/api/__init__.py": "333a7dd0f961cb1351b940d2a9e80ba8eba34f55aebd3bf019c0e6319e1e0fa5",
+    "src/trademind/api/app.py": "e2d135de58d88fb13a44962fe0764ef50ee409ba1a1d75dd8d4f08c984481b53",
+    "src/trademind/config.py": "e647eed38d87041b44640167bfd6917be5be5827ebbf85b51750b4c67b0a1ceb",
+    "src/trademind/context/__init__.py": "e4ed48df02d7c7955580ece985fc29c29d88a91a3e28bdbafdf9fcbce87598c0",
+    "src/trademind/context/builder.py": "5aa83723a9a3a69d9c069d085cb26215aff3084ae4c2aa6de253f186a75fa1cd",
+    "src/trademind/context/fast_state.py": "66e5d82666a87f427794878c45608ccd086e59141e943756a7504f3829748b06",
+    "src/trademind/context/features.py": "04152b6900156f388b10c4ee808b87628dda4765b772d7f17f5bc618096c2e16",
+    "src/trademind/domain/__init__.py": "ae2f4ea7b731f185f29b7c18a7f693c30a653048f7b9487b7e697f3e343c8d04",
+    "src/trademind/domain/base.py": "f8fcf852bc82522f831228885978e82b42d6e4436b5da257450204f65058cfc7",
+    "src/trademind/domain/context.py": "ae84dadfbcabac23fe0d9eedbe68d8f3c4d94a984db7d5e10db110c971938826",
+    "src/trademind/domain/enums.py": "f620bac758b04a6730a8cc437d6c3b46fbd8fa62c7a618f3335acc0a929412ce",
+    "src/trademind/domain/evidence.py": "06499413e047b3f4798dc3901ac61d0f30613032bca2033d469a38a00f3121cd",
+    "src/trademind/domain/instruments.py": "e653a6a0b4ceb92966e3fb44d50d86757d8bc73514b45e9ed720fb3a07d7e7cc",
+    "src/trademind/domain/intents.py": "0b13b5aa0a14c83e97b1cbdaac7427026cf7a22bf2651f93412eb68dafc125c8",
+    "src/trademind/domain/judgments.py": "9b79742c00a788201240a6a84b784c620c8f4d77aecee333001edfb23daa9a99",
+    "src/trademind/domain/memory.py": "5d56ee0f7d31e9c28fecf3c3220e92d9f7ab39bdbb1f78d56c72c485e2f73ad5",
+    "src/trademind/domain/modelcall.py": "a63e95b34c222c6e09cb1f2ace02238126fb752d16394263942439a8fc348a10",
+    "src/trademind/domain/orders.py": "a0bbbeed9439742e08864b46fa81ead08bb4fd036f50a11c851928227562df5f",
+    "src/trademind/domain/outcome.py": "99eb1e1ab3d08ed3bd6dc97d23a606bcbc99bf73acc600d791f613bfce775984",
+    "src/trademind/domain/research.py": "d1540e0f9ae1ff18223a1703a0926722135b47be6f3e96031af19fe013ae8a72",
+    "src/trademind/domain/strategy.py": "179681f70ca0a47c375c12386138d625482ed3ff4c1fd8cf33ad02343d436591",
+    "src/trademind/errors.py": "d8256cc8ae9ea17f8493ca359e70ef5b4635ce3c56bb57edd2fbf9877b6e43f7",
+    "src/trademind/evaluation/__init__.py": "7ff3bcee26bdb4304f38ba7330c275cebbf8499b0a7aa92ed211f56fcf059d57",
+    "src/trademind/evaluation/calibration.py": "efe70334ab9ef5421ec92eee561a217bfec47e02e4482553320c00c3d25ebbf1",
+    "src/trademind/evaluation/fast_archives.py": "2b0449b9eff03e525110ee22efb4489f43a31da290306f888c8b955cde54794d",
+    "src/trademind/evaluation/fast_comparison.py": "106a56dc61526e705bf9b9fc7d12ef61685e388a19240118d0fd3b2ecd9a3fbf",
+    "src/trademind/evaluation/prompt_eval.py": "2383dee69e96d7153f4fd1c8a236d98da5d28bad55f4fd3904ebf13b543535db",
+    "src/trademind/evaluation/prompt_experiment.py": "fac06fac24b34770fe28316ec5fb93904c502640bb2678d2ed48a0bc84178b17",
+    "src/trademind/evaluation/prompt_paper.py": "92efc6efde605ce447d88e342a34c32099c411a6447b50b887d9d67996b670f9",
+    "src/trademind/evaluation/replay.py": "d1551a08721d821354bccc17e06256034268fd27411edbaa53bdc16f24113dfa",
+    "src/trademind/execution/__init__.py": "4983ea5b994a892c14d7afb805ba5142fcbfe59fb7267981053c7e46e72ffff0",
+    "src/trademind/execution/auto_paper.py": "e0d706ea2e44876c8896fe3318b9055bb641149690ffd0892b37b89179d926db",
+    "src/trademind/execution/multi_asset_paper.py": "aabdda87aba3c70dd1eed8b844f6010d0dcf40d7d13c3e82b5dbbfa24d4ce576",
+    "src/trademind/execution/oms.py": "201550f3e5be028646551fb35c76fd46869f0a95d9475795f5bbaa42dfad8949",
+    "src/trademind/execution/paper.py": "99e3781912a8a61c4be9507a4176791e06364a599ccb2cde7eb713b183daa114",
+    "src/trademind/execution/paper_run.py": "92662cc31a711d2c8a637c4310ab98e08d915d10ae0c95448b195d7d5712abbc",
+    "src/trademind/execution/writer_lock.py": "e8c75754f9dfda69d6fb8b7f7e93cd09398431e0cfe928140b41ae73ef6e3010",
+    "src/trademind/guard/__init__.py": "4f718f8084b94bbd009b91023dd4a569887d5336ffa03191093e44256c92e197",
+    "src/trademind/guard/guard.py": "fff5f77fa1ec6f8bec20a4918209c677d0c5a867f62b5e50b7b0c506f22f55c3",
+    "src/trademind/market/__init__.py": "a79531c6625d16cac22178bbdba3cfe345b8ee6907e2c6f673b575776b4a4938",
+    "src/trademind/market/access.py": "5fb04f649c16992611432bee5765b8a31aa2994f07e1e0d3d0df9ed0ad169ea2",
+    "src/trademind/market/adapters/__init__.py": "9b37d584719d8935754b5733b40a90d49190c82a7354c11af45815addacda571",
+    "src/trademind/market/adapters/fixture.py": "4e75add1c825dd1813a29742865a97775541b4db880d376bcffdb79d3669547d",
+    "src/trademind/market/adapters/live.py": "0f5f33c8c530e0305e115a4e11935e0760b67d3409be45c4af414b326da7d1a8",
+    "src/trademind/market/adapters/sina_etf.py": "a41952d38aa43d99f2042dca91700a0cda23de0538e0b1e16343169d926dfaaa",
+    "src/trademind/market/base.py": "41162ccf451d6c3a67c861f3d9dcf40641052623a38b1e84586caa97be2489c2",
+    "src/trademind/market/calendar.py": "f0104bac88938913865bf6bdcf16cae6a16533d6c653bf8991f123047bbbf0b5",
+    "src/trademind/market/calendar_update.py": "7bc8e13e11c1fb65dbc5bc4ccfd4e52460740355944a1ef78233ff680b6a346b",
+    "src/trademind/market/multi_asset.py": "15f944f968d3c927183872c76e6c65d778295901d7cb6ff4f847376bd5e42574",
+    "src/trademind/market/profiles.py": "81cdd1acc3dff1a69fc85561de7946b7a7261e66c363a5a9eefe48452a2d65f8",
+    "src/trademind/market/quality.py": "a9826bb455d23927ae28196c8a2c6febb7d766a24c0f280e8b38888cbb7efe8e",
+    "src/trademind/market/router.py": "02186571e64608786ffed0bf00351bbad07bc2988397651d535e8bb92335637b",
+    "src/trademind/market/rules.py": "d606232d0c402b201756efe7912827d6b2c2a87cf74978cf1c397899bc65b479",
+    "src/trademind/market/selector.py": "f2182af04dc823b437fb8ad643bb0b1b3294121310b4a90dc269ff172a1715ab",
+    "src/trademind/memory/__init__.py": "b40c2b4463b5488573e9317e0a7a7bd8349c2fd43b258b767a917b61d4f8b60d",
+    "src/trademind/memory/memory.py": "81ef4ff8cbb9630187ef9498b842501f0538210d632e4b20a5a5a5bfe3105678",
+    "src/trademind/models/__init__.py": "1179dfdd22b659838368ae6f377551122baac66983c1d151693ef2b9fc835386",
+    "src/trademind/models/base.py": "d0570aef43c469cb8cb5d8cf7ed2e78d741289f58902a2a5de20d8da33859c52",
+    "src/trademind/models/daily_budget.py": "2a4b8adc7e8467245a7ad44da165aafea30e16de426242aef3d13f4466964739",
+    "src/trademind/models/deepseek.py": "888c69bf8bd1a7d9f5c8a34166fd1e4190986219023124b3304cc2a66ee5ae42",
+    "src/trademind/models/jev.py": "e41bc1a185d9193ed92dcb6b0634895a1018654a8ecfce44444ad43a8651732d",
+    "src/trademind/models/provider_factory.py": "1342df77bef9f3a29ed85a60b30cc2942f45641d65335fb94a71fcd4c657d9e1",
+    "src/trademind/models/stub.py": "e250b82d7a7d7b5831077f732a2c0f36b7894dfde0e4d68b27c83e964299393c",
+    "src/trademind/orchestrator/__init__.py": "c5a259c7038754261fc0c1c738041d3ff9a870ff41542e3815facad5a158b339",
+    "src/trademind/orchestrator/scheduler.py": "672d6ac27e9f3b3dd5a1e2947310a5fb45d7129dae2a09bec4e0c11bc9a88b82",
+    "src/trademind/pipeline.py": "6233c9d3aa34c7b7725f26bdf819d8c0a0dc3355f052e9f22b2a9402ce72f943",
+    "src/trademind/portfolio/__init__.py": "7d40f17f4ab3bba23e6bfe3a91def8c87660f2692fc4e3d7a257f71e4a9a88d5",
+    "src/trademind/portfolio/ledger.py": "80a5a2ae375cdf4682bd9c209de3848a3a9a414715534ab2b64e33677bd4d0c0",
+    "src/trademind/reports/__init__.py": "d65b03c243a01a292c18e2a527ffe199283630368d9e5320d38da88d7b0b3fd1",
+    "src/trademind/reports/daily.py": "72a4b527fdf1fb4bf83d2cfa1e4280aa1a6b4cfc558e4c40d10e118cbe47f785",
+    "src/trademind/reports/locale.py": "f33d578cdf620930415d34aa8e7e42ae49ccfbc78beb41bb5a41839fab645ffd",
+    "src/trademind/runner.py": "d6009c14953d9344edfd76f4d8a7c9b98adc9103823bff16b78a310b364c4162",
+    "src/trademind/storage/__init__.py": "029ebc3dd832cd56236d57654a1a9eca1be4802f4d336f9daae47d8e7fb72c43",
+    "src/trademind/storage/db.py": "56180b09fcbf739ea0eefcc84e4c8d98831c8e97f38b9e99f34eb2b99ffad77e",
+    "src/trademind/storage/schema.sql": "b0452df440f574dabdd1b1645ee6e32e69c374a0ee4a0799b665f29dcf6ce6a4",
+    "src/trademind/storage/sqlite_url.py": "4d73bf538dd58b79a66eedf6cb50f606238da8a472d3886f947754805790e24d",
+    "tests/audit_helpers.py": "955c92feb9f374ad4b5cf823b0c06cd38cacdf0613a9a81c122201e6afb7e4d0",
+    "tests/conftest.py": "f76b0531679c4c45b7a8efeb41b7b563e9c2054b135bdb2abb64bf0d1fdf24ed",
+    "tests/test_api.py": "fe8523bd7981c9f54efcad560c463591d45ae8009d5102be5c45bded60136d4c",
+    "tests/test_audit_regressions.py": "4d2075b7bfc814fe4ef00a86ba7aeae5bda5c47d7def06f072a57b0ce002b30b",
+    "tests/test_auto_launcher.py": "5b3c5f53f4d2c105f83832798dfc47ae7926ae9e1779d99929b9e829c0505236",
+    "tests/test_auto_paper.py": "2aedcfbe48c8400399195761a2c26b0672925aae70a4b2e3eef43b4999da7adc",
+    "tests/test_budget_rollover.py": "949ce42c5eabc132af08212b6e7ad0c258fbdd9e9c8caf8e373d16561090ceaa",
+    "tests/test_candidate_selector.py": "d05819d1e0b040a0ee17ccfcda7764729663874850f279701895d80644aaeb8e",
+    "tests/test_check_docs.py": "0c9266ca05dfc5fc87afd4afa457b105480018a24dab6e557e86e5240131d0e4",
+    "tests/test_container_run.py": "cd7262ac7244e03fa2dfe86116a233da0e8f49636394791568d2ac0672c110eb",
+    "tests/test_context.py": "a35ebbe3537c9dccfee9fb9a93deb835f5b8261b776db58e96b97ce8bc63a088",
+    "tests/test_contracts.py": "312dfe45612e092696d5e948aaf4c4867a578b6e37e28c9239017f80a0dabff7",
+    "tests/test_daily_report.py": "bdc39465160c1f379f917a141902bba7efe9032c9968762eb98305c820716ddc",
+    "tests/test_dotenv_config.py": "92a5b0d262a0910f32798eee0b56d3b20eff14c568f1dbf63a9099d9304874a3",
+    "tests/test_dual_model_pipeline.py": "a25cbb9fe191552a0ee527367d01437f7ac4e1016ae15637c0067cdcd4b6616b",
+    "tests/test_etf_minute_data.py": "8829a181a165c9f878f2290f058e6899e37de90845ead1e749b8eff575568914",
+    "tests/test_etf_whitelist.py": "17f3de010e985f376d24f1b89bb4b593a52f03b6d1b9bbc9d20eb1d3afd7d9c0",
+    "tests/test_evaluation.py": "e54738580ffeb06f209088c8e64ad846a450da450efd8e54ebe5aad9024b5f16",
+    "tests/test_fast_architecture_repairs.py": "277524d37b4f37cbb9c779caadc8a92e028d4479cd2245f6042fa8b85ad1492c",
+    "tests/test_fast_archives.py": "8a5c8dd1fc24a4737d0f55dbaba8f0725c56225dd1bf1b1163cc170e8237165c",
+    "tests/test_fast_comparison.py": "4389cff19c4936be09b08128c0aafc8221cca30b639aa5213a2aa133aaadbf84",
+    "tests/test_fast_decision.py": "b3da910daec82c36d8ca4dde9833babe195580b4eed4cc1bdca4a130d6c8e177",
+    "tests/test_fast_prompt_contract.py": "b92b70f1a0046808f5d96a81451f36ed22ed9f99453cb28913553a9b934c4813",
+    "tests/test_fast_startup.py": "323ae2499fe596bab746805bd8c506c026e960d097ac5da734970499761d7910",
+    "tests/test_free_minute_sources.py": "e74a9d152cf6592d865c29e47b37e2529b1ea62456747b5dcd7e5e69f77d7bf5",
+    "tests/test_guard_oms_pipeline.py": "68de41be5991dfe38efb68f3f7a52485f0f56191802b78baa84042a3698acf49",
+    "tests/test_jev_failure_costs.py": "6e4f602ebc90cb79f22236caf5faab15db2e9c732e91533e01961dc816a6fedd",
+    "tests/test_ledger.py": "25704888f5c8a1f498ca4cd77c376162ecabefe58a2494e2b73c62ffeb515297",
+    "tests/test_market.py": "cb42f920b24f395c5a1eb4fc7177867e1915a8f5d653f621e69afac73970c24a",
+    "tests/test_market_rules.py": "13c34307950d51dd134b707466e707de4d71f452a533a785348534f0c0b7a9c1",
+    "tests/test_minute_source_routing.py": "1d91d83c98bfaf35fe04aad3fe775fbec8336e4b43e780f5a89d7558a161cd27",
+    "tests/test_multi_asset.py": "a1608ca6d7e245c75be9028441a7b5214a6cfb619197cd1415b8e6aac98f5031",
+    "tests/test_multi_asset_execution.py": "5567c3676106071da635399c8104ca34122e62e28184693970e597eb56f008f1",
+    "tests/test_paper_run_report.py": "42b671e4134ac328a74044f70b0fc2a2d7beed051aa662a4f22c8503c2aadee4",
+    "tests/test_prompt_eval.py": "cbf25000ae3950f44e3f63d15fab2124081f8deb30a576e3dd9cf748c04915d2",
+    "tests/test_prompt_eval_cases.py": "968f2d0c53e27c309ff83195fd8e0b5effc9122f5705c7384af95ef718db575b",
+    "tests/test_prompt_experiment.py": "7d50b4e3a52985f15e3d37d4a90fa6019cd36a929d8f8e40c6a495e7ffc369db",
+    "tests/test_prompt_promotion.py": "bc203d9c01361c2cd30fb43c52b54a014c1edf5593ddd85ccd4e22c336596be1",
+    "tests/test_providers.py": "17e74328993c9721464a095a596778ac784a113b3c81b69889e2a1631dc34c58",
+    "tests/test_recovery.py": "fbd89dbd2b9f344785efc83a95ec0412ac086922d898ad8e2d1596aa97fb3a20",
+    "tests/test_sina_etf.py": "f2344a45ba4759bd925d9f5d235c56846196511342f8221e450f31b090379d10",
+    "tests/test_storage.py": "180ebcce53eecdf97095a5bafc73192c2b5d7ff9a6abb3485d077add1f708252",
+    "tests/test_strategy_failure_diagnostics.py": "df35d602065390be1e8fe620436869d36de7652e3374c6817cbe543b1839c2ac",
+    "tests/test_t0_contracts.py": "ce7f5a4861f1146d2d9b39948b149c5d2516e0641d1afd275f605a8032ae01c1",
+    "tests/test_t0_dual_model_config.py": "04e9dfd4df3d03a1532047cab3668a5110bf8a1ebb1d6dbdd56cf2ab712c2849",
+    "tests/test_t0_market_pool.py": "6fcf86ba395eab202e1cc90a03a31683bf40c4a20d2fba943912112e0a779588",
+    "tests/test_t0_minimal_runner.py": "9696f795911c797137d95c6dac9f5a8a25bf707924d493e2161340831bd7e92a",
+    "tests/test_t0_oms_execution.py": "77d57e83c6cca8f6312da646eca2681109892c135c2171e2aadcf8e43ae76c51",
+    "tests/test_t0_risk_guard.py": "8a24f6914009e90df2b303a80aca184f306234d7fa3b8f7cb41146b375095024",
+    "tests/test_t0_runtime_repairs.py": "6f443f5bf719b6bb4340f3cedec9392f14a231fc01f7d8e365ef14b183f00b9e",
+    "tests/test_typesafe_jev.py": "87251360b98fb24e409ff39058bc8fde2bda747bb1c2e8cf7b8ddee1211d15c4",
+    "tests/test_writer_lock.py": "5a0fee0c96ff334af329d509916cfae91750abba3433b6d6af2189435494f4b1",
+    "tests/test_memory_visibility.py": "c458b7759f86a87950a9ae8fdfb9cabf239b183f97fdf38aaed27ba3f69a698b",
+    "tests/test_reflection_boundaries.py": "1f47c8f39dd819effa2a67c90e0b553064f2c433f8b4a74e497b265f018bac3b",
+    "tests/test_outcome_maturity.py": "50528afec85b3d7786ca2d41e74ef2aa9d48da23462be22442215857408b66c6",
+    "tests/test_daily_revision_visibility.py": "47e097d262e5c102689fadfc42a9ca4bc1d5bb505eb4de40c66d4aa06183b79b"
+  },
+  "last_observed_at_utc": "2026-10-19T06:00:47.820112+00:00",
+  "last_observed_tasks": {
+    "TASK-20261016-02": {
+      "path": "docs/tasks/TASK-20261016-02-协调自动会话与模型探针额度.md",
+      "status": "in_progress",
+      "owner": "Claude Code",
+      "sha256": "d1102344d0d1fafefc3d880e7a0711a61326d2652489678db7ede284ad8e75bd"
+    },
+    "TASK-20261016-04": {
+      "path": "docs/tasks/TASK-20261016-04-评估买入触发窗口与模型调度覆盖.md",
+      "status": "in_progress",
+      "owner": "Claude Code",
+      "sha256": "a6456dcab27727a2c78640743f2e111f2c375fcafd86508495243233f7cbf9ab"
+    },
+    "TASK-20261016-06": {
+      "path": "docs/tasks/TASK-20261016-06-修复T0持仓跨日可卖数量重复增加.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "50a160f742895b74342484e8c19ae923e0205bb71d49f89399106270c325367d"
+    },
+    "TASK-20261016-07": {
+      "path": "docs/tasks/TASK-20261016-07-修复模拟撮合对不合格分钟行情的使用.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "f90a44f7a74fd5f36776102e9ecc8c237ad748f251002e6a3abffb27ca3b8065"
+    },
+    "TASK-20261016-08": {
+      "path": "docs/tasks/TASK-20261016-08-修复快速链买入数量的费用预留.md",
+      "status": "in_progress",
+      "owner": "Claude Code",
+      "sha256": "5264cad67cc173838b2db93d4b1533a2fd2cbb955758d976e0b2838a264c59fc"
+    },
+    "TASK-20261016-09": {
+      "path": "docs/tasks/TASK-20261016-09-补齐日内挂单失效撤销与恢复策略.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "8c4ee1c7f6f21e5c8532fc915ec991fc97f1a395f41e0ef2133534709e8275ee"
+    },
+    "TASK-20261016-10": {
+      "path": "docs/tasks/TASK-20261016-10-校正当前入口文档与实际代码状态.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "26ac1603364a126cd149ec0909f16573e0803fad7fbef4aa2cc42e29d8faa279"
+    },
+    "TASK-20261013-06": {
+      "path": "docs/tasks/TASK-20261013-06-修复后真实盘中验收.md",
+      "status": "in_progress",
+      "owner": "Claude Code",
+      "sha256": "0d357890167baef6a252086ef5f9cc0e08c5e9d1059419b7f1b0a6a7f5958696"
+    },
+    "TASK-20261012-06": {
+      "path": "docs/tasks/TASK-20261012-06-分析今日零成交根因.md",
+      "status": "in_progress",
+      "owner": "Claude Code",
+      "sha256": "ad0955846d2e5fa3d78f5ea688e7287d6362854c32e9382f6b7d2c97c7c499e0"
+    },
+    "TASK-20261017-08": {
+      "path": "docs/tasks/TASK-20261017-08-补齐OMS生命周期账户隔离.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "433187b92f063043301cdc4308881278300840a0cb4b26b4ec7bdd40877d0c82"
+    },
+    "TASK-20261017-09": {
+      "path": "docs/tasks/TASK-20261017-09-统一成交费用与账本费用证据.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "5637688ca73a78c70814c2de2089ca666121212751377e5a26ad3f30ba92cd07"
+    },
+    "TASK-20261017-13": {
+      "path": "docs/tasks/TASK-20261017-13-限制分钟行情超时后台请求并发.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "e3c3fbb06b64242c8f45d546d12bf9b69a7e36499495b377e44e995afc4cdc87"
+    },
+    "TASK-20261018-03": {
+      "path": "docs/tasks/TASK-20261018-03-修复记忆查询的跨时区时点过滤.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "778525ac33c136077695fa9fe6cf2c028930f340786e8b8fff1683aaba20e70c"
+    },
+    "TASK-20261018-05": {
+      "path": "docs/tasks/TASK-20261018-05-补齐反思成熟门禁与经验生成时点.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "fb1299c6dbe92a70155c121fb092920e4f236708b534f5a0fd3b067d0ef529e4"
+    },
+    "TASK-20261019-02": {
+      "path": "docs/tasks/TASK-20261019-02-校正结果标签成熟时点与终点取值.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "df9b5070327f91b48a36d859cacf106a226b74b2eff4ec68636546a014824b86"
+    },
+    "TASK-20261019-04": {
+      "path": "docs/tasks/TASK-20261019-04-保留日线历史时点可见修订.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "5a3d8a07710292b4abeccdd6b8a292ac3036dcde15f824a078579a4cc8fb13ce"
+    },
+    "TASK-20261019-07": {
+      "path": "docs/tasks/TASK-20261019-07-建立执行端任务监听与认领闭环.md",
+      "status": "in_progress",
+      "owner": "Claude Code",
+      "sha256": "2743fe3594babd1ca4ba2b9f0df46803458b6cd8391ab3b703addd13dff36e45"
+    },
+    "TASK-20261019-08": {
+      "path": "docs/tasks/TASK-20261019-08-复验候选成熟门禁与执行端登记.md",
+      "status": "completed",
+      "owner": "Codex",
+      "sha256": "aeec52fdc346503fe20a26e73e11749b024a01b95e7f970c118876b0641735ca"
+    },
+    "TASK-20261019-09": {
+      "path": "docs/tasks/TASK-20261019-09-审查标签终点日线修订可见性.md",
+      "status": "completed",
+      "owner": "Codex",
+      "sha256": "8042da6eedc531921ba5e5957a1cca953c47dd19ba3621437010ab734fdffde4"
+    },
+    "TASK-20261019-10": {
+      "path": "docs/tasks/TASK-20261019-10-补齐结果成熟查询的日线可见时点.md",
+      "status": "completed",
+      "owner": "Claude Code",
+      "sha256": "388fa6f6a345c9df0336d4e3f45b2e5a2815147eedbe49f8f42871e1ac64afaa"
+    },
+    "TASK-20261019-11": {
+      "path": "docs/tasks/TASK-20261019-11-复验收盘候选与成熟修订修复.md",
+      "status": "completed",
+      "owner": "Codex",
+      "sha256": "d842e21d49ef0d5ad62c43cb0ae7b3bf7a0f52f91dc251caa96c76cdaf10d123"
+    }
+  },
+  "last_document_check": {
+    "at_utc": "2026-10-19T15:00:40.923776+00:00",
+    "errors": 0,
+    "warnings": 36,
+    "whitespace": "passed"
+  },
+  "initial_file_sha256": {
+    "pyproject.toml": "d2e44799c959fde8b97ba16e68619676d25d58d9efe232c50f642fa4d51204aa",
+    "requirements.txt": "0a511d0c10fec458377e7aa16ab8a4790d4b460922d868bb019ac6b4e8683032",
+    "src/trademind/__init__.py": "b43a056d9c62af5875e2ffac384cd8be8b5be66e969513e34c131e93eccae08d",
+    "src/trademind/agents/__init__.py": "70421eb27ca89ffff736a501a14d048e7ff4cb3a56bd3611d35826b9b59f9473",
+    "src/trademind/agents/fast_decider.py": "24ae0234301f9c417f44590422dde3ab71f55f294ecdf09819fca7ac5c7db86b",
+    "src/trademind/agents/fast_pipeline.py": "2a616bd3de4ed69fc2fc5167dcdb69563119d72e28e770cb2031ae1604ff09e7",
+    "src/trademind/agents/fast_prompts.py": "47916f8046f33dff2fc3c3837eecfc20d39f871c0c327fb3d141b7939722f3e3",
+    "src/trademind/agents/pipeline.py": "2f89f7d70d7245732db9163af266eb419e2e57c4d77e21d978b80a8d01c4e8f0",
+    "src/trademind/agents/prompts.py": "02a4d6bb8b18d81c7dbb54c94bef5042894d48bdf465e59f85282643aa277bb2",
+    "src/trademind/agents/research.py": "1dfba18a07924a620c9ae8c722d2816ed02710931cf920a837dd1cdcb600661f",
+    "src/trademind/agents/risk.py": "ba34f2574bfd1c23d708d2d7779a36bba6fbdcbe620695e174815cde42a42eb9",
+    "src/trademind/agents/strategy_planner.py": "696cf476109d858cdc81a20314c5ebcd64916c24ecb28a6603d3161b3e001a5e",
+    "src/trademind/agents/trader.py": "12bb65f79cd3850d50d6d052e3197e9aeea5b5cc873f425e38b35cbca4ab0752",
+    "src/trademind/api/__init__.py": "333a7dd0f961cb1351b940d2a9e80ba8eba34f55aebd3bf019c0e6319e1e0fa5",
+    "src/trademind/api/app.py": "e2d135de58d88fb13a44962fe0764ef50ee409ba1a1d75dd8d4f08c984481b53",
+    "src/trademind/config.py": "e647eed38d87041b44640167bfd6917be5be5827ebbf85b51750b4c67b0a1ceb",
+    "src/trademind/context/__init__.py": "e4ed48df02d7c7955580ece985fc29c29d88a91a3e28bdbafdf9fcbce87598c0",
+    "src/trademind/context/builder.py": "7098b599edf7145e0cc50c817ddb09b2e699bfb11579c2a1946b28c07bc72906",
+    "src/trademind/context/fast_state.py": "66e5d82666a87f427794878c45608ccd086e59141e943756a7504f3829748b06",
+    "src/trademind/context/features.py": "04152b6900156f388b10c4ee808b87628dda4765b772d7f17f5bc618096c2e16",
+    "src/trademind/domain/__init__.py": "ae2f4ea7b731f185f29b7c18a7f693c30a653048f7b9487b7e697f3e343c8d04",
+    "src/trademind/domain/base.py": "f8fcf852bc82522f831228885978e82b42d6e4436b5da257450204f65058cfc7",
+    "src/trademind/domain/context.py": "ae84dadfbcabac23fe0d9eedbe68d8f3c4d94a984db7d5e10db110c971938826",
+    "src/trademind/domain/enums.py": "f620bac758b04a6730a8cc437d6c3b46fbd8fa62c7a618f3335acc0a929412ce",
+    "src/trademind/domain/evidence.py": "06499413e047b3f4798dc3901ac61d0f30613032bca2033d469a38a00f3121cd",
+    "src/trademind/domain/instruments.py": "e653a6a0b4ceb92966e3fb44d50d86757d8bc73514b45e9ed720fb3a07d7e7cc",
+    "src/trademind/domain/intents.py": "0b13b5aa0a14c83e97b1cbdaac7427026cf7a22bf2651f93412eb68dafc125c8",
+    "src/trademind/domain/judgments.py": "9b79742c00a788201240a6a84b784c620c8f4d77aecee333001edfb23daa9a99",
+    "src/trademind/domain/memory.py": "5d56ee0f7d31e9c28fecf3c3220e92d9f7ab39bdbb1f78d56c72c485e2f73ad5",
+    "src/trademind/domain/modelcall.py": "a63e95b34c222c6e09cb1f2ace02238126fb752d16394263942439a8fc348a10",
+    "src/trademind/domain/orders.py": "a0bbbeed9439742e08864b46fa81ead08bb4fd036f50a11c851928227562df5f",
+    "src/trademind/domain/outcome.py": "99eb1e1ab3d08ed3bd6dc97d23a606bcbc99bf73acc600d791f613bfce775984",
+    "src/trademind/domain/research.py": "d1540e0f9ae1ff18223a1703a0926722135b47be6f3e96031af19fe013ae8a72",
+    "src/trademind/domain/strategy.py": "179681f70ca0a47c375c12386138d625482ed3ff4c1fd8cf33ad02343d436591",
+    "src/trademind/errors.py": "d8256cc8ae9ea17f8493ca359e70ef5b4635ce3c56bb57edd2fbf9877b6e43f7",
+    "src/trademind/evaluation/__init__.py": "7ff3bcee26bdb4304f38ba7330c275cebbf8499b0a7aa92ed211f56fcf059d57",
+    "src/trademind/evaluation/calibration.py": "efe70334ab9ef5421ec92eee561a217bfec47e02e4482553320c00c3d25ebbf1",
+    "src/trademind/evaluation/fast_archives.py": "2b0449b9eff03e525110ee22efb4489f43a31da290306f888c8b955cde54794d",
+    "src/trademind/evaluation/fast_comparison.py": "106a56dc61526e705bf9b9fc7d12ef61685e388a19240118d0fd3b2ecd9a3fbf",
+    "src/trademind/evaluation/prompt_eval.py": "2383dee69e96d7153f4fd1c8a236d98da5d28bad55f4fd3904ebf13b543535db",
+    "src/trademind/evaluation/prompt_experiment.py": "fac06fac24b34770fe28316ec5fb93904c502640bb2678d2ed48a0bc84178b17",
+    "src/trademind/evaluation/prompt_paper.py": "92efc6efde605ce447d88e342a34c32099c411a6447b50b887d9d67996b670f9",
+    "src/trademind/evaluation/replay.py": "d1551a08721d821354bccc17e06256034268fd27411edbaa53bdc16f24113dfa",
+    "src/trademind/execution/__init__.py": "4983ea5b994a892c14d7afb805ba5142fcbfe59fb7267981053c7e46e72ffff0",
+    "src/trademind/execution/auto_paper.py": "4eb3ca823ee3c46c535d42316e82e3c36c42f524feaa4a92117d67975f7ca4dc",
+    "src/trademind/execution/multi_asset_paper.py": "aabdda87aba3c70dd1eed8b844f6010d0dcf40d7d13c3e82b5dbbfa24d4ce576",
+    "src/trademind/execution/oms.py": "0803c2e2f89c9e16b45ccbe211e1a441aae2d742611e22cb8edc8272029688cb",
+    "src/trademind/execution/paper.py": "1cd9de4c359981df5e82c5784446b6bc4f6bfd8ea8cde1d63465e6a0643623e2",
+    "src/trademind/execution/paper_run.py": "92662cc31a711d2c8a637c4310ab98e08d915d10ae0c95448b195d7d5712abbc",
+    "src/trademind/execution/writer_lock.py": "e8c75754f9dfda69d6fb8b7f7e93cd09398431e0cfe928140b41ae73ef6e3010",
+    "src/trademind/guard/__init__.py": "4f718f8084b94bbd009b91023dd4a569887d5336ffa03191093e44256c92e197",
+    "src/trademind/guard/guard.py": "291b5ab268fe7212fcd0130186717c32988086d03aa658932abd7542ae000e87",
+    "src/trademind/market/__init__.py": "a79531c6625d16cac22178bbdba3cfe345b8ee6907e2c6f673b575776b4a4938",
+    "src/trademind/market/access.py": "5fb04f649c16992611432bee5765b8a31aa2994f07e1e0d3d0df9ed0ad169ea2",
+    "src/trademind/market/adapters/__init__.py": "9b37d584719d8935754b5733b40a90d49190c82a7354c11af45815addacda571",
+    "src/trademind/market/adapters/fixture.py": "4e75add1c825dd1813a29742865a97775541b4db880d376bcffdb79d3669547d",
+    "src/trademind/market/adapters/live.py": "0f5f33c8c530e0305e115a4e11935e0760b67d3409be45c4af414b326da7d1a8",
+    "src/trademind/market/adapters/sina_etf.py": "a41952d38aa43d99f2042dca91700a0cda23de0538e0b1e16343169d926dfaaa",
+    "src/trademind/market/base.py": "41162ccf451d6c3a67c861f3d9dcf40641052623a38b1e84586caa97be2489c2",
+    "src/trademind/market/calendar.py": "f0104bac88938913865bf6bdcf16cae6a16533d6c653bf8991f123047bbbf0b5",
+    "src/trademind/market/calendar_update.py": "7bc8e13e11c1fb65dbc5bc4ccfd4e52460740355944a1ef78233ff680b6a346b",
+    "src/trademind/market/multi_asset.py": "15f944f968d3c927183872c76e6c65d778295901d7cb6ff4f847376bd5e42574",
+    "src/trademind/market/profiles.py": "81cdd1acc3dff1a69fc85561de7946b7a7261e66c363a5a9eefe48452a2d65f8",
+    "src/trademind/market/quality.py": "a9826bb455d23927ae28196c8a2c6febb7d766a24c0f280e8b38888cbb7efe8e",
+    "src/trademind/market/router.py": "08f8de0dac6fffadab3a9be237b1f52ce16bedc7702e60e2f641d73805ddae25",
+    "src/trademind/market/rules.py": "d606232d0c402b201756efe7912827d6b2c2a87cf74978cf1c397899bc65b479",
+    "src/trademind/market/selector.py": "f2182af04dc823b437fb8ad643bb0b1b3294121310b4a90dc269ff172a1715ab",
+    "src/trademind/memory/__init__.py": "b40c2b4463b5488573e9317e0a7a7bd8349c2fd43b258b767a917b61d4f8b60d",
+    "src/trademind/memory/memory.py": "602fc1fc2f5aa517620077642b727a34ba7ac1d8b903b9ee10e10cff9b4708fe",
+    "src/trademind/models/__init__.py": "1179dfdd22b659838368ae6f377551122baac66983c1d151693ef2b9fc835386",
+    "src/trademind/models/base.py": "d0570aef43c469cb8cb5d8cf7ed2e78d741289f58902a2a5de20d8da33859c52",
+    "src/trademind/models/daily_budget.py": "2a4b8adc7e8467245a7ad44da165aafea30e16de426242aef3d13f4466964739",
+    "src/trademind/models/deepseek.py": "888c69bf8bd1a7d9f5c8a34166fd1e4190986219023124b3304cc2a66ee5ae42",
+    "src/trademind/models/jev.py": "e41bc1a185d9193ed92dcb6b0634895a1018654a8ecfce44444ad43a8651732d",
+    "src/trademind/models/provider_factory.py": "1342df77bef9f3a29ed85a60b30cc2942f45641d65335fb94a71fcd4c657d9e1",
+    "src/trademind/models/stub.py": "e250b82d7a7d7b5831077f732a2c0f36b7894dfde0e4d68b27c83e964299393c",
+    "src/trademind/orchestrator/__init__.py": "c5a259c7038754261fc0c1c738041d3ff9a870ff41542e3815facad5a158b339",
+    "src/trademind/orchestrator/scheduler.py": "672d6ac27e9f3b3dd5a1e2947310a5fb45d7129dae2a09bec4e0c11bc9a88b82",
+    "src/trademind/pipeline.py": "bdbd29fc77e3845255739a43a4587061afc8fb270973e55892a7efd6f2378166",
+    "src/trademind/portfolio/__init__.py": "7d40f17f4ab3bba23e6bfe3a91def8c87660f2692fc4e3d7a257f71e4a9a88d5",
+    "src/trademind/portfolio/ledger.py": "f03e05b94750180f75e1f31a986a9bbbdca0e793027a3921ef93a48ae458b09b",
+    "src/trademind/reports/__init__.py": "d65b03c243a01a292c18e2a527ffe199283630368d9e5320d38da88d7b0b3fd1",
+    "src/trademind/reports/daily.py": "72a4b527fdf1fb4bf83d2cfa1e4280aa1a6b4cfc558e4c40d10e118cbe47f785",
+    "src/trademind/reports/locale.py": "f33d578cdf620930415d34aa8e7e42ae49ccfbc78beb41bb5a41839fab645ffd",
+    "src/trademind/runner.py": "0a85b38c313b1ee2df6a8897ca3debe98fa104fef251f4461f3eb9af66b4f86a",
+    "src/trademind/storage/__init__.py": "029ebc3dd832cd56236d57654a1a9eca1be4802f4d336f9daae47d8e7fb72c43",
+    "src/trademind/storage/db.py": "362766764bf6bbdb72074f52c5d56717ee0cfeb4b2d633eca2bf98dc656010ca",
+    "src/trademind/storage/schema.sql": "b0452df440f574dabdd1b1645ee6e32e69c374a0ee4a0799b665f29dcf6ce6a4",
+    "src/trademind/storage/sqlite_url.py": "4d73bf538dd58b79a66eedf6cb50f606238da8a472d3886f947754805790e24d",
+    "tests/audit_helpers.py": "955c92feb9f374ad4b5cf823b0c06cd38cacdf0613a9a81c122201e6afb7e4d0",
+    "tests/conftest.py": "f76b0531679c4c45b7a8efeb41b7b563e9c2054b135bdb2abb64bf0d1fdf24ed",
+    "tests/test_api.py": "fe8523bd7981c9f54efcad560c463591d45ae8009d5102be5c45bded60136d4c",
+    "tests/test_audit_regressions.py": "4d2075b7bfc814fe4ef00a86ba7aeae5bda5c47d7def06f072a57b0ce002b30b",
+    "tests/test_auto_launcher.py": "5b3c5f53f4d2c105f83832798dfc47ae7926ae9e1779d99929b9e829c0505236",
+    "tests/test_auto_paper.py": "2aedcfbe48c8400399195761a2c26b0672925aae70a4b2e3eef43b4999da7adc",
+    "tests/test_budget_rollover.py": "949ce42c5eabc132af08212b6e7ad0c258fbdd9e9c8caf8e373d16561090ceaa",
+    "tests/test_candidate_selector.py": "d05819d1e0b040a0ee17ccfcda7764729663874850f279701895d80644aaeb8e",
+    "tests/test_check_docs.py": "0c9266ca05dfc5fc87afd4afa457b105480018a24dab6e557e86e5240131d0e4",
+    "tests/test_container_run.py": "cd7262ac7244e03fa2dfe86116a233da0e8f49636394791568d2ac0672c110eb",
+    "tests/test_context.py": "a35ebbe3537c9dccfee9fb9a93deb835f5b8261b776db58e96b97ce8bc63a088",
+    "tests/test_contracts.py": "312dfe45612e092696d5e948aaf4c4867a578b6e37e28c9239017f80a0dabff7",
+    "tests/test_daily_report.py": "bdc39465160c1f379f917a141902bba7efe9032c9968762eb98305c820716ddc",
+    "tests/test_dotenv_config.py": "92a5b0d262a0910f32798eee0b56d3b20eff14c568f1dbf63a9099d9304874a3",
+    "tests/test_dual_model_pipeline.py": "a25cbb9fe191552a0ee527367d01437f7ac4e1016ae15637c0067cdcd4b6616b",
+    "tests/test_etf_minute_data.py": "8829a181a165c9f878f2290f058e6899e37de90845ead1e749b8eff575568914",
+    "tests/test_etf_whitelist.py": "17f3de010e985f376d24f1b89bb4b593a52f03b6d1b9bbc9d20eb1d3afd7d9c0",
+    "tests/test_evaluation.py": "e54738580ffeb06f209088c8e64ad846a450da450efd8e54ebe5aad9024b5f16",
+    "tests/test_fast_architecture_repairs.py": "277524d37b4f37cbb9c779caadc8a92e028d4479cd2245f6042fa8b85ad1492c",
+    "tests/test_fast_archives.py": "8a5c8dd1fc24a4737d0f55dbaba8f0725c56225dd1bf1b1163cc170e8237165c",
+    "tests/test_fast_comparison.py": "4389cff19c4936be09b08128c0aafc8221cca30b639aa5213a2aa133aaadbf84",
+    "tests/test_fast_decision.py": "0f98f9067e5779c164de15eaa1847f4409ba0e68fb5da6ba305377154ead40a2",
+    "tests/test_fast_prompt_contract.py": "b92b70f1a0046808f5d96a81451f36ed22ed9f99453cb28913553a9b934c4813",
+    "tests/test_fast_startup.py": "323ae2499fe596bab746805bd8c506c026e960d097ac5da734970499761d7910",
+    "tests/test_free_minute_sources.py": "e74a9d152cf6592d865c29e47b37e2529b1ea62456747b5dcd7e5e69f77d7bf5",
+    "tests/test_guard_oms_pipeline.py": "68de41be5991dfe38efb68f3f7a52485f0f56191802b78baa84042a3698acf49",
+    "tests/test_jev_failure_costs.py": "6e4f602ebc90cb79f22236caf5faab15db2e9c732e91533e01961dc816a6fedd",
+    "tests/test_ledger.py": "8a117c98a5e2ef38eee2f7bd580f544bc3566453c6ca7c4202d4464ac701580f",
+    "tests/test_market.py": "cb42f920b24f395c5a1eb4fc7177867e1915a8f5d653f621e69afac73970c24a",
+    "tests/test_market_rules.py": "13c34307950d51dd134b707466e707de4d71f452a533a785348534f0c0b7a9c1",
+    "tests/test_minute_source_routing.py": "af8b7368bbd632432ecf94c50a34ea7a0b7b799186e703f896ee037416ba6b3c",
+    "tests/test_multi_asset.py": "a1608ca6d7e245c75be9028441a7b5214a6cfb619197cd1415b8e6aac98f5031",
+    "tests/test_multi_asset_execution.py": "5567c3676106071da635399c8104ca34122e62e28184693970e597eb56f008f1",
+    "tests/test_paper_run_report.py": "42b671e4134ac328a74044f70b0fc2a2d7beed051aa662a4f22c8503c2aadee4",
+    "tests/test_prompt_eval.py": "cbf25000ae3950f44e3f63d15fab2124081f8deb30a576e3dd9cf748c04915d2",
+    "tests/test_prompt_eval_cases.py": "968f2d0c53e27c309ff83195fd8e0b5effc9122f5705c7384af95ef718db575b",
+    "tests/test_prompt_experiment.py": "7d50b4e3a52985f15e3d37d4a90fa6019cd36a929d8f8e40c6a495e7ffc369db",
+    "tests/test_prompt_promotion.py": "bc203d9c01361c2cd30fb43c52b54a014c1edf5593ddd85ccd4e22c336596be1",
+    "tests/test_providers.py": "17e74328993c9721464a095a596778ac784a113b3c81b69889e2a1631dc34c58",
+    "tests/test_recovery.py": "fbd89dbd2b9f344785efc83a95ec0412ac086922d898ad8e2d1596aa97fb3a20",
+    "tests/test_sina_etf.py": "f2344a45ba4759bd925d9f5d235c56846196511342f8221e450f31b090379d10",
+    "tests/test_storage.py": "180ebcce53eecdf97095a5bafc73192c2b5d7ff9a6abb3485d077add1f708252",
+    "tests/test_strategy_failure_diagnostics.py": "df35d602065390be1e8fe620436869d36de7652e3374c6817cbe543b1839c2ac",
+    "tests/test_t0_contracts.py": "ce7f5a4861f1146d2d9b39948b149c5d2516e0641d1afd275f605a8032ae01c1",
+    "tests/test_t0_dual_model_config.py": "04e9dfd4df3d03a1532047cab3668a5110bf8a1ebb1d6dbdd56cf2ab712c2849",
+    "tests/test_t0_market_pool.py": "6fcf86ba395eab202e1cc90a03a31683bf40c4a20d2fba943912112e0a779588",
+    "tests/test_t0_minimal_runner.py": "9696f795911c797137d95c6dac9f5a8a25bf707924d493e2161340831bd7e92a",
+    "tests/test_t0_oms_execution.py": "4a4609745275a232126fed4eb10e7f4f3491fd4d0e5a97ef8cddb0bb9725d280",
+    "tests/test_t0_risk_guard.py": "8a24f6914009e90df2b303a80aca184f306234d7fa3b8f7cb41146b375095024",
+    "tests/test_t0_runtime_repairs.py": "cbabdd7248ab072e9068b41cc0db2b8ca48e55f7d06cf298619793d8aa3609af",
+    "tests/test_typesafe_jev.py": "87251360b98fb24e409ff39058bc8fde2bda747bb1c2e8cf7b8ddee1211d15c4",
+    "tests/test_writer_lock.py": "5a0fee0c96ff334af329d509916cfae91750abba3433b6d6af2189435494f4b1"
+  },
+  "last_observed_task_sha256": {
+    "TASK-20261016-02": "d1102344d0d1fafefc3d880e7a0711a61326d2652489678db7ede284ad8e75bd",
+    "TASK-20261016-04": "a6456dcab27727a2c78640743f2e111f2c375fcafd86508495243233f7cbf9ab",
+    "TASK-20261016-06": "50a160f742895b74342484e8c19ae923e0205bb71d49f89399106270c325367d",
+    "TASK-20261016-07": "f90a44f7a74fd5f36776102e9ecc8c237ad748f251002e6a3abffb27ca3b8065",
+    "TASK-20261016-08": "5264cad67cc173838b2db93d4b1533a2fd2cbb955758d976e0b2838a264c59fc",
+    "TASK-20261016-09": "8c4ee1c7f6f21e5c8532fc915ec991fc97f1a395f41e0ef2133534709e8275ee",
+    "TASK-20261016-10": "26ac1603364a126cd149ec0909f16573e0803fad7fbef4aa2cc42e29d8faa279",
+    "TASK-20261013-06": "0d357890167baef6a252086ef5f9cc0e08c5e9d1059419b7f1b0a6a7f5958696",
+    "TASK-20261012-06": "ad0955846d2e5fa3d78f5ea688e7287d6362854c32e9382f6b7d2c97c7c499e0",
+    "TASK-20261017-08": "433187b92f063043301cdc4308881278300840a0cb4b26b4ec7bdd40877d0c82",
+    "TASK-20261017-09": "5637688ca73a78c70814c2de2089ca666121212751377e5a26ad3f30ba92cd07",
+    "TASK-20261017-13": "e3c3fbb06b64242c8f45d546d12bf9b69a7e36499495b377e44e995afc4cdc87",
+    "TASK-20261018-03": "778525ac33c136077695fa9fe6cf2c028930f340786e8b8fff1683aaba20e70c",
+    "TASK-20261018-05": "fb1299c6dbe92a70155c121fb092920e4f236708b534f5a0fd3b067d0ef529e4",
+    "TASK-20261019-02": "df9b5070327f91b48a36d859cacf106a226b74b2eff4ec68636546a014824b86",
+    "TASK-20261019-04": "5a3d8a07710292b4abeccdd6b8a292ac3036dcde15f824a078579a4cc8fb13ce",
+    "TASK-20261019-07": "2743fe3594babd1ca4ba2b9f0df46803458b6cd8391ab3b703addd13dff36e45",
+    "TASK-20261019-08": "aeec52fdc346503fe20a26e73e11749b024a01b95e7f970c118876b0641735ca",
+    "TASK-20261019-09": "8042da6eedc531921ba5e5957a1cca953c47dd19ba3621437010ab734fdffde4",
+    "TASK-20261019-10": "388fa6f6a345c9df0336d4e3f45b2e5a2815147eedbe49f8f42871e1ac64afaa",
+    "TASK-20261019-11": "d842e21d49ef0d5ad62c43cb0ae7b3bf7a0f52f91dc251caa96c76cdaf10d123"
+  },
+  "last_review": {
+    "at_utc": "2026-10-19T15:00:29.086088+00:00",
+    "task": "TASK-20261019-11",
+    "result": "TASK19-02 and19-10 independently accepted engineering; Issue19-01/02 resolved;19-07 new self-reported trigger records, external scheduler unverified",
+    "tests_passed": 25,
+    "pending_review_task_ids": [],
+    "versions": {
+      "src/trademind/memory/memory.py": "81ef4ff8cbb9630187ef9498b842501f0538210d632e4b20a5a5a5bfe3105678",
+      "tests/test_outcome_maturity.py": "50528afec85b3d7786ca2d41e74ef2aa9d48da23462be22442215857408b66c6"
+    }
+  },
+  "pending_review_task_ids": [],
+  "proactive_review": {
+    "policy_updated_at_utc": "2026-10-17T02:47:39.666921+00:00",
+    "reason": "User explicitly requires active exploration even without task changes",
+    "last_theme": "Selected mode and fast-profile configuration rejection boundaries",
+    "last_task": "TASK-20261017-01",
+    "completed_themes": [
+      {
+        "theme": "OMS lifecycle account ownership",
+        "evidence": "ISSUE-20261017-01",
+        "implementation_task": "TASK-20261017-08"
+      },
+      {
+        "theme": "Persisted and returned fill fee versus ledger fee",
+        "evidence": "ISSUE-20261017-02",
+        "implementation_task": "TASK-20261017-09"
+      },
+      {
+        "theme": "Reachability of deterministic position exits under startup probe blockers",
+        "evidence": "TASK-20261017-10; ISSUE-20261016-01 supplemental counterexample",
+        "implementation_task": "TASK-20261016-02"
+      },
+      {
+        "theme": "Budget cross-day settlement, pending persistence and close gate",
+        "evidence": "TASK-20261017-11 synthetic controls passed; no new issue"
+      },
+      {
+        "theme": "Router timed-out worker capacity and recovery overlap",
+        "evidence": "ISSUE-20261017-03",
+        "implementation_task": "TASK-20261017-13"
+      },
+      {
+        "theme": "Daily report historical midnight boundaries and multi-account cost attribution",
+        "evidence": "Protocol checkpoint: temporary two-account midnight controls passed; 7 selected daily report tests passed",
+        "result": "No new defect demonstrated; no Issue or implementation task added"
+      },
+      {
+        "theme": "Confirmed calendar update and T+1 recovery consistency",
+        "evidence": "Temporary T+1 ledger, patched synthetic calendar coverage and reload/rebuild controls passed; 10 calendar/rollover tests passed",
+        "result": "No new defect demonstrated; original 13-15/16-06 behavior retained"
+      },
+      {
+        "theme": "Backup committed snapshot and restored-copy financial verification",
+        "evidence": "Temporary concurrent uncommitted writer + SQLite online backup, tampered-copy verification and overwrite rejection controls passed; test_storage22 passed",
+        "result": "No new demonstrated defect; no Issue/task added"
+      },
+      {
+        "theme": "External model response validation and action confidence boundaries",
+        "evidence": "11 synthetic response/threshold controls passed; test_fast_decision and test_typesafe_jev40 passed; three source hashes stable",
+        "result": "No new demonstrated defect; no Issue or implementation task added"
+      },
+      {
+        "theme": "API authentication and writer lease initialization boundary",
+        "evidence": "9 auth/disabled controls, all-table no-mutation losing init and duplicate locked-decision controls passed; test_api7 passed; three source hashes stable",
+        "result": "No new demonstrated defect; no Issue/task added"
+      },
+      {
+        "theme": "Memory visibility across timezone offsets",
+        "evidence": "ISSUE-20261018-01; future inclusion/past omission/equivalent-instant mismatch reproduced; 51 existing tests passed",
+        "implementation_task": "TASK-20261018-03"
+      },
+      {
+        "theme": "Reflection eligibility and generation availability",
+        "evidence": "ISSUE-20261018-02; 3 isolated counterexamples + normal control; no business callers found",
+        "implementation_task": "TASK-20261018-05"
+      },
+      {
+        "theme": "Outcome maturity instant and endpoint bar selection",
+        "evidence": "ISSUE-20261019-01; three counterexamples and missing/empty controls through actual FixtureAdapter/Router",
+        "implementation_task": "TASK-20261019-02"
+      },
+      {
+        "theme": "Cash-flow neutral daily loss baseline",
+        "evidence": "Own/foreign cashflow, restart/repeated baseline and next-day controls passed; no orders/fills/model calls;3 source hashes stable",
+        "result": "No new defect demonstrated; no Issue or implementation task"
+      },
+      {
+        "theme": "Suspension and zero-volume resting-order fill constraints",
+        "evidence": "8 BUY/SELL negative fill controls passed; no DB/order submission/Fill;2 source hashes stable",
+        "result": "No new demonstrated defect; no Issue/task"
+      },
+      {
+        "theme": "Daily market revision historical context stability",
+        "evidence": "ISSUE-20261019-02; actual Router/Context100->99 on future revision, late and minute controls passed;7 existing tests passed",
+        "implementation_task": "TASK-20261019-04"
+      },
+      {
+        "theme": "Selected mode and fast-profile configuration rejection boundaries",
+        "evidence": "10 invalid synthetic TOMLs rejected; valid synthetic +2 example configs load with credential fields empty; no Pipeline/DB/network",
+        "result": "No new defect in selected scope; broader numeric validation not claimed"
+      },
+      {
+        "theme": "Minute feature session gaps and daily VWAP boundary",
+        "evidence": "TASK19-08 report;4 synthetic controls and related suite passed",
+        "result": "No new demonstrated defect"
+      },
+      {
+        "theme": "Outcome terminal daily revisions visibility",
+        "evidence": "TASK-20261019-09; same early0.098500->None after future r2; direct Routeras_of110 control passed",
+        "implementation_task": "TASK-20261019-10"
+      }
+    ],
+    "next_topics": [
+      {
+        "theme": "Outcome registration repeated decision id and instrument association",
+        "entry_files": [
+          "src/trademind/memory/memory.py",
+          "src/trademind/storage/db.py"
+        ],
+        "boundary": "Read original outcome contract before synthetic isolated controls; no production or automatic final rewrites"
+      }
+    ],
+    "last_check": {
+      "at_utc": "2026-10-19T15:00:29.086088+00:00",
+      "task": "TASK-20261019-11",
+      "reason": "New completion claims took priority; duplicate registration/instrument contract review remains next"
+    }
+  },
+  "automation_control": {
+    "verified_at_utc": "2026-10-19T06:13:10.135767+00:00",
+    "status": "ACTIVE",
+    "interval_minutes": 60,
+    "execution_side_monitor": "Separate TASK-20261019-07; unchanged by review frequency request"
+  }
+}

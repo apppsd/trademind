@@ -53,6 +53,24 @@ Task 完成前执行 Documentation Sync Check：确认实际行为、记录已�
 
 Python 项目先识别版本、依赖、锁文件、环境、布局、测试、质量工具和 CI；文档初始化不触发升级、依赖工具替换或包布局重构。
 
+## TradeMind 开发入口与当前状态
+
+最新实施入口：docs/tasks/index.md（当前批次、Owner 与实施状态）；当前事实唯一入口：docs/project/current-status.md。逐日运行状态、探针计数、测试数量与认证结论不在本文件维护——历史证据在 docs/research/ 与各 Task/Issue，当前结论只读 current-status，避免同一事实多处复制后过期。
+
+只读文档一致性校验：`.venv\Scripts\python scripts\check_docs.py`（本地链接、重复ID、索引状态与正文frontmatter一致性、depends_on缺目标/循环、Owner重叠提醒；只报告不自动改历史）。
+
+### 已确认目标：flash低频策略 + JEV快速决策
+
+用户确认新分工：deepseek-flash低频生成StrategyPlan，外部TypeSafe JEV读取原始行情/账户及有效计划输出即时四动作，程序计算数量/硬风控/模拟执行。详见 docs/requirements-jev-fast-decision.md 与 docs/architecture/06-jev-fast-decision.md；旧默认链（flash候选→JEV审核→flash汇总）保留对照。不得静默换DeepSeek型号、JEV disabled/stub或单模型通过新仓门禁；程序风险退出仍经Guard/OMS。官方JEV认证与费用已核验完成；真实闭环与五日观察未验收，能力边界以 current-status 与开放 Issue 为准，不得以离线测试通过替代真实验收。
+
+V1 股票 paper/replay 链路保留兼容（ARCH-001 implementing，TASK-23 in_progress 做前瞻观察），新工作不改变其行为。
+
+执行规则：实施对话认领 Task 时先读 docs/requirements-t0-shadow.md、docs/requirements-jev-fast-decision.md、docs/architecture/06-jev-fast-decision.md 最新方案、docs/tasks/index.md，按 depends_on 确认依赖；认领后填写 Owner、确切代码范围、分支 / Worktree 和逐文件文档同步契约。未经明确授权不 commit/push 或实盘；文档管理会话不改代码、不读密钥、不调用收费 API。
+
+第一版为 M0～M4 的股票模拟闭环；M5 / M6 为可选条件阶段。首期已确认 A 股，运行参数及实际模型能力未确认前不擅自接券商或认定旧对话 API 可用。AI 产生交易意图，JEV 不是订单授权；代码仅负责事实计算、合法执行与硬性否决。
+
+保持 planning / implementing / implemented 与真实状态对应；ARCH-001 是方案，system-overview 只写实际实现。执行对话完成任务时必须回写验证证据、Issue、架构变化、当前事实与索引，使下一个会话能独立继续。
+
 ## Handoff（会话交接）
 
 `docs/handoff/` 存放会话交接文档：会话过长、上下文即将耗尽、准备中断或用户要求交接时生成，供新会话接手。
