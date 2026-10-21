@@ -207,6 +207,10 @@ purchase_conditions_met仅配置筛选；paper_candidate还需时效和现有引
 
 config/trademind.example.toml → 复制为 trademind.toml 后修改；密钥走环境变量优先。
 
+## 管理员设置：密钥与服务地址（2026-10-21）
+
+工作台「管理员设置」区块替代手工编辑 `.env` 配置 DeepSeek/JEV 密钥、服务地址与 Tushare Token：保存原子写入 gitignored 的 `data/runtime/admin_settings.json`，**重启 serve/auto 进程后生效**；列表即时显示已保存覆盖的待生效掩码值（`****`+末4位），完整密钥不回传、不落日志。全部接口要求控制令牌（`TRADEMIND_API_TOKEN`，未配置则整体禁用，与控制端点一致）。优先级：系统环境变量 > 管理页覆盖 > `.env` > TOML。管理令牌自身与模型型号不可在页面修改（防自锁/型号锁定）。轮换流程：粘贴新值→保存→重启进程→列表来源显示"管理页"即生效。[ARCH-024](../architecture/24-admin-runtime-settings.md)
+
 ## 常用命令（真实 Provider 能力未验证）
 
 ```bat

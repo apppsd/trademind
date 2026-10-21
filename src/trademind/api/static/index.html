@@ -66,6 +66,11 @@
     <h2>最近意图（决策链）</h2>
     <table id="decisions"></table>
   </section>
+  <section>
+    <h2>管理员设置（密钥 / 服务地址）</h2>
+    <p class="mono" style="color:#8b949e;margin:0 0 8px">保存后需重启 serve/auto 进程生效；需在右上角输入控制令牌。模型型号不可在此修改（型号锁定）。</p>
+    <table id="admin"></table>
+  </section>
 </main>
 <script>
 async function j(url, opts) {
@@ -147,9 +152,45 @@ async function kill(on) {
   refresh();
 }
 function token() { return document.getElementById("token").value; }
+function esc(v) { return String(v ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch])); }
+const SOURCE_ZH = { admin: "管理页", env: "环境变量", config: "配置文件", unset: "未设置" };
+async function loadAdmin() {
+  const el = document.getElementById("admin");
+  const r = await fetch("/api/admin/settings", { headers: { "X-API-Token": token() } });
+  if (!r.ok) {
+    el.innerHTML = `<tr><td>${r.status === 403 ? "未配置控制令牌（TRADEMIND_API_TOKEN），管理员设置不可用"
+                                          : "控制令牌无效，请在右上角输入"}</td></tr>`;
+    return;
+  }
+  const body = await r.json();
+  el.innerHTML = "<tr><th>名称</th><th>状态</th><th>当前值</th><th>新值</th><th>操作</th></tr>" +
+    body.settings.map(s => `<tr>
+      <td>${esc(s.label)}</td>
+      <td>${s.set ? "已配置" : "未配置"} · ${esc(SOURCE_ZH[s.source] || s.source)}</td>
+      <td class="mono">${esc(s.masked || "—")}</td>
+      <td><input id="adm-${esc(s.key)}" type="${s.secret ? "password" : "text"}" style="width:100%"></td>
+      <td><button onclick="saveSetting('${esc(s.key)}')">保存</button>
+          <button onclick="clearSetting('${esc(s.key)}')">清除</button></td>
+    </tr>`).join("");
+}
+async function saveSetting(key) {
+  const value = document.getElementById("adm-" + key).value;
+  const r = await j(`/api/admin/settings/${key}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "X-API-Token": token() },
+    body: JSON.stringify({ value }),
+  });
+  if (r.error) alert("保存失败：" + r.error);
+  loadAdmin();
+}
+async function clearSetting(key) {
+  await j(`/api/admin/settings/${key}`, { method: "DELETE", headers: { "X-API-Token": token() } });
+  loadAdmin();
+}
 loadInstrumentNames().then(refresh);
 refresh(); setInterval(refresh, 5000);
 refreshMarket(); setInterval(refreshMarket, 10000);
+loadAdmin();
 </script>
 </body>
 </html>

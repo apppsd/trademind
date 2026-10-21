@@ -99,6 +99,7 @@ orchestrator: Pipeline 入口有界队列、触发合并、持仓优先；models
 - Guard 检查顺序与原子预留见 [flows](flows.md)；所有模式（含 paper）必经 Guard。
 - 回放仅可见 available_at <= as_of；记忆检索先时点过滤。
 - 管理端控制操作需 token；未配置则禁用。
+- 管理员运行时设置（ARCH-024 implemented）：`/api/admin/settings*` 同受控制令牌门禁；密钥/服务地址白名单存于 gitignored 的 `data/runtime/admin_settings.json`，仅在加载凭据路径应用（replay/shadow 隔离不受影响），优先级系统环境 > 管理页覆盖 > `.env` > TOML；保存后重启生效，接口仅回传掩码值，模型型号与管理令牌不可页面修改。
 
 ## 规划入口
 

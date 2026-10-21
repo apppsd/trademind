@@ -2,7 +2,9 @@
 
 Read endpoints need no token. Mutating control endpoints (kill switch, mode)
 require the control token (config api.token or TRADEMIND_API_TOKEN); without
-a token configured they are disabled entirely. No broker credentials or raw
+a token configured they are disabled entirely. Admin settings endpoints
+(/api/admin/settings*) use the same token gate and only ever return masked
+secret values. No broker credentials or raw
 provider responses are ever exposed here.
 """
 
@@ -18,7 +20,8 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
 
-from ..config import AppConfig, load_config
+from ..config import (AppConfig, ConfigError, clear_admin_override,
+                      describe_admin_settings, load_config, save_admin_override)
 from ..pipeline import Pipeline
 from ..storage import AuditSink, Database
 
@@ -288,6 +291,33 @@ def poll_fills(_=Depends(require_token), p=Depends(get_pipeline)):
 
 
 _WEB = Path(__file__).parent / "static" / "index.html"
+
+
+@app.get("/api/admin/settings")
+def admin_settings_list(_=Depends(require_token)):
+    cfg: AppConfig = _state.get("cfg") or load_config()
+    return {"settings": describe_admin_settings(cfg)}
+
+
+@app.put("/api/admin/settings/{key}")
+def admin_setting_save(key: str, body: dict, _=Depends(require_token)):
+    value = (body or {}).get("value")
+    if not isinstance(value, str):
+        raise HTTPException(422, 'body must be {"value": "..."}')
+    try:
+        masked = save_admin_override(key, value)
+    except ConfigError as exc:
+        raise HTTPException(400, str(exc)) from None
+    return {"key": key, "masked": masked, "restart_required": True}
+
+
+@app.delete("/api/admin/settings/{key}")
+def admin_setting_clear(key: str, _=Depends(require_token)):
+    try:
+        clear_admin_override(key)
+    except ConfigError as exc:
+        raise HTTPException(400, str(exc)) from None
+    return {"key": key, "cleared": True}
 
 
 @app.get("/", response_class=HTMLResponse)

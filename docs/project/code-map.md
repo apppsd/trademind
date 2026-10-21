@@ -75,7 +75,7 @@ Task16分钟特征已修复：连续1m窗口遇缺口/午休/隔夜重置，当�
 
 - CLI 入口：`src/trademind/runner.py`（status / demo-decision / poll-fills / replay-demo / serve / probe-llm / recover）
 - 全链路编排：`src/trademind/pipeline.py`（Pipeline.run_decision / poll_fills）
-- API 入口：`src/trademind/api/app.py`（FastAPI；工作台 `src/trademind/api/static/index.html`）
+- API 入口：`src/trademind/api/app.py`（FastAPI；工作台 `src/trademind/api/static/index.html`；管理员设置 `/api/admin/settings*`——控制令牌门禁、密钥仅掩码回传）
 - ASGI：`uvicorn trademind.api.app:app`
 
 ## 当前导航
@@ -83,7 +83,7 @@ Task16分钟特征已修复：连续1m窗口遇缺口/午休/隔夜重置，当�
 | 路径 | 职责 |
 |---|---|
 | src/trademind/domain/ | 领域契约（enums/base/instruments/evidence/context/research/judgments/intents/orders/outcome/memory/modelcall） |
-| src/trademind/config.py, errors.py | 配置加载（TOML+env、模式隔离）与错误分类 |
+| src/trademind/config.py, errors.py | 配置加载（TOML+env+管理页覆盖 `data/runtime/admin_settings.json`、模式隔离、设置白名单/掩码）与错误分类 |
 | src/trademind/market/ | base（Bar 等记录）、calendar（覆盖/越界门禁）、calendar_update（官方日历合并）、profiles、quality、router、multi_asset、adapters/{fixture,live,sina_etf} |
 | src/trademind/storage/ | schema.sql、db.py（Database/Repository/AuditSink、migrate/backup_to/verify_database、逐账户事件重放对账）、sqlite_url.py（sqlite URL→路径单一语义，Database与writer_lock共用） |
 | src/trademind/context/ | builder.py、features.py |

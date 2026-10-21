@@ -1,3 +1,5 @@
+2026-10-21管理员设置页（[Task21-01](../tasks/TASK-20261021-01-管理员页面配置运行时密钥.md) completed / Claude Code，[ARCH-024](../architecture/24-admin-runtime-settings.md) implemented）：工作台「管理员设置」可替代手工编辑 `.env` 配置 DeepSeek/JEV 密钥、服务地址与 Tushare Token——`/api/admin/settings*` 控制令牌门禁、密钥仅掩码回传、原子存 gitignored 的 `data/runtime/admin_settings.json`，重启 serve/auto 生效；优先级系统环境 > 管理页覆盖 > `.env` > TOML，replay/shadow 隔离不受影响；模型型号与管理令牌不可页面修改。新增 test_admin_settings.py 8 项，全量 **644 passed/0 failed**，check_docs 0 错误；`.env.example` 过期注释更正。真实进程页面操作、密钥轮换与容器重建未验。
+
 2026-10-20定时监控停止（用户指示）：用户要求"不要再进行定时任务"，cron `ac3ce4a0` 已删除（末次检查12:13，第16次无新可认领项）。后续队列检查仅在用户主动要求时手动进行，见[Task19-07](../tasks/TASK-20261019-07-建立执行端任务监听与认领闭环.md)停止记录；Issue19-03 resolved结论不变。
 
 2026-10-20 00:13执行端监听收口（cron第4次自动触发）：[Task19-07](../tasks/TASK-20261019-07-建立执行端任务监听与认领闭环.md) completed、[Issue19-03](../issues/ISSUE-20261019-03-审查队列缺少执行端持续接收登记.md) resolved——按Task19-11核查核对间隔（:53创建表达式，平台偏移后实际:13触发）、补四次自动触发证据（16:13/17:13/18:13/00:13）与19:13～23:13未触发观察、验收五项勾选。机制有效性含实际业务闭环：15:41接收并处理19-02退回与19-10新增。残留限制：session-only、7天自动过期需重建、依赖本聊天/电脑在线；平台内部运行审查端未独立确认。本次队列检查无新pending/退回。

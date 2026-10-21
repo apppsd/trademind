@@ -81,13 +81,16 @@ TRADEMIND_DEEPSEEK_API_KEY=YOUR_DEEPSEEK_API_KEY
 TRADEMIND_JEV_API_KEY=YOUR_JEV_API_KEY
 ```
 
-启动时自动读取项目根目录 `.env`，不修改进程环境。优先级：系统环境变量 > `.env` > TOML（两个 DeepSeek 变量同时存在时旧别名 `DEEPSEEK_API_KEY` 优先，建议只使用下面的项目变量）。`.env` 和 `config/trademind.toml` 均被 Git 忽略，不要把真实密钥填进示例文件。
+启动时自动读取项目根目录 `.env`，不修改进程环境。优先级：系统环境变量 > 管理页覆盖 > `.env` > TOML（两个 DeepSeek 变量同时存在时旧别名 `DEEPSEEK_API_KEY` 优先，建议只使用下面的项目变量）。`.env` 和 `config/trademind.toml` 均被 Git 忽略，不要把真实密钥填进示例文件。
+
+也可以不手工编辑 `.env`：启动工作台后在「管理员设置」区块配置 DeepSeek/JEV 密钥与服务地址（需控制令牌，重启进程生效；密钥仅掩码回传），见[运行操作](docs/project/operations.md#管理员设置密钥与服务地址2026-10-21)与 [ARCH-024](docs/architecture/24-admin-runtime-settings.md)。
 
 其他参数可复制 `config/trademind.example.toml` 为 `config/trademind.toml` 后修改。支持的环境变量：
 
 - `TRADEMIND_DEEPSEEK_API_KEY`：DeepSeek 密钥（官方 OpenAI 兼容接口，模型名见配置）
 - `TRADEMIND_JEV_BASE_URL` / `TRADEMIND_JEV_API_KEY`：JEV 服务（未提供则显式 stub）
 - `TRADEMIND_API_TOKEN`：管理端控制令牌（不设则控制接口禁用）
+- 工作台「管理员设置」：上述 DeepSeek/JEV 密钥、服务地址与 Tushare Token 也可在页面配置（保存于 gitignored 的 `data/runtime/admin_settings.json`，重启生效；模型型号与管理令牌不可在页面修改）
 
 JEV 官方TypeSafe协议适配与三题型认证已完成（TASK-41，[Issue-20261007-12](docs/issues/ISSUE-20261007-12.md) resolved）；填写 Key 不代表真实盘中交易链路已验收。replay 模式仍拒绝带凭据启动，离线回放时不要加载含真实 Key 的配置。
 

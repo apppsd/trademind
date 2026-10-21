@@ -7,6 +7,7 @@ Credentials only come from environment variables, root .env or config/trademind.
 
 from __future__ import annotations
 
+import json
 import os
 import tomllib
 from dotenv import dotenv_values
@@ -254,6 +255,7 @@ def load_config(path: str | Path | None = None, *, load_credentials: bool = True
         cfg.source = str(p)
     if load_credentials:
         _apply_env(cfg)
+        apply_admin_overrides(cfg)
     else:
         cfg.llm.api_key = cfg.jev.api_key = cfg.api.token = cfg.data.tushare_token = ''
     _validate_mode_isolation(cfg)
@@ -289,6 +291,128 @@ def _apply_env(cfg: AppConfig) -> None:
         cfg.api.token = v
     if v := env("TRADEMIND_STORAGE_URL"):
         cfg.storage.url = v
+
+
+# --- Admin-configurable runtime settings (TASK-20261021-01, ARCH-024) ---
+# Keys and service URLs may be managed from the workbench admin page instead
+# of .env. Overrides live in a gitignored runtime file, are applied only when
+# credentials are loaded (never in replay/shadow isolation), and always lose
+# to explicitly set process environment variables. The admin token itself and
+# the model name are deliberately NOT editable here (lockout / model-lock).
+
+ADMIN_SETTING_SPECS: dict[str, dict[str, str]] = {
+    "deepseek_api_key": {"env": "TRADEMIND_DEEPSEEK_API_KEY", "obj": "llm", "attr": "api_key",
+                         "label": "DeepSeek API Key", "secret": "1"},
+    "llm_base_url": {"env": "TRADEMIND_LLM_BASE_URL", "obj": "llm", "attr": "base_url",
+                     "label": "DeepSeek Base URL", "secret": ""},
+    "jev_api_key": {"env": "TRADEMIND_JEV_API_KEY", "obj": "jev", "attr": "api_key",
+                    "label": "JEV API Key", "secret": "1"},
+    "jev_base_url": {"env": "TRADEMIND_JEV_BASE_URL", "obj": "jev", "attr": "base_url",
+                     "label": "JEV Base URL", "secret": ""},
+    "tushare_token": {"env": "TRADEMIND_TUSHARE_TOKEN", "obj": "data", "attr": "tushare_token",
+                      "label": "Tushare Token", "secret": "1"},
+}
+
+ADMIN_SETTINGS_SCHEMA_VERSION = 1
+
+
+def admin_settings_path() -> Path:
+    override = os.environ.get("TRADEMIND_ADMIN_SETTINGS_PATH")
+    if override:
+        return Path(override)
+    return REPO_ROOT / "data" / "runtime" / "admin_settings.json"
+
+
+def _read_admin_settings() -> dict[str, str]:
+    raw = admin_settings_path().read_text(encoding="utf-8")
+    data = json.loads(raw)
+    if data.get("schema_version") != ADMIN_SETTINGS_SCHEMA_VERSION:
+        raise ValueError("unsupported admin settings schema")
+    settings = data.get("settings")
+    if not isinstance(settings, dict):
+        raise ValueError("malformed admin settings")
+    return {k: str(v) for k, v in settings.items()
+            if k in ADMIN_SETTING_SPECS and isinstance(v, str) and v}
+
+
+def _write_admin_settings(settings: dict[str, str]) -> None:
+    path = admin_settings_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps({"schema_version": ADMIN_SETTINGS_SCHEMA_VERSION, "settings": settings},
+                         ensure_ascii=False, indent=2)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(payload, encoding="utf-8")
+    tmp.replace(path)
+
+
+def load_admin_overrides() -> dict[str, str]:
+    """Saved admin-page overrides; a corrupted file degrades to empty, never blocks startup."""
+    try:
+        return _read_admin_settings()
+    except (OSError, ValueError):
+        return {}
+
+
+def save_admin_override(key: str, value: str) -> str:
+    spec = ADMIN_SETTING_SPECS.get(key)
+    if spec is None:
+        raise ConfigError(f"unknown admin setting: {key}")
+    value = value.strip()
+    if not value or len(value) > 4096 or any(ch in value for ch in "\r\n\x00"):
+        raise ConfigError("invalid setting value")
+    settings = load_admin_overrides()
+    settings[key] = value
+    _write_admin_settings(settings)
+    return mask_setting(key, value)
+
+
+def clear_admin_override(key: str) -> None:
+    if key not in ADMIN_SETTING_SPECS:
+        raise ConfigError(f"unknown admin setting: {key}")
+    settings = load_admin_overrides()
+    settings.pop(key, None)
+    _write_admin_settings(settings)
+
+
+def mask_setting(key: str, value: str) -> str:
+    if not ADMIN_SETTING_SPECS[key].get("secret"):
+        return value
+    return "****" + value[-4:] if len(value) > 8 else "****"
+
+
+def apply_admin_overrides(cfg: AppConfig) -> None:
+    for key, value in load_admin_overrides().items():
+        spec = ADMIN_SETTING_SPECS[key]
+        if os.environ.get(spec["env"]):
+            continue  # explicit process env wins over saved overrides
+        setattr(getattr(cfg, spec["obj"]), spec["attr"], value)
+
+
+def describe_admin_settings(cfg: AppConfig) -> list[dict]:
+    # Listing shows the pending-effective view: a saved override is displayed
+    # immediately (before restart) unless an explicit process env shadows it.
+    overrides = load_admin_overrides()
+    items = []
+    for key, spec in ADMIN_SETTING_SPECS.items():
+        env_set = bool(os.environ.get(spec["env"]))
+        current = getattr(getattr(cfg, spec["obj"]), spec["attr"])
+        if key in overrides and not env_set:
+            current = overrides[key]
+            source = "admin"
+        elif key in overrides or env_set:
+            source = "env"
+        else:
+            source = "config" if current else "unset"
+        items.append({
+            "key": key,
+            "label": spec["label"],
+            "secret": bool(spec.get("secret")),
+            "set": bool(current),
+            "masked": mask_setting(key, current) if current else "",
+            "source": source,
+            "restart_required": True,
+        })
+    return items
 
 
 def _validate_mode_isolation(cfg: AppConfig) -> None:
