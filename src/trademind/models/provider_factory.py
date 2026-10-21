@@ -6,13 +6,13 @@ from ..config import AppConfig
 from ..errors import ConfigError
 from ..storage import Repository
 from .base import Budget, CallAuditor, LLMProvider, JEVProvider
-from .deepseek import DeepSeekProvider
+from .deepseek import MultiProtocolLLMProvider
 from .jev import TypeSafeJEVProvider
 from .stub import HttpJEVProvider, StubJEVProvider, StubLLMProvider
 
 
 def build_llm(cfg: AppConfig, repo: Repository) -> tuple[LLMProvider, bool]:
-    """Returns (provider, is_stub). auto: real key -> DeepSeek, else stub."""
+    """Returns (provider, is_stub). auto: real key -> protocol-aware LLM, else stub."""
     auditor = CallAuditor(repo)
     budget = Budget(limit=cfg.llm.daily_call_budget)
     if cfg.t0.enabled:
@@ -24,18 +24,20 @@ def build_llm(cfg: AppConfig, repo: Repository) -> tuple[LLMProvider, bool]:
     if provider == "deepseek":
         if not cfg.llm.api_key:
             raise ConfigError("llm.provider=deepseek but api_key missing")
-        return DeepSeekProvider(
+        return MultiProtocolLLMProvider(
             api_key=cfg.llm.api_key, model=cfg.llm.model,
-            base_url=cfg.llm.base_url, auditor=auditor,
+            base_url=cfg.llm.base_url, protocol=cfg.llm.protocol,
+            auditor=auditor,
             temperature=cfg.llm.temperature,
             max_repair_attempts=cfg.llm.max_repair_attempts,
             budget=budget,
         ), False
     if provider == "auto":
         if cfg.llm.api_key:
-            return DeepSeekProvider(
+            return MultiProtocolLLMProvider(
                 api_key=cfg.llm.api_key, model=cfg.llm.model,
-                base_url=cfg.llm.base_url, auditor=auditor,
+                base_url=cfg.llm.base_url, protocol=cfg.llm.protocol,
+                auditor=auditor,
                 temperature=cfg.llm.temperature,
                 max_repair_attempts=cfg.llm.max_repair_attempts,
                 budget=budget,

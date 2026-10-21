@@ -7,7 +7,7 @@ from .base import (
     ModelOutput,
     extract_json,
 )
-from .deepseek import DeepSeekProvider
+from .deepseek import DeepSeekProvider, MultiProtocolLLMProvider
 from .provider_factory import build_jev, build_llm
 from .stub import HttpJEVProvider, StubJEVProvider, StubLLMProvider
 
@@ -20,6 +20,7 @@ __all__ = [
     "JEVProvider",
     "LLMProvider",
     "ModelOutput",
+    "MultiProtocolLLMProvider",
     "StubJEVProvider",
     "StubLLMProvider",
     "build_jev",

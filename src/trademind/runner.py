@@ -107,7 +107,7 @@ def cmd_probe_llm() -> int:
     from .models import DeepSeekProvider
 
     p = DeepSeekProvider(api_key=cfg.llm.api_key, model=cfg.llm.model,
-                         base_url=cfg.llm.base_url)
+                         base_url=cfg.llm.base_url, protocol=cfg.llm.protocol)
     result = p.probe()
     print(json.dumps({"model_configured": p.model,
                       "probe_ok": result.get("ok", False),

@@ -88,7 +88,7 @@ Task16分钟特征已修复：连续1m窗口遇缺口/午休/隔夜重置，当�
 | src/trademind/storage/ | schema.sql、db.py（Database/Repository/AuditSink、migrate/backup_to/verify_database、逐账户事件重放对账）、sqlite_url.py（sqlite URL→路径单一语义，Database与writer_lock共用） |
 | src/trademind/context/ | builder.py、features.py |
 | src/trademind/orchestrator/ | scheduler.py（有界队列、排队与执行合并、持仓优先） |
-| src/trademind/models/ | base/deepseek/jev/stub/provider_factory、daily_budget |
+| src/trademind/models/ | base/deepseek(多协议LLM provider)/protocols(四协议线格式归一)/jev/stub/provider_factory、daily_budget |
 | src/trademind/agents/ | prompts.py、research.py、trader.py、risk.py、fast_prompts/fast_decider/strategy_planner |
 | src/trademind/guard/ | guard.py（九步检查+原子预留） |
 | src/trademind/portfolio/ | ledger.py（单写者账本） |

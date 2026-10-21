@@ -211,6 +211,8 @@ config/trademind.example.toml → 复制为 trademind.toml 后修改；密钥走
 
 工作台「管理员设置」区块替代手工编辑 `.env` 配置 DeepSeek/JEV 密钥、服务地址与 Tushare Token：保存原子写入 gitignored 的 `data/runtime/admin_settings.json`，**重启 serve/auto 进程后生效**；列表即时显示已保存覆盖的待生效掩码值（`****`+末4位），完整密钥不回传、不落日志。全部接口要求控制令牌（`TRADEMIND_API_TOKEN`，未配置则整体禁用，与控制端点一致）。优先级：系统环境变量 > 管理页覆盖 > `.env` > TOML。管理令牌自身与模型型号不可在页面修改（防自锁/型号锁定）。轮换流程：粘贴新值→保存→重启进程→列表来源显示"管理页"即生效。[ARCH-024](../architecture/24-admin-runtime-settings.md)
 
+LLM 线协议切换（2026-10-21，[ARCH-025](../architecture/25-llm-multi-protocol.md)）：管理员设置中的 `llm_protocol`（env `TRADEMIND_LLM_PROTOCOL`）在 `openai_chat`（DeepSeek 官方，默认）/ `anthropic_messages` / `openai_responses` / `gemini_generate_content` 间切换；Base URL 留默认时按协议自动使用官方端点，自定义中转地址原样生效。切换后重启 serve/auto 生效；协议与模型型号独立，T0 型号锁定不受影响。四协议均经离线 mock 验证，真实调用与盘中效果未验。
+
 ## 常用命令（真实 Provider 能力未验证）
 
 ```bat

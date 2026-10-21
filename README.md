@@ -79,15 +79,19 @@ python -m venv .venv
 ```dotenv
 TRADEMIND_DEEPSEEK_API_KEY=YOUR_DEEPSEEK_API_KEY
 TRADEMIND_JEV_API_KEY=YOUR_JEV_API_KEY
+# 可选：LLM 接口协议（默认 openai_chat；另支持 anthropic_messages /
+# openai_responses / gemini_generate_content，经中转站时按线协议选择）
+TRADEMIND_LLM_PROTOCOL=openai_chat
 ```
 
 启动时自动读取项目根目录 `.env`，不修改进程环境。优先级：系统环境变量 > 管理页覆盖 > `.env` > TOML（两个 DeepSeek 变量同时存在时旧别名 `DEEPSEEK_API_KEY` 优先，建议只使用下面的项目变量）。`.env` 和 `config/trademind.toml` 均被 Git 忽略，不要把真实密钥填进示例文件。
 
-也可以不手工编辑 `.env`：启动工作台后在「管理员设置」区块配置 DeepSeek/JEV 密钥与服务地址（需控制令牌，重启进程生效；密钥仅掩码回传），见[运行操作](docs/project/operations.md#管理员设置密钥与服务地址2026-10-21)与 [ARCH-024](docs/architecture/24-admin-runtime-settings.md)。
+也可以不手工编辑 `.env`：启动工作台后在「管理员设置」区块配置 DeepSeek/JEV 密钥、服务地址与 LLM 接口协议（需控制令牌，重启进程生效；密钥仅掩码回传），见[运行操作](docs/project/operations.md#管理员设置密钥与服务地址2026-10-21)与 [ARCH-024](docs/architecture/24-admin-runtime-settings.md)。
 
 其他参数可复制 `config/trademind.example.toml` 为 `config/trademind.toml` 后修改。支持的环境变量：
 
 - `TRADEMIND_DEEPSEEK_API_KEY`：DeepSeek 密钥（官方 OpenAI 兼容接口，模型名见配置）
+- `TRADEMIND_LLM_PROTOCOL`：LLM 接口协议（`openai_chat` 默认 / `anthropic_messages` / `openai_responses` / `gemini_generate_content`，见 [ARCH-025](docs/architecture/25-llm-multi-protocol.md)；Base URL 留默认时按协议使用官方端点）
 - `TRADEMIND_JEV_BASE_URL` / `TRADEMIND_JEV_API_KEY`：JEV 服务（未提供则显式 stub）
 - `TRADEMIND_API_TOKEN`：管理端控制令牌（不设则控制接口禁用）
 - 工作台「管理员设置」：上述 DeepSeek/JEV 密钥、服务地址与 Tushare Token 也可在页面配置（保存于 gitignored 的 `data/runtime/admin_settings.json`，重启生效；模型型号与管理令牌不可在页面修改）

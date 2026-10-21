@@ -74,10 +74,10 @@ python -m venv .venv
 密钥配置步骤见 [README](../../README.md#配置密钥真实能力仍须独立核验)。配置加载自动读取项目根目录 `.env`，不向进程环境写入值；同名变量优先级为系统环境 > 管理页覆盖 > `.env` > TOML（[ARCH-024](../architecture/24-admin-runtime-settings.md)）。不搜索其他父目录的 `.env`。DeepSeek 旧别名 `DEEPSEEK_API_KEY` 在两个名字同时设置时优先，建议仅设置项目变量。两份本地配置均已 Git 忽略。JEV官方TypeSafe adapter已实现并通过三题型认证（[Issue-20261007-12](../issues/ISSUE-20261007-12.md) resolved）；未配置密钥时仍以显式stub离线运行。
 
 - 存储：SQLite（data/runtime/trademind.db，自动创建，WAL）。备份恢复与Schema升级见[operations](operations.md#部署与进程)；打开旧库自动按版本顺序迁移，不做降级。
-- DeepSeek：env `TRADEMIND_DEEPSEEK_API_KEY`（或 config [llm].api_key）。
+- DeepSeek/LLM：env `TRADEMIND_DEEPSEEK_API_KEY`（或 config [llm].api_key）；线协议 `TRADEMIND_LLM_PROTOCOL`（或 config [llm].protocol，默认 `openai_chat`；另支持 `anthropic_messages` / `openai_responses` / `gemini_generate_content`，[ARCH-025](../architecture/25-llm-multi-protocol.md)）。base_url 未设或仍为 DeepSeek 默认时按协议取官方端点，自定义中转 URL 原样生效；协议与型号锁定正交，不构成换型号。
 - JEV：env `TRADEMIND_JEV_BASE_URL` / `TRADEMIND_JEV_API_KEY`（无则 stub）。
 - 管理端控制令牌：env `TRADEMIND_API_TOKEN`。
-- 管理页运行时设置：工作台「管理员设置」可替代手工编辑配置 DeepSeek/JEV 密钥、服务地址与 Tushare Token；保存至 gitignored 的 `data/runtime/admin_settings.json`，重启 serve/auto 生效，接口仅回传掩码值。管理令牌自身与模型型号不可在页面修改。
+- 管理页运行时设置：工作台「管理员设置」可替代手工编辑配置 DeepSeek/JEV 密钥、服务地址、LLM 接口协议（枚举校验）与 Tushare Token；保存至 gitignored 的 `data/runtime/admin_settings.json`，重启 serve/auto 生效，接口仅回传掩码值。管理令牌自身与模型型号不可在页面修改。
 - replay 模式拒绝加载凭据（启动校验）；管理页覆盖仅在加载凭据路径生效，隔离模式不受影响。
 
 ## 版本控制

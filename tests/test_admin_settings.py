@@ -14,9 +14,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from trademind import config
 from trademind.api import app as fastapi_app
 from trademind.api.app import init_app
-from trademind.config import (AppConfig, apply_admin_overrides,
+from trademind.config import (VALID_LLM_PROTOCOLS, AppConfig, apply_admin_overrides,
+                              clear_admin_override, describe_admin_settings,
                               load_admin_overrides, mask_setting,
                               save_admin_override)
+from trademind.errors import ConfigError
 
 SECRET = "sk-test1234567890abcd"
 TOKEN = {"X-API-Token": "admin-token"}
@@ -124,3 +126,18 @@ def test_corrupted_file_degrades_to_empty(settings_file):
     settings_file.write_text("{not json", encoding="utf-8")
     assert load_admin_overrides() == {}
     apply_admin_overrides(AppConfig())  # must not raise
+
+
+def test_llm_protocol_enum_and_apply(tmp_path, settings_file, monkeypatch):
+    monkeypatch.setattr(config, "ENV_FILE_PATH", tmp_path / ".env")  # absent
+    monkeypatch.delenv("TRADEMIND_LLM_PROTOCOL", raising=False)
+    with pytest.raises(ConfigError, match="one of"):
+        save_admin_override("llm_protocol", "websocket")
+    save_admin_override("llm_protocol", "anthropic_messages")
+    toml = tmp_path / "proto.toml"
+    toml.write_text('mode="paper"\n', encoding="utf-8")
+    assert config.load_config(toml).llm.protocol == "anthropic_messages"
+    clear_admin_override("llm_protocol")
+    assert config.load_config(toml).llm.protocol == "openai_chat"
+    items = {s["key"]: s for s in describe_admin_settings(AppConfig())}
+    assert items["llm_protocol"]["choices"] == list(VALID_LLM_PROTOCOLS)

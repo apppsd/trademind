@@ -24,12 +24,18 @@ ENV_FILE_PATH = REPO_ROOT / ".env"
 
 VALID_MODES = {"paper", "shadow", "replay", "live"}
 
+# Wire protocols for the flash strategy LLM (TASK-20261021-02); the default is
+# the historical DeepSeek OpenAI-compatible chat completions behavior.
+VALID_LLM_PROTOCOLS = ("openai_chat", "anthropic_messages",
+                       "openai_responses", "gemini_generate_content")
+
 
 @dataclass
 class LLMConfig:
     provider: str = "auto"  # auto | deepseek | stub
     api_key: str = ""
     base_url: str = "https://api.deepseek.com"
+    protocol: str = "openai_chat"  # one of VALID_LLM_PROTOCOLS
     model: str = "deepseek-flash"  # verify at runtime with a probe; see research
     temperature: float = 0.2
     timeout_s: int = 60
@@ -258,6 +264,7 @@ def load_config(path: str | Path | None = None, *, load_credentials: bool = True
         apply_admin_overrides(cfg)
     else:
         cfg.llm.api_key = cfg.jev.api_key = cfg.api.token = cfg.data.tushare_token = ''
+    _validate_llm_protocol(cfg)
     _validate_mode_isolation(cfg)
     return cfg
 
@@ -279,6 +286,8 @@ def _apply_env(cfg: AppConfig) -> None:
         cfg.llm.model = v
     if v := env("TRADEMIND_LLM_BASE_URL"):
         cfg.llm.base_url = v
+    if v := env("TRADEMIND_LLM_PROTOCOL"):
+        cfg.llm.protocol = v
     if key := env("TRADEMIND_JEV_API_KEY"):
         cfg.jev.api_key = key
     if v := env("TRADEMIND_JEV_BASE_URL"):
@@ -304,7 +313,9 @@ ADMIN_SETTING_SPECS: dict[str, dict[str, str]] = {
     "deepseek_api_key": {"env": "TRADEMIND_DEEPSEEK_API_KEY", "obj": "llm", "attr": "api_key",
                          "label": "DeepSeek API Key", "secret": "1"},
     "llm_base_url": {"env": "TRADEMIND_LLM_BASE_URL", "obj": "llm", "attr": "base_url",
-                     "label": "DeepSeek Base URL", "secret": ""},
+                     "label": "LLM Base URL", "secret": ""},
+    "llm_protocol": {"env": "TRADEMIND_LLM_PROTOCOL", "obj": "llm", "attr": "protocol",
+                     "label": "LLM 接口协议", "secret": "", "enum": VALID_LLM_PROTOCOLS},
     "jev_api_key": {"env": "TRADEMIND_JEV_API_KEY", "obj": "jev", "attr": "api_key",
                     "label": "JEV API Key", "secret": "1"},
     "jev_base_url": {"env": "TRADEMIND_JEV_BASE_URL", "obj": "jev", "attr": "base_url",
@@ -360,6 +371,9 @@ def save_admin_override(key: str, value: str) -> str:
     value = value.strip()
     if not value or len(value) > 4096 or any(ch in value for ch in "\r\n\x00"):
         raise ConfigError("invalid setting value")
+    enum = spec.get("enum")
+    if enum and value not in enum:
+        raise ConfigError(f"invalid value for {key}; one of {list(enum)}")
     settings = load_admin_overrides()
     settings[key] = value
     _write_admin_settings(settings)
@@ -410,9 +424,17 @@ def describe_admin_settings(cfg: AppConfig) -> list[dict]:
             "set": bool(current),
             "masked": mask_setting(key, current) if current else "",
             "source": source,
+            "choices": list(spec["enum"]) if spec.get("enum") else None,
             "restart_required": True,
         })
     return items
+
+
+def _validate_llm_protocol(cfg: AppConfig) -> None:
+    # Runs after env/admin overrides so a bad page-saved or env value is also rejected.
+    if cfg.llm.protocol not in VALID_LLM_PROTOCOLS:
+        raise ConfigError(
+            f"invalid llm.protocol {cfg.llm.protocol!r}; one of {list(VALID_LLM_PROTOCOLS)}")
 
 
 def _validate_mode_isolation(cfg: AppConfig) -> None:
