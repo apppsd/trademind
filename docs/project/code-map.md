@@ -1,6 +1,6 @@
 # 代码地图
 
-自动监控：execution/auto_paper.py（时段期限、互斥子进程、退避/异常锁定、心跳）；scripts/run_auto.py（VM启动/停止/状态与代理继承），run_container.py阻止手动paper与auto并发；compose.yaml auto服务。api/app.py只读automatic字段，static首页中文状态；tests/test_auto_paper.py/test_auto_launcher.py及启动器测试覆盖。[ARCH-013](../architecture/13-auto-paper-supervisor.md)。
+自动监控：execution/auto_paper.py（时段期限、互斥子进程、退避/异常锁定、心跳；跨平台探活 `_pid_alive`、Windows msvcrt 互斥锁与停止标志排空/强制+halt 路径）；scripts/run_auto.py（VM启动/停止/状态与代理继承），run_container.py阻止手动paper与auto并发；compose.yaml auto服务。本地无Docker入口：scripts/run_local.py（start/status/stop，脱终端启动、停止标志、强制结束前pid+映像校验）+ config/t0-local.example.toml（本地实验账户/库）；tests/test_auto_paper.py/test_auto_launcher.py/test_local_lifecycle.py覆盖。[ARCH-013](../architecture/13-auto-paper-supervisor.md)、[ARCH-024](../architecture/24-local-windows-runtime.md)。
 
 每日交易报告：reports/daily.py（只读快照、上海日资金重建、成交/盈亏/模型费用、策略/决策、JSON/MD/HTML；read_snapshot自2026-10-14支持window参数——调用/意图/计划按上海日±2天、context 7天回看走迁移2索引，账户事件保持全量重放），reports/locale.py（中文动作/状态/原因/条件及历史译文）；runner daily-report CLI；api/app.py lifespan每分钟生成今日/昨日及报告页面，static首页链接；paper_run.finish自动生成，paper_run.read_intraday_health同按日窗口读取。schema.sql追加strategy_plan_history，strategy_planner写有效脱敏计划并校验中文说明；fast_prompts注册strategy-4，models/deepseek统一中文要求与实际审计指纹，runner探针预算计入最终指令。[证据](../research/20261012-daily-report-verification.md)。
 

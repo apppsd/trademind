@@ -1,0 +1,44 @@
+# Local Windows experiment (TASK-20261022-01): 1000 CNY, real dual models.
+# Copy to config/t0-local.local.toml, set an absolute sqlite path on this
+# machine, and fill API keys in the root .env. Runtime limits (300/200/100
+# exposures, fees, cooldowns, daily budgets) are unchanged from the frozen
+# T0 contract; only the initial cash differs, as a separate experiment:
+# new account_id, new database, history of prior accounts preserved.
+# Reference rates: docs/research/20261009-model-pricing.md (conservative
+# peak/cache-miss estimate; JEV reference FX, not a billing statement).
+mode = "paper"
+account_id = "paper-t0-local-1k"
+universe = ["513050.SH", "513100.SH", "518880.SH"]
+[llm]
+provider = "deepseek"
+model = "deepseek-flash"
+[jev]
+provider = "jev_typesafe"
+base_url = "https://api.typesafe.ai"
+model = "jev-1.13.0"
+question_version = "qv-fast-1"
+[t0]
+enabled = true
+profile = "jev_fast_decision"
+# Effective initial cash lives under [t0]: _validate_mode_isolation always
+# overrides [paper].initial_cash from this value when t0 is enabled.
+initial_cash = "1000"
+model_input_cny_per_million = "2"
+model_output_cny_per_million = "8"
+jev_input_cny_per_million = "0.282786"
+jev_output_cny_per_million = "0"
+[paper]
+initial_cash = "1000"
+[storage]
+# Absolute path on the experiment machine; keep one database per experiment.
+url = "sqlite:///C:/path/to/TradeMind/data/runtime/local-1k/trademind.db"
+[data]
+# Free minute sources only: sina primary, Eastmoney (via AKShare) backup.
+provider_pref = ["sina_etf", "akshare"]
+[risk]
+quote_max_age_seconds = 180
+[api]
+# Local-only workbench; the auto supervisor binds the same port during
+# closed-session serve phases, and the page is unreachable while paper runs.
+host = "127.0.0.1"
+port = 8321

@@ -1,5 +1,9 @@
 # Roadmap
 
+## 本地 Windows 运行阶段（2026-10-22，implementing）
+
+用户确认脱离 Docker 本地运行：[ARCH-024](architecture/24-local-windows-runtime.md) + [TASK-20261022-01](tasks/TASK-20261022-01-本地千元双模型自动模拟交易落地.md)，独立 1000 CNY 账户（`paper-t0-local-1k`，限额沿用冻结值）。已验证：本地 start/status/stop 生命周期、真实行情、DeepSeek 真实策略（900 秒节奏、费用可核算）、JEV 连通、预算门禁、时段结束排空与日报。未验：JEV 实际决策（2026-10-22 首日计划合法仅允许 WAIT，程序按设计跳过 JEV——定性证据见 Task；逐轮关联复核由 16-04 执行）、完整买卖闭环、次日恢复、五日观察。513100/518880 按当时价格一手超过 200 元上限不可开仓（价格相关，非永久）。Docker 入口保留兼容。
+
 ## 提示评测增强阶段（2026-10-11，implementing）
 
 04～06工程completed：strategy-3示例、24例固定标签、零调用保存响应评测，374测试通过；[证据](research/20261011-prompt-eval-verification.md)。07/08真实依赖尚未满足，09后置，不提前完成整个阶段。

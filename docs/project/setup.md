@@ -50,7 +50,10 @@ container公共示例及container/fast local已填写：Flash输入2、输出8 C
 
 ## 当前工作环境
 
-Windows + pwsh.exe -NoProfile / cmd.exe（禁止 powershell.exe）；工作目录 F:\Project\TradeMind。Python 3.12.10。
+两个独立工作副本，事实分别维护：
+
+- **D:\trademind**（2026-10-22 起，TASK-20261022-01 本地运行使用）：Windows + Git Bash/cmd.exe（禁止 powershell.exe）。无系统 Python，用 uv 安装 Python 3.12.15 并创建标准 `.venv`；依赖按 requirements.txt 精确安装（含 `-e .` 可编辑安装），改代码重启即生效。本地代理 `http://127.0.0.1:7890`（JEV 需经代理，直连 451；启动本地监督时导出 HTTPS_PROXY/HTTP_PROXY，NO_PROXY 含 `localhost,127.0.0.1`）。Docker Desktop 可用但本项目已转本地运行；Docker Hub 需经 DaoCloud 加速器（`docker.m.daocloud.io`）拉基础镜像。
+- F:\Project\TradeMind（历史副本，见下方历史记录）：Python 3.12.10，工作目录 F:\Project\TradeMind；`.venv` 与校验脚本在该副本运行。D:\trademind 无 F 盘链接目标，`check_docs.py` 的 F 盘 file:// 历史错误在 D 盘副本恒存在。
 
 账户写租约（[ARCH-017](../architecture/17-writer-lease.md)）要求运行数据库目录可写；Windows与Linux容器（python:3.12-slim，fcntl.flock，真实子进程）均已验证：相对storage.url与绝对拼写指向同一实际库得到同一租约，第二写者被拒。运行日历为`data/fixtures/calendar_xshg.csv`（当前覆盖至2026-12-31）+同名`.meta.json`出处旁证（含csv_sha256，由程序加载时校验）；更新方式见[operations](operations.md#容器自动模拟监控)，程序侧只读、永不联网更新日历。数据库结构升级在每个`Database()`打开时先以只读immutable连接预检Schema版本（更高版本拒绝且文件字节不变），再按`schema_migrations`顺序自动进行（当前v1→v2，附加性）；备份与恢复核验见[operations](operations.md)（verify_database含逐账户资金对账）（[ARCH-019](../architecture/19-db-upgrade-backup.md)）。
 
