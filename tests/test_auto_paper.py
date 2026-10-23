@@ -100,14 +100,16 @@ def test_worker_pending_halts_and_heartbeat_stale_is_unhealthy(tmp_path):
 
 
 def test_windows_health_never_sends_unix_signal_zero(tmp_path,monkeypatch):
-    import os
+    """Windows liveness uses a ctypes process query; os.kill(pid,0) can terminate."""
+    import os, sys
     from datetime import timezone
     from trademind.execution import auto_paper
+    if sys.platform != 'win32':
+        pytest.skip('Windows-specific liveness path')
     path=tmp_path/'state.json'
     path.write_text(json.dumps({'pid':os.getpid(),'heartbeat':datetime.now(timezone.utc).isoformat()}))
-    monkeypatch.setattr(auto_paper.sys,'platform','win32')
     monkeypatch.setattr(auto_paper.os,'kill',lambda *a:pytest.fail('Windows signal zero can terminate process'))
-    assert not healthy(path)
+    assert healthy(path)
 
 
 def test_strategy_failure_backoff_recovery_and_account_day_isolation(tmp_path):

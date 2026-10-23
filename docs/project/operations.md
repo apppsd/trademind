@@ -10,6 +10,18 @@ supervisor顺序运行serve/paper：休市、午休、退避时工作台及日�
 
 restart unless-stopped使Rancher恢复后可恢复已启用服务；手动stop后要start。电脑关机/睡眠或Rancher停止期间不能监控。**重建auto容器的工作目录shell必须导出真实代理变量**（2026-10-16实证：从无代理变量的shell `up -d` 会把空值透传进容器，JEV直连451探针失败、会话秒退并空耗探针额度）；本机可用值为 `HTTP_PROXY=http://host.docker.internal:7897`（宿主代理仅监听127.0.0.1，容器内须用 host.docker.internal；192.168.127.1 网关不通），NO_PROXY 建议含 `.deepseek.com,.sinajs.cn,.sina.com.cn`（国内端点直连更快）。日历当前覆盖至2026-12-31，下一年须更新有效日历，未列日期拒绝开市。更新官方日历用离线合并命令（不联网）：`.venv\Scripts\python scripts/update_calendar.py --source-csv <官方CSV> --source <来源名> --version <版本标识>`，并集写入 data/fixtures/calendar_xshg.csv 并生成 `.meta.json` 旁证（来源/版本/核对时间/覆盖范围）；默认拒绝缩小覆盖，确需缩小加 `--allow-shrink`。超出覆盖范围或覆盖临近结尾（≤20个交易日）时健康状态显示“日历覆盖不足”，auto supervisor 停止模拟与付费请求，等待人工更新日历；覆盖范围内非交易日按休市处理，不会截断为边界日期。stop不会另外启动workbench；需手动模式时确认auto及其子进程结束再启workbench。
 
+## 本地 Windows 自动模拟监控（2026-10-22，ARCH-026）
+
+无 Docker 的本地入口，与容器入口二选一（同端口 8321，不可同跑）。启动前：`config/t0-local.local.toml`（由 example 复制，绝对 sqlite 路径、账户 `paper-t0-local-1k`、1000 CNY）、根目录 `.env` 含真实双模型 Key、shell 已导出宿主代理（`HTTPS_PROXY` 必需，JEV 直连 451；NO_PROXY 含 `localhost,127.0.0.1`）。D:\trademind 副本实测代理 `http://127.0.0.1:7890`。
+
+```bat
+.venv\Scripts\python scripts\run_local.py start     :: 脱终端启动 supervisor
+.venv\Scripts\python scripts\run_local.py status    :: 心跳/phase/预算/代码版本/日志位置
+.venv\Scripts\python scripts\run_local.py stop      :: 写停止标志，排空最长150s
+```
+
+监督行为与容器 auto 相同（日历时段、单 writer、预算、halted 语义）。差异：状态/日志在配置的运行根目录（如 `data/runtime/local-1k/`：auto-paper-state.json、auto-paper.log、auto-paper.pid、auto-paper.stop）；重复 start 有存活心跳即拒绝；端口被占或无代理拒绝启动；**停止期间监督器不启动任何新 writer**（serve/paper 均先排空）；停止超时仅在进程映像确认 python 后强制结束该 pid，监督器自身与 run_local 双层原子持久化 halted 及原因，重启保持人工核对暂停（人工核对账本、确认后编辑 state 文件清除 halted 才能再启动，不自动解锁）；监督器收尾持久化失败会显式报错退出，此时重启可能丢失暂停门禁，须人工核对账本后再启动。**外部硬终止后重启的恢复语义**：恢复分类只在人工 `start` 重启时执行，**进程死亡后不会自行恢复**；start 会核验上一轮状态（phase=paper 且未终态时），按 `result_policy` 分类旧排空报告并对存活旧子进程探活——缺失/损坏/未知/失败原子保留 halted 待人工核对（编辑 state 文件清除后才恢复），报告合法完成或 serve 阶段被杀则正常恢复；不存在"任意被杀直接 start 即安全恢复"的无条件保证，halted 出现时先核对账本与报告。改代码后先 stop → 核对 → 再 start（venv 可编辑安装，无需重装依赖）。电脑关机/睡眠期间不运行。真实双模型运行验收见 [TASK-20261022-01](../tasks/TASK-20261022-01-本地千元双模型自动模拟交易落地.md)、停止边界修复见 [TASK-20261022-03](../tasks/TASK-20261022-03-修复本地停止误启动与强停锁定丢失.md) 与 [Issue22-02](../issues/ISSUE-20261022-02-异常终止重启未核验上一轮paper结果.md)。
+
 ## 每日交易日报
 
 自动模式使用方式见下方“容器自动模拟监控”；等待时工作台生成日报，盘中paper结束时生成日报。
