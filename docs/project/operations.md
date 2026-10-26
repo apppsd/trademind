@@ -1,5 +1,9 @@
 # 运行操作手册
 
+## 150主机夜间切换与勘误（2026-10-26，Task26-20）
+
+千元实验链已切换为 run_local 监督（supervisor 311984，账户 paper-t0-local-1k，代码 1f4cd06）。勘误与要点：①**150 宿主代理实际端口为 127.0.0.1:7897**（Clash Verge mixed port；本节上方"D:\trademind 副本实测代理 127.0.0.1:7890"为旧值）——启动 run_local 前必须在 shell 显式 `set HTTPS_PROXY=http://127.0.0.1:7897`（NO_PROXY 含 localhost,127.0.0.1,.deepseek.com,.sinajs.cn,.sina.com.cn），否则 JEV 直连 451；实测经代理 404（可达）、直连 451。②新监督链的 serve 为 observer_app（ARCH-027），旧 `/api/status` 已 404；运行身份验证改用 `GET /api/workbench/overview`（信封 `account_alias`）与 `scripts/run_local.py status`。③run_local 脱终端持久：SSH 启动后断开会话监督器继续运行（心跳实测脱离 SSH 存活）。④switch 前单 writer 检查点：确认无存活进程访问 local-1k 库、8321 端口先停旧 serve。切换细节与次日就绪检查单见 [Task26-20](../tasks/TASK-20261026-20-夜间批次部署推送GitHub并在150执行安全切换.md)。
+
 ## 容器自动模拟监控
 
 Windows宿主 `.venv/Scripts/python.exe scripts/run_auto.py start` 启用；`status`查看、`stop`停止。源码更新后构建镜像再`start --recreate`（优先休市更新，等待子进程退出）。入口验证既有本地无认证HTTP代理，只传容器环境，不打印或写.env；Rancher与代理应保持运行。自动入口拒绝活跃手动paper并停旧workbench，手动paper入口检测auto活跃也拒绝；不要自行并行同账户writer。

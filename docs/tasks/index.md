@@ -6,8 +6,8 @@
 |---|---|---|
 | [16-08 二轮](TASK-20261016-08-修复快速链买入数量的费用预留.md) | completed / Claude Code | 已有仓位增仓累计目标修复（Issue16-05 resolved）；全量783通过 |
 | [TASK-20261026-21](TASK-20261026-21-夜间批次自评审16-08修复对抗性复查.md) | completed / Claude Code | 16-08 diff 对抗性复查与边界补测：放行部署；明建议 Codex 复核 |
-| [TASK-20261026-20](TASK-20261026-20-夜间批次部署推送GitHub并在150执行安全切换.md) | in_progress / Claude Code | push→150 拉取→pytest 门禁→按 26-18 方案切换→次日就绪核对 |
-| [TASK-20261026-18](TASK-20261026-18-核对150主机运行实例并准备安全切换.md) | in_progress / Claude Code | 只读核对完成（见其记录）；第4项验收随 26-20 切换执行 |
+| [TASK-20261026-20](TASK-20261026-20-夜间批次部署推送GitHub并在150执行安全切换.md) | completed / Claude Code | push→150 拉取（1f4cd06）→pytest 门禁→切换完成：supervisor 311984、账户 paper-t0-local-1k、就绪 10-27 交易 |
+| [TASK-20261026-18](TASK-20261026-18-核对150主机运行实例并准备安全切换.md) | completed / Claude Code | 只读核对+授权切换均完成；第4项验收由 26-20 执行通过 |
 
 ## 2026-10-26 稳定化排查与后续
 
