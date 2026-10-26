@@ -13,6 +13,7 @@ from ..config import load_config
 from ..errors import CalendarCoverageError
 from ..market.base import BEIJING
 from ..market.calendar import TradingCalendar
+from ..observability.notify import notify_webhook
 from .paper_run import atomic_json, read_intraday_health
 
 
@@ -115,6 +116,9 @@ class Supervisor:
         self.retry_at = self.clock()
         self.halted = False
         self.note = '等待连续交易时段'
+        # Optional unattended alerting: one webhook per transition into a
+        # needs-human state, re-armed when the condition clears (26-23).
+        self._alerted = {'halted': False, 'uncovered': False}
         self.path = self.root/'auto-paper-state.json'
         # Resident read-only observer (TASK-20261026-07): independent child,
         # never a writer. The paper writer slot above stays single-account.
@@ -423,6 +427,22 @@ class Supervisor:
                  'retry_at':self.retry_at.isoformat(), 'report_path':str(self.report_path) if self.report_path else None,
                  'health_status':health_status, 'intraday_health':intraday,
                  'message':msg}
+        # Unattended alerting (Task-20261026-23): one webhook per transition
+        # into a needs-human state, re-armed after clearance. notify_webhook
+        # is a no-op unless TRADEMIND_NOTIFY_WEBHOOK is set and never raises.
+        if self.halted and not self._alerted['halted']:
+            self._alerted['halted'] = notify_webhook(
+                f'监督器已暂停，需要人工核对：账户 {self.account_id}，'
+                f'状态 {health_status}，原因 {msg}（北京 '
+                f'{now.astimezone(BEIJING).strftime("%m-%d %H:%M")}）')
+        elif not self.halted:
+            self._alerted['halted'] = False
+        if not covered and not self._alerted['uncovered']:
+            self._alerted['uncovered'] = notify_webhook(
+                f'交易日历覆盖不足：账户 {self.account_id} 已停止模拟与付费请求，'
+                '需人工更新日历后才恢复')
+        elif covered:
+            self._alerted['uncovered'] = False
         atomic_json(self.path, state)
         return state
 

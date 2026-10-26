@@ -211,6 +211,7 @@ def test_start_launches_detached_and_records_pid(tmp_path, monkeypatch):
     m = _module(monkeypatch)
     path, db = _config(tmp_path, monkeypatch)
     monkeypatch.setenv('HTTPS_PROXY', 'http://127.0.0.1:7890')
+    monkeypatch.setattr(m, '_proxy_alive', lambda url, timeout=3.0: True)  # liveness is guarded elsewhere
     calls = {}
     proc = Mock(pid=4321, poll=lambda: None)
     def fake_popen(cmd, **kwargs):

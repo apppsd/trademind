@@ -4,6 +4,14 @@
 
 千元实验链已切换为 run_local 监督（supervisor 311984，账户 paper-t0-local-1k，代码 1f4cd06）。勘误与要点：①**150 宿主代理实际端口为 127.0.0.1:7897**（Clash Verge mixed port；本节上方"D:\trademind 副本实测代理 127.0.0.1:7890"为旧值）——启动 run_local 前必须在 shell 显式 `set HTTPS_PROXY=http://127.0.0.1:7897`（NO_PROXY 含 localhost,127.0.0.1,.deepseek.com,.sinajs.cn,.sina.com.cn），否则 JEV 直连 451；实测经代理 404（可达）、直连 451。②新监督链的 serve 为 observer_app（ARCH-027），旧 `/api/status` 已 404；运行身份验证改用 `GET /api/workbench/overview`（信封 `account_alias`）与 `scripts/run_local.py status`。③run_local 脱终端持久：SSH 启动后断开会话监督器继续运行（心跳实测脱离 SSH 存活）。④switch 前单 writer 检查点：确认无存活进程访问 local-1k 库、8321 端口先停旧 serve。切换细节与次日就绪检查单见 [Task26-20](../tasks/TASK-20261026-20-夜间批次部署推送GitHub并在150执行安全切换.md)。
 
+## 夜间二轮运维韧性（2026-10-26，Task26-22/23/24）
+
+- **代理存活预检**：`run_local.py start` 现在会对 HTTPS_PROXY 做 TCP 连通预检（3 秒），代理不可达直接拒绝启动并给中文指引——不会再带死代理启动到开盘才暴露。
+- **当日自动备份**：start 时若无当日备份，自动把账本一致快照写入 `data\backups\<账户>\<日期>\`（幂等；失败只警告不阻断启动）。
+- **晨间体检**：`.venv\Scripts\python.exe scripts\check_morning_readiness.py`——8 项只读检查（代理/监督器/halted/日历/密钥文件存在性/账户身份/备份/磁盘），退出码 0 就绪、1 有阻断、2 需注意。开盘前一键运行。
+- **看门狗**：`scripts\watchdog_heartbeat.py`——监督器心跳>120 秒陈旧时写 `watchdog-alert.json` 并（如配置）发 webhook。监督器自身死亡无法自报，建议注册 Windows 计划任务（用户决定）：`schtasks /create /tn "TradeMind watchdog" /tr "D:\trademind\.venv\Scripts\python.exe D:\trademind\scripts\watchdog_heartbeat.py" /sc minute /mo 15`。
+- **可选 webhook 告警**：为监督器 shell 设置 `TRADEMIND_NOTIFY_WEBHOOK=<钉钉自定义机器人或任意JSON POST地址>` 后重启生效；halted/日历覆盖不足各告警一次，失败绝不影响交易。默认关闭。
+
 ## 容器自动模拟监控
 
 Windows宿主 `.venv/Scripts/python.exe scripts/run_auto.py start` 启用；`status`查看、`stop`停止。源码更新后构建镜像再`start --recreate`（优先休市更新，等待子进程退出）。入口验证既有本地无认证HTTP代理，只传容器环境，不打印或写.env；Rancher与代理应保持运行。自动入口拒绝活跃手动paper并停旧workbench，手动paper入口检测auto活跃也拒绝；不要自行并行同账户writer。

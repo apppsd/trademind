@@ -14,6 +14,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import sqlite3
 import subprocess
 import sys
 import time
@@ -112,6 +113,60 @@ def _code_version():
         return 'unknown'
 
 
+def _proxy_alive(proxy_url, timeout=3.0, connect=None):
+    """TCP-connect to the HTTPS_PROXY host:port. A configured-but-dead proxy
+    otherwise only surfaces as JEV 451 at the next morning's double probe."""
+    connect = connect or socket.create_connection
+    from urllib.parse import urlsplit
+    parts = urlsplit(proxy_url if '//' in proxy_url else '//'+proxy_url)
+    host, port = parts.hostname, parts.port or (443 if parts.scheme == 'https' else 80)
+    if not host or not port:
+        raise ValueError(f'无法解析代理地址: {proxy_url!r}')
+    try:
+        with connect((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _sqlite_backup(source, target):
+    """Online consistent copy through SQLite's backup API (WAL content
+    included) from a read-only connection — the same mechanism the storage
+    layer's backup_to uses, without opening the app/migration stack."""
+    import sqlite3
+    target.parent.mkdir(parents=True, exist_ok=True)
+    src = sqlite3.connect(f'file:{Path(source).as_posix()}?mode=ro', uri=True)
+    try:
+        dst = sqlite3.connect(str(target))
+        try:
+            src.backup(dst)
+            dst.commit()
+        finally:
+            dst.close()
+    finally:
+        src.close()
+
+
+def _backup_if_due(db, account, today=None, backup=None):
+    """One consistent daily backup per account+day under <runtime root's
+    data>/backups/<account>/<date>/. Idempotent (skips when today's copy
+    exists); never blocks startup — failures print a warning."""
+    today = today or datetime.date.today()
+    target = db.parents[2]/'backups'/account/today.isoformat()/db.name
+    if target.exists():
+        return None
+    if not db.exists():
+        print(f'账本文件尚不存在，跳过今日备份：{db}')
+        return None
+    try:
+        (backup or _sqlite_backup)(db, target)
+        print(f'今日账本备份完成：{target}')
+        return target
+    except (OSError, ValueError, sqlite3.Error) as exc:
+        print(f'!! 今日账本备份失败（不影响启动，请尽快手动备份）：{exc}')
+        return None
+
+
 def cmd_start(config):
     cfg, db = _load_runtime(config)
     root = db.parent
@@ -123,10 +178,23 @@ def cmd_start(config):
     if not _port_free(cfg.api.host, cfg.api.port):
         print(f'端口 {cfg.api.port} 已被占用：先停止占用它的旧服务，再启动')
         return 2
-    if not os.environ.get('HTTPS_PROXY'):
+    proxy = os.environ.get('HTTPS_PROXY')
+    if not proxy:
         print('未检测到 HTTPS_PROXY：外部 JEV 直连会被拒绝（451），'
-              '请在设置了宿主代理的环境中启动（例如 HTTPS_PROXY=http://127.0.0.1:7890）')
+              '请在设置了宿主代理的环境中启动（例如 HTTPS_PROXY=http://127.0.0.1:7897，'
+              '150 主机当前为 Clash Verge 混合端口）')
         return 2
+    try:
+        alive = _proxy_alive(proxy)
+    except ValueError as exc:
+        print(str(exc))
+        return 2
+    if not alive:
+        print(f'HTTPS_PROXY 指向的代理当前不可达：{proxy}。'
+              '请先启动宿主代理（如 Clash Verge，混合端口见其设置；150 主机当前为 7897），再启动监督器。'
+              '凌晨或盘前可用 scripts\\check_morning_readiness.py 一键复检。')
+        return 2
+    _backup_if_due(db, cfg.account_id)
     # Inherit the full parent environment (SystemRoot/PATH are required for
     # Winsock); the proxy vars checked above ride along unchanged.
     env = os.environ.copy()

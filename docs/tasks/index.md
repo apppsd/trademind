@@ -5,6 +5,9 @@
 | Task | 状态 / Owner | 范围 |
 |---|---|---|
 | [16-08 二轮](TASK-20261016-08-修复快速链买入数量的费用预留.md) | completed / Claude Code | 已有仓位增仓累计目标修复（Issue16-05 resolved）；全量783通过 |
+| [TASK-20261026-22](TASK-20261026-22-夜间二轮运维韧性代理预检自动备份晨间体检.md) | completed / Claude Code | 代理存活预检+当日自动备份+晨间体检脚本；部署待二轮切换验证 |
+| [TASK-20261026-23](TASK-20261026-23-夜间二轮无人值守告警可选webhook通知.md) | completed / Claude Code | 可选webhook告警（默认关闭）+看门狗脚本；钉钉真实投递待用户配置 |
+| [TASK-20261026-24](TASK-20261026-24-夜间二轮开源借鉴扫描.md) | completed / Claude Code | 开源借鉴扫描：采纳4项/暂缓2项（待五日样本）/不采纳3项；笔记见 research |
 | [TASK-20261026-21](TASK-20261026-21-夜间批次自评审16-08修复对抗性复查.md) | completed / Claude Code | 16-08 diff 对抗性复查与边界补测：放行部署；明建议 Codex 复核 |
 | [TASK-20261026-20](TASK-20261026-20-夜间批次部署推送GitHub并在150执行安全切换.md) | completed / Claude Code | push→150 拉取（1f4cd06）→pytest 门禁→切换完成：supervisor 311984、账户 paper-t0-local-1k、就绪 10-27 交易 |
 | [TASK-20261026-18](TASK-20261026-18-核对150主机运行实例并准备安全切换.md) | completed / Claude Code | 只读核对+授权切换均完成；第4项验收由 26-20 执行通过 |
