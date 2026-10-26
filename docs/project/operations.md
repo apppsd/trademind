@@ -10,6 +10,8 @@ supervisor顺序运行serve/paper：休市、午休、退避时工作台及日�
 
 restart unless-stopped使Rancher恢复后可恢复已启用服务；手动stop后要start。电脑关机/睡眠或Rancher停止期间不能监控。**重建auto容器的工作目录shell必须导出真实代理变量**（2026-10-16实证：从无代理变量的shell `up -d` 会把空值透传进容器，JEV直连451探针失败、会话秒退并空耗探针额度）；本机可用值为 `HTTP_PROXY=http://host.docker.internal:7897`（宿主代理仅监听127.0.0.1，容器内须用 host.docker.internal；192.168.127.1 网关不通），NO_PROXY 建议含 `.deepseek.com,.sinajs.cn,.sina.com.cn`（国内端点直连更快）。日历当前覆盖至2026-12-31，下一年须更新有效日历，未列日期拒绝开市。更新官方日历用离线合并命令（不联网）：`.venv\Scripts\python scripts/update_calendar.py --source-csv <官方CSV> --source <来源名> --version <版本标识>`，并集写入 data/fixtures/calendar_xshg.csv 并生成 `.meta.json` 旁证（来源/版本/核对时间/覆盖范围）；默认拒绝缩小覆盖，确需缩小加 `--allow-shrink`。超出覆盖范围或覆盖临近结尾（≤20个交易日）时健康状态显示“日历覆盖不足”，auto supervisor 停止模拟与付费请求，等待人工更新日历；覆盖范围内非交易日按休市处理，不会截断为边界日期。stop不会另外启动workbench；需手动模式时确认auto及其子进程结束再启workbench。
 
+<a id="local-windows-auto"></a>
+
 ## 本地 Windows 自动模拟监控（2026-10-22，ARCH-026）
 
 无 Docker 的本地入口，与容器入口二选一（同端口 8321，不可同跑）。启动前：`config/t0-local.local.toml`（由 example 复制，绝对 sqlite 路径、账户 `paper-t0-local-1k`、1000 CNY）、根目录 `.env` 含真实双模型 Key、shell 已导出宿主代理（`HTTPS_PROXY` 必需，JEV 直连 451；NO_PROXY 含 `localhost,127.0.0.1`）。D:\trademind 副本实测代理 `http://127.0.0.1:7890`。

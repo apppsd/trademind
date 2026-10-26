@@ -27,7 +27,7 @@ recorded_retrospectively: false
 
 ## 状态
 
-implementing（2026-10-26，独立复核退回）。工程骨架与部分只读代码已存在，账户绑定/隔离、曲线/财务契约、observer实际入口与请求生命周期尚未通过。原实施结果与验证节作为首次自验历史保留，不能替代本轮反例。修复后重新独立验收，不改变交易决策/资金/风控授权。
+implementing（2026-10-26）。账户绑定/隔离、曲线/财务契约、observer入口与请求生命周期的代码返修及隔离验证见Task26-16；实际页面视觉、目标运行实例切换及回退仍待26-14。下方首次自验记录为历史，不代表当前完整验收。不改变交易决策/资金/风控授权。
 
 
 ## 背景与目标
@@ -129,8 +129,8 @@ implementing（2026-10-26，独立复核退回）。工程骨架与部分只读�
   轮询频率按资源分配（5–60s），隐藏暂停、退避封顶 30s。
 
 
-## 最终实施结果与验证
-26-14 集成门槛已通过（工程口径）：
+## 首次实施结果与验证（历史，已由 Task26-15/16 修订）
+首次自验曾报告26-14集成门槛通过；独立复核发现缺陷，后续代码返修已验证，当前完整验收仍未完成：
 - 构建：npm run build 成功，产物入 src/trademind/api/static/workbench/（主包 104 kB/gzip 41 kB，ECharts 分包
   591 kB/gzip 201 kB，7 页面懒加载 chunk）；干净 wheel 含 V2 产物（package-data 已补）。
 - 测试：全量 pytest 725 passed（test_auto_paper 21 / test_local_lifecycle 32 / test_observer_app 6 为本批新增/重构）；

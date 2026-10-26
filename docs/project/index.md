@@ -1,7 +1,3 @@
-2026-10-19最新独立复验：[Task19-11](../tasks/TASK-20261019-11-复验收盘候选与成熟修订修复.md) completed / Codex。Task19-02收盘候选/发布微秒边界、Task19-10日线修订early→late→early原反例全部通过；25项相关测试独立通过，保留两Task completed / Claude Code、Issue19-01/02 resolved（工程）。下方退回/重开为修复前历史。Task19-07已统一ID并新增三条后续触发文字记录，平台运行尚未由本聊天独立确认，保持in_progress/Issue19-03 open。部署/真实盘中/自动反馈/完整交易/五日仍未验。
-
-2026-10-19最新独立探查：[Task19-08](../tasks/TASK-20261019-08-复验候选成熟门禁与执行端登记.md) completed / Codex；[新报告](../research/20261019-outcome-candidate-recheck.md)。33项相关回归通过，但Task19-02收盘成熟候选复验未通过：09:30提前入选、15:30发布后反而为空；保持in_progress/Claude Code，Issue19-01重新open。直接成熟与终点收益计算仍正确。Task19-07已认领但调度ID不一致、后续触发未验，保持in_progress/Claude Code、Issue19-03 open。审查端按用户最新要求每小时一次，旧15分钟为历史。分钟特征四组控制通过，无新缺陷；部署/真实自动链/交易五日仍未验。下方旧“resolved/已设置”断言以本条限定。
-
 # 项目状态索引
 
 当前事实唯一入口：[当前状态](current-status.md)（顶部为最新运行事实与未验清单）。最新实施入口：[任务索引](../tasks/index.md)；开放问题：[问题索引](../issues/index.md)。历史运行证据统一在 docs/research/ 报告与各 Task/Issue 维护，本页只做导航，不重复状态流水。
@@ -19,7 +15,7 @@
 
 ## 工作入口
 
-- [中文大屏工作台V2需求与页面规划](../requirements-workbench-v2.md) · [执行任务](../tasks/TASK-20261026-02-规划中文大屏交易工作台重构.md) · [ARCH-027规划](../architecture/27-chinese-large-screen-workbench.md)（implementing，代码返修已验证、实际视觉待验）
+- [中文大屏工作台V2需求与页面规划](../requirements-workbench-v2.md) · [执行任务](../tasks/index.md) · [ARCH-027](../architecture/27-chinese-large-screen-workbench.md)（implementing，代码返修已验证、实际视觉待验）
 
 - [T0 影子需求（当前阶段）](../requirements-t0-shadow.md) · [V1 需求（历史/兼容）](../requirements.md)
 - [Roadmap](../roadmap.md)
