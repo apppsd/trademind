@@ -367,6 +367,12 @@ def test_incomplete_valuation_vetoes_new_buy(tmp_path):
     pipe, tick = make_pipe(tmp_path)
     pipe.cfg.universe.append(B)
     pipe.guard.universe.add(B)
+    # Legal-buy precondition (17-02收口): the existing 150 CNY position leaves
+    # exactly-one-lot headroom under the 200/300 defaults, which the sizer now
+    # treats as cap-bound; widen the caps so the B buy reaches Guard and the
+    # valuation veto stays covered.
+    pipe.cfg.t0.max_single_exposure = Decimal('450')
+    pipe.cfg.t0.max_total_exposure = Decimal('600')
     _apply_buy(pipe, I, tick[0]-timedelta(minutes=5), '1.50')   # stale quote
     def routed(iid, *a, **kw):
         if iid == I:

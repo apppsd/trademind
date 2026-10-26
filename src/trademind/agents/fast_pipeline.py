@@ -96,27 +96,59 @@ class FastDecisionPipeline:
             action,confidence,reason=decision.action,decision.action_confidence,decision.reason
             if action==TradeAction.BUY:
                 equity=account.equity
-                market_cap=min(self.cfg.max_single_exposure-cw*equity,
-                               self.cfg.max_total_exposure-sum((p.market_value or Decimal('0')) for p in account.positions))
-                cash_cap=account.cash-account.reserved_cash-self.cfg.min_cash_reserve
-                # Buy fees come out of the cash budget, not the market-value
-                # caps (Issue16-05): the market-value target stays fractional
-                # (Guard's early vetoes see the same intent shape as before the
-                # fix), but it is clamped to the largest lot-multiple whose
-                # notional + fees fits the free-cash budget, so Guard's derived
-                # quantity is cash-lawful instead of vetoed for reserve breach.
-                # Guard remains an independent hard check, never a sizer.
+                # Market-value caps compare *cumulative* value without fees; the
+                # cash budget (cash − reserved − min reserve) must additionally
+                # cover notional + buy fees (Issue16-05). pos_value comes from
+                # the ledger snapshot — the intent target is the *cumulative*
+                # weight (existing value + lawful increment). Using the headroom
+                # alone as the target made every scale-in with a position emit
+                # target<=cw → WAIT 'no lawful increase size' (Task17-03).
+                pos_value=next((p.market_value or Decimal('0') for p in account.positions
+                                if p.instrument_id==context.instrument_id),Decimal('0'))
+                total_value=sum((p.market_value or Decimal('0')) for p in account.positions)
                 price=context.features.values['close']
                 lot=Decimal(profile.lot_size)
-                target=min(Decimal('1'),market_cap/equity) if equity>0 and market_cap>0 else Decimal('0')
+                cap_lots=(((min(self.cfg.max_single_exposure-pos_value,
+                                self.cfg.max_total_exposure-total_value)/price)/lot)
+                          .to_integral_value(rounding='ROUND_DOWN')
+                          if equity>0 and price>0 else Decimal('0'))
+                cash_cap=account.cash-account.reserved_cash-self.cfg.min_cash_reserve
+                qty_lots=Decimal('0')
                 if price>0 and cash_cap>0:
-                    qty_cash=((cash_cap/price)/lot).to_integral_value(rounding='ROUND_DOWN')*lot
-                    while qty_cash>0 and qty_cash*price+compute_fees(OrderSide.BUY,qty_cash,price,profile.fees)>cash_cap:
-                        qty_cash-=lot
-                    if qty_cash>0:
-                        target=min(target,(cw*equity+qty_cash*price)/equity)
-                if target<=cw or target<=Decimal('0'):
+                    qty_lots=((cash_cap/price)/lot).to_integral_value(rounding='ROUND_DOWN')
+                    while qty_lots>0 and qty_lots*lot*price+compute_fees(OrderSide.BUY,qty_lots*lot,price,profile.fees)>cash_cap:
+                        qty_lots-=1  # fees come out of the cash budget, never the caps
+                    qty_lots=min(qty_lots,cap_lots)
+                if equity<=0 or qty_lots<=Decimal('0'):
                     action,target,reason=TradeAction.WAIT,Decimal('0'),'no lawful increase size'
+                else:
+                    # Emit the smallest 28-digit cumulative weight whose Guard
+                    # lot-floor still yields qty_lots, never strictly above the
+                    # cap weight (Guard vetoes strictly-above at
+                    # max_single_exposure_limit). Decimal rounding at either
+                    # boundary must not eat the marginal lot; when the cap
+                    # itself binds, stepping down one lot keeps the intent
+                    # lawful. Guard remains an independent hard check, never a
+                    # sizer.
+                    cap_weight=min(self.cfg.max_single_exposure,
+                                   self.cfg.max_total_exposure-total_value+pos_value)/equity
+                    target=Decimal('0')
+                    while qty_lots>0:
+                        notional=qty_lots*lot*price
+                        candidate=(pos_value+notional)/equity
+                        for _ in range(3):
+                            if candidate>cap_weight:
+                                break
+                            derived=((candidate*equity-pos_value)/price/lot).to_integral_value(rounding='ROUND_DOWN')*lot
+                            if derived>=notional/price:
+                                target=candidate
+                                break
+                            candidate=candidate.next_plus()
+                        if target>0:
+                            break
+                        qty_lots-=1
+                    if target<=0 or target<=cw:
+                        action,target,reason=TradeAction.WAIT,Decimal('0'),'no lawful increase size'
             elif action==TradeAction.HOLD:
                 target=cw
         except (ProviderError,ValueError,KeyError) as exc:

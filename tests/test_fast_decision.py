@@ -10,7 +10,9 @@ from trademind.models.jev import TypeSafeJEVProvider
 from trademind.models.deepseek import DeepSeekProvider
 from trademind.models.base import ModelOutput, build_call
 from trademind.models.daily_budget import DailyModelBudget
-from trademind.domain.enums import ProviderKind
+from trademind.domain.enums import OrderSide, OrderStatus, ProviderKind, RunMode
+from trademind.domain.orders import Order, Fill
+from trademind.domain.base import new_id
 from trademind.domain.strategy import StrategyPlan, Condition
 from trademind.market.profiles import get_profile
 from trademind.errors import ProviderError
@@ -367,6 +369,82 @@ def test_buy_waits_when_no_lawful_lot(tmp_path):
     # the one-lot pre-check rejects first: 150+fees > cash budget 50
     assert result.intent.reason=='minimum lawful lot unaffordable'
     assert result.order_id is None
+
+
+def _apply_fill(pipe,at,price='1.50'):
+    """A real 100-share fill so the next decision sees an existing position
+    (local copy of test_fast_architecture_repairs._apply_buy)."""
+    oid=new_id('o')
+    order=Order(id=oid,trace_id='test',created_at=at,order_id=oid,client_order_id=oid,
+        intent_id='test',guard_id='test',account_id=pipe.cfg.account_id,instrument_id=I,
+        mode=RunMode.PAPER,side=OrderSide.BUY,quantity=D('100'),limit_price=D(price),
+        updated_at=at,status=OrderStatus.ACKNOWLEDGED)
+    fill=Fill(id=new_id('f'),trace_id='test',created_at=at,fill_id=new_id('fill'),
+        provider_fill_id=new_id('pf'),order_id=oid,fee=D('0.1'),quantity=D('100'),
+        price=D(price),executed_at=at,available_at=at)
+    pipe.ledger.apply_fill(fill,order,at)
+
+
+def test_buy_scale_in_with_position_targets_cumulative_value(tmp_path):
+    """Task17-03 repro, fixed (Issue16-05): holding 100@1.50 (mv 150) with
+    single cap 300 / total cap 450 and equity 499.90 / cash 349.90, the sizer
+    used to emit target==cw and WAIT 'no lawful increase size'. The target is
+    the cumulative weight now, so the same account BUYs 1 lot and Guard allows
+    it — scale-in is no longer blocked by an existing position."""
+    pipe,tick=make_pipe(tmp_path)
+    _apply_fill(pipe,tick[0]-timedelta(minutes=15))  # cash 349.90, equity 499.90
+    pipe.cfg.t0.max_single_exposure=D('300')
+    pipe.cfg.t0.max_total_exposure=D('450')
+    result=pipe.run_decision(I,tick[0])
+    assert result.error is None and result.intent.action.value=='BUY'
+    assert result.intent.reason!='no lawful increase size'
+    assert result.intent.target_weight>result.intent.current_weight
+    assert result.qty==100 and result.guard_verdict=='ALLOW' and result.order_id
+
+
+def test_buy_scale_in_waits_when_cash_budget_cannot_cover_lot(tmp_path):
+    """With a position, no lawful increment (free cash below one lot's
+    notional+fees) WAITs explicitly instead of feeding Guard a doomed target."""
+    pipe,tick=make_pipe(tmp_path)
+    _apply_fill(pipe,tick[0]-timedelta(minutes=15))
+    pipe.cfg.t0.max_single_exposure=D('900')
+    pipe.cfg.t0.max_total_exposure=D('900')
+    pipe.cfg.t0.min_cash_reserve=D('300')  # cash cap 49.90 < 150 + fees
+    result=pipe.run_decision(I,tick[0])
+    assert result.intent.action.value=='WAIT'
+    assert result.intent.reason=='no lawful increase size'
+    assert result.order_id is None
+
+
+def test_buy_scale_in_waits_when_single_cap_exhausted(tmp_path):
+    """Position already at the single-instrument cap leaves no lawful
+    increment: explicit WAIT, no order."""
+    pipe,tick=make_pipe(tmp_path)
+    _apply_fill(pipe,tick[0]-timedelta(minutes=16))
+    _apply_fill(pipe,tick[0]-timedelta(minutes=15))  # 200@1.50 → mv 300 = cap
+    pipe.cfg.t0.max_single_exposure=D('300')
+    pipe.cfg.t0.max_total_exposure=D('450')
+    result=pipe.run_decision(I,tick[0])
+    assert result.intent.action.value=='WAIT'
+    assert result.intent.reason=='no lawful increase size'
+    assert result.order_id is None
+
+
+def test_buy_scale_in_steps_down_inside_cap_at_exact_boundary(tmp_path):
+    """Cap-binding boundary (existing 150 mv, headroom exactly 5 lots under
+    900/900 with ample cash): the sizer must land strictly inside Guard's cap
+    weight — never replan_zero_lot_quantity nor max_single_exposure_limit —
+    stepping down a lot when 28-digit rounding would sit on the boundary."""
+    pipe,tick=make_pipe(tmp_path)
+    _apply_fill(pipe,tick[0]-timedelta(minutes=15))          # mv 150, equity 499.90
+    pipe.ledger.deposit(D('1500'),tick[0]-timedelta(minutes=14))  # equity 1999.90
+    pipe.cfg.t0.max_single_exposure=D('900')
+    pipe.cfg.t0.max_total_exposure=D('900')
+    result=pipe.run_decision(I,tick[0])
+    assert result.intent.action.value=='BUY'
+    assert result.guard_verdict=='ALLOW' and result.order_id
+    assert result.intent.target_weight<=D('900')/D('1999.90')
+    assert D('150')+result.qty*D('1.50')<=D('900')  # cumulative value inside cap
 
 
 # -- TASK-20261025-03: BUY plans must carry SELL + exits (ISSUE-20261025-01) --

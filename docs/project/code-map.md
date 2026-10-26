@@ -149,6 +149,7 @@ Task16分钟特征已修复：连续1m窗口遇缺口/午休/隔夜重置，当�
 runner.cmd_t0_data：无模型/凭据免费数据检查；runner._t0_instruments：池/T0规则验证；router._minute_cache：30秒实时观测缓存；tests/test_t0_market_pool.py：6项池与数据入口回归。关联[ARCH-004](../architecture/04-t0-market-pool.md)。
 
 2026-10-17：ledger.py T0跨日单次解锁、paper.py 撮合质量门禁、fast_pipeline.py 含费数量钳制、oms.py `expire_stale_orders`（[ARCH-021](../architecture/21-t0-intraday-order-lifecycle.md)）；测试：test_ledger.py（T0跨日5项）、test_t0_oms_execution.py（撮合质量2+生命周期6）、test_fast_decision.py（含费数量3）。
+2026-10-26：fast_pipeline.py BUY 尺寸器改累计目标权重（账本快照 pos_value+整手增量，边界舍入感知，Issue16-05 二轮修复）；测试：test_fast_decision.py（增仓累计目标3项）。
 
 2026-10-17：oms.py生命周期操作与guard.py恢复/同标的扫描账户隔离、ledger.apply_fill外账户防御（17-08）；测试：test_t0_oms_execution.py多账户隔离2项。
 
