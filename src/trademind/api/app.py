@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..config import (AppConfig, ConfigError, clear_admin_override,
                       describe_admin_settings, load_config, save_admin_override)
@@ -56,6 +56,25 @@ async def daily_report_lifespan(application):
 
 app = FastAPI(title="TradeMind Workbench", version="0.1.0", lifespan=daily_report_lifespan)
 _state: dict[str, Any] = {"pipeline": None, "cfg": None}
+
+# Workbench V2 read-only routes + static bundle live beside the legacy API
+# (TASK-20261026-05/07). The observer process mounts the same router without
+# this trading app; registration here stays additive and never replaces /.
+from .workbench_routes import router as _workbench_router  # noqa: E402
+
+app.include_router(_workbench_router)
+
+_WORKBENCH_STATIC = Path(__file__).parent / "static" / "workbench"
+if _WORKBENCH_STATIC.exists():
+    from fastapi.staticfiles import StaticFiles  # noqa: E402
+
+    # The redirect route must exist BEFORE the mount, or the mount shadows it.
+    @app.get("/workbench", response_class=HTMLResponse)
+    def workbench_redirect():
+        return RedirectResponse("/workbench/")
+
+    app.mount("/workbench", StaticFiles(directory=str(_WORKBENCH_STATIC), check_dir=False, html=True),
+              name="workbench")
 
 
 @app.get('/reports/daily', response_class=HTMLResponse)
@@ -124,6 +143,7 @@ def init_app(cfg: AppConfig) -> Pipeline:
     pipe.ensure_account()
     _state["pipeline"] = pipe
     _state["cfg"] = cfg
+    app.state.workbench_cfg = cfg
     return pipe
 
 

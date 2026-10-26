@@ -10,7 +10,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from ..agents.fast_prompts import STRATEGY_OUTPUT_FIELDS
-from ..domain.strategy import StrategyPlan
+from ..domain.strategy import StrategyPlan, exit_contract_violation
 from .fast_comparison import percentile
 
 ACTIONS = {'BUY', 'SELL', 'HOLD', 'WAIT'}
@@ -101,8 +101,10 @@ def parse_output(case, output):
     if any(c.field not in case['input']['features'] for c in conditions):
         raise ValueError('unavailable condition field')
     actions = [a.value for a in plan.allowed_actions]
-    if 'SELL' in actions and not plan.exit_conditions:
-        raise ValueError('SELL without exit')
+    # Same exit contract as the production planner/cache boundary (TASK-20261025-03).
+    violation = exit_contract_violation(plan)
+    if violation:
+        raise ValueError(violation)
     if plan.holding_horizon_seconds > case['input'].get('max_holding_horizon_seconds', 14400):
         raise ValueError('excess horizon')
     return actions, {}

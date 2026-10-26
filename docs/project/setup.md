@@ -48,6 +48,16 @@ container公共示例及container/fast local已填写：Flash输入2、输出8 C
 
 复用AKShare可选依赖，无新增依赖/密钥。market-access.local.toml已创建，CNY500/HKD0、确认权限空；config/*.local.json与local.toml均忽略Git。参数与规则见[操作说明](operations.md#多市场观察与购买条件筛选)。
 
+## 前端构建环境（2026-10-26，Task26-03/14）
+
+Node 便携版 v22.23.4：`D:\tools\nodejs`（免管理员、不改系统 PATH；bash 需 `export PATH="/d/tools/nodejs:$PATH"`）。前端工程 frontend/（Vite 7 + Vue 3.5 + TypeScript 5.9 + ECharts 6，依赖已装入 node_modules）：
+
+- 构建：`cd frontend && npm run build` → 产物写入 src/trademind/api/static/workbench/（pyproject package-data 已包含，wheel 可带出）
+- 类型检查：`npx vue-tsc --noEmit`（0 错基线）
+- 单元测试：`npx vitest run`（30 passed 基线）
+
+Node 仅构建用；运行时（serve/observer/paper）不依赖 Node。
+
 ## 当前工作环境
 
 两个独立工作副本，事实分别维护：
@@ -102,3 +112,9 @@ Git 主分支 main，远程 origin https://github.com/apppsd/trademind.git。
 ## 2026-10-08 T0已登记全池更新
 
 config/t0-paper.local.toml已创建，不含Key并被Git忽略；universe/whitelist为3只T0，AKShare免费分钟源。model_input_cny_per_million=2、model_output_cny_per_million=8采用已核验高峰人民币价格，使用前核对是否调价。无新增依赖，现有AKShare1.19.1已安装；实际连接ProxyError待解决。
+
+
+工作台V2验收边界（2026-10-26）：Node与构建命令的环境事实不变；构建/类型检查不能替代运行验收，observer入口与数据契约仍在返修。详见[独立复核](../research/20261026-workbench-independent-review.md)。本轮未安装、升级或修改环境。
+
+
+工作台V2返修环境与打包（2026-10-26）：主Python/Node依赖未升级。主venv没有pip/build，验证使用既有uv的离线缓存：`uv build --wheel --offline --out-dir data/runtime/task26-16-wheel`；独立临时venv安装wheel后在仓库外验证。wheel包含static/workbench与share/trademind/etf_whitelist.json；目录/规则支持源码与安装位置，规则本身不变。构建、安装冒烟和未验视觉边界见[返修报告](../research/20261026-workbench-repair-verification.md)。此前“仍有入口/契约缺陷”描述为修复前记录，当前代码已修复而运行未切换。

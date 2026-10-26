@@ -446,7 +446,7 @@ def test_probe_budget_exhausted_backs_off_hourly(tmp_path):
     assert delay == 300
 
 
-def test_valid_marker_overrides_spent_probe_budget(tmp_path):
+def test_valid_marker_overrides_spent_probe_budget(tmp_path, monkeypatch):
     """Task17-05 gap A: a valid same-day marker must not be blocked by a spent
     probe-pair budget — the launch skips probes, so the gate does not apply."""
     from datetime import datetime as dt
@@ -457,9 +457,18 @@ def test_valid_marker_overrides_spent_probe_budget(tmp_path):
     pipe, tick = _probe_pipe(tmp_path)
     pipe.jev.model = 'jev-1.13.0'  # official-model gate identity
     pipe.calendar = Mock(is_session_open=Mock(return_value=True))
+    # The test owns a fixed intraday clock. Wall-clock midnight would leave
+    # fewer than 16 contiguous same-day bars and test data quality, not probes.
+    fixed = dt(2026, 10, 23, 10, 30, tzinfo=BEIJING)
+    tick[0] = fixed
+    class FixedClock(dt):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed.astimezone(tz) if tz is not None else fixed.replace(tzinfo=None)
+    monkeypatch.setattr(runner, 'datetime', FixedClock)
     from test_fast_decision import minute
     def fresh_bars(*a, **kw):
-        now = dt.now(BEIJING)
+        now = fixed
         return ([minute(now - timedelta(minutes=i)) for i in reversed(range(20))], None)
     pipe.router.get_minute_bars = Mock(side_effect=fresh_bars)  # data leg needs real-fresh bars
     def complete(**kw):

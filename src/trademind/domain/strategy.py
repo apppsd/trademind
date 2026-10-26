@@ -76,6 +76,37 @@ class StrategyPlan(ValueObject):
                 and self.available_at <= at < self.valid_until
                 and self.created_at.astimezone(BEIJING).date()==at.astimezone(BEIJING).date())
 
+
+def open_without_close_violation(plan):
+    """Cache-boundary subset of the exit contract (ISSUE-20261025-01).
+
+    Refuse cached plans that could open a position but can never close it —
+    the dangerous half of the contract, applied on every cache read. SELL
+    without exit conditions stays loadable here: conditions_allow already
+    never authorizes such a SELL, and refresh replaces the plan on schedule.
+    """
+    if (TradeAction.BUY in plan.allowed_actions
+            and (TradeAction.SELL not in plan.allowed_actions or not plan.exit_conditions)):
+        return 'BUY plan requires SELL with computable exit conditions'
+    return None
+
+
+def exit_contract_violation(plan):
+    """Full draft-boundary contract (TASK-20261025-03): a plan that may open a
+    position must also be able to close it — BUY requires SELL in
+    allowed_actions plus nonempty computable exit_conditions, and any SELL
+    requires exit conditions. Applied to new planner drafts and the offline
+    evaluator so prompt/validator semantics stay identical. Deliberately NOT a
+    pydantic model validator: legacy archives (fast_comparison, plan history)
+    must keep parsing pre-contract plans; production boundaries reject them.
+    """
+    reason = open_without_close_violation(plan)
+    if reason:
+        return reason
+    if TradeAction.SELL in plan.allowed_actions and not plan.exit_conditions:
+        return 'SELL plan requires computable exit conditions'
+    return None
+
 class FastDecisionState(ValueObject):
     schema_version: Literal[1] = 1
     context_id: str

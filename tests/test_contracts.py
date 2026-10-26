@@ -231,3 +231,51 @@ def test_load_example_config_defaults():
     assert cfg.mode == "paper"
     assert cfg.risk.max_position_weight == Decimal("0.20")
     assert cfg.universe, "example universe should not be empty"
+
+
+# -- TASK-20261025-03: strategy exit contract (ISSUE-20261025-01) --
+
+def _exit_contract_plan(allowed, exits):
+    from datetime import datetime, timedelta, timezone
+    from trademind.domain.strategy import StrategyPlan
+    at = datetime(2026, 10, 12, 10, 0, tzinfo=timezone(timedelta(hours=8)))
+    entry = [{'field': 'close', 'operator': 'gt', 'value': '1'}] if 'BUY' in allowed else []
+    return StrategyPlan(plan_id='plan-x', instrument_id='513050.SH', market='XSHG',
+        rule_version='r', prompt_version='strategy-5', created_at=at, data_cutoff=at,
+        available_at=at, valid_until=at + timedelta(seconds=600), evidence_ids=['e'],
+        trend='t', risk='r', critic='c', reason='测试', allowed_actions=allowed,
+        entry_conditions=entry, exit_conditions=exits,
+        invalidation_conditions=[], holding_horizon_seconds=300)
+
+
+def test_exit_contract_buy_requires_sell_and_exits():
+    from trademind.domain.strategy import exit_contract_violation
+    buy_only = _exit_contract_plan(['BUY', 'HOLD', 'WAIT'],
+                                   [{'field': 'close', 'operator': 'lt', 'value': '2'}])
+    no_exits = _exit_contract_plan(['BUY', 'SELL'], [])
+    assert exit_contract_violation(buy_only) == 'BUY plan requires SELL with computable exit conditions'
+    assert exit_contract_violation(no_exits) == 'BUY plan requires SELL with computable exit conditions'
+
+
+def test_exit_contract_sell_requires_exits():
+    from trademind.domain.strategy import exit_contract_violation
+    plan = _exit_contract_plan(['SELL', 'HOLD', 'WAIT'], [])
+    assert exit_contract_violation(plan) == 'SELL plan requires computable exit conditions'
+
+
+def test_exit_contract_valid_plans_pass():
+    from trademind.domain.strategy import exit_contract_violation
+    assert exit_contract_violation(_exit_contract_plan(
+        ['BUY', 'SELL', 'HOLD', 'WAIT'],
+        [{'field': 'close', 'operator': 'lt', 'value': '2'}])) is None
+    assert exit_contract_violation(_exit_contract_plan(['WAIT'], [])) is None
+    assert exit_contract_violation(_exit_contract_plan(
+        ['SELL', 'HOLD', 'WAIT'], [{'field': 'close', 'operator': 'lt', 'value': '2'}])) is None
+
+
+def test_legacy_buy_only_plan_still_parses_for_archives():
+    """The rule is deliberately not a pydantic validator: history loaders
+    (fast_comparison, plan history) must keep reading pre-contract plans."""
+    from trademind.domain.enums import TradeAction
+    plan = _exit_contract_plan(['BUY'], [])
+    assert plan.allowed_actions == [TradeAction.BUY]

@@ -20,7 +20,7 @@ Trend/Risk/Critic 保留为 flash 的三个分析维度，允许一次结构化�
 
 ## StrategyPlan
 
-必须有 plan_id、schema_version、instrument_id、market/currency、created_at、data_cutoff、available_at、valid_until、model、prompt_version、输入证据引用、策略假设、适用市场状态、允许动作、入场/退出条件、最大持有期限、失效条件、风险及反证。
+必须有 plan_id、schema_version、instrument_id、market/currency、created_at、data_cutoff、available_at、valid_until、model、prompt_version、输入证据引用、策略假设、适用市场状态、允许动作、入场/退出条件、最大持有期限、失效条件、风险及反证。 退出动作契约（2026-10-25，[ARCH-006](architecture/06-jev-fast-decision.md)）：允许BUY的计划必须同时允许SELL且有非空可计算退出条件，允许SELL必须有退出条件；草稿边界完整校验、缓存边界拒绝缺SELL的旧计划并记录分类原因，旧缓存经版本失效（strategy-5）按规则处理。
 
 条件使用程序能校验的字段与运算符，禁止执行模型生成的代码或自然语言表达式。计划应允许“本轮无可交易策略”。缺字段、标的不一致、未来数据、过期、规则版本不匹配时无效。计划只限定意图，不授予订单权限；账户与资金在每次决策重新读取。
 

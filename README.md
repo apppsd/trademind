@@ -2,9 +2,11 @@
 
 本地自动模拟监控（当前默认，无Docker）：`scripts/run_local.py start/status/stop`，Windows 本地 venv 直跑，账户 `paper-t0-local-1k`（1000 CNY，独立库）。前置：`config/t0-local.local.toml`、根目录 `.env` 双模型 Key、shell 导出宿主代理（`HTTPS_PROXY` 必需）。盘中自动三ETF模拟循环，午休/休市等待，程序计算数量/硬风控/模拟执行；改代码后 `stop`→核对→`start`（可编辑安装即改即生效）。详见 [本地运行操作](docs/project/operations.md#本地-windows-自动模拟监控2026-10-22-arch-024) 与 [TASK-20261022-01](docs/tasks/TASK-20261022-01-本地千元双模型自动模拟交易落地.md)。
 
-容器自动模拟监控（兼容入口）：auto容器按上海交易日历等待开市，盘中自动运行原三ETF模拟循环，午休/休市等待；原行情、模型、资金及预算门禁保留。使用 `.venv/Scripts/python.exe scripts/run_auto.py start` 启动、`status`查看、`stop`停止（Rancher运行且既有宿主代理可用）。自动模式与原workbench不能同时启用；盘中工作台暂暂停，等待时恢复。[自动运行说明](docs/project/operations.md#容器自动模拟监控)。
+容器自动模拟监控（兼容入口）：auto容器按上海交易日历等待开市，盘中自动运行原三ETF模拟循环，午休/休市等待；原行情、模型、资金及预算门禁保留。使用 `.venv/Scripts/python.exe scripts/run_auto.py start` 启动、`status`查看、`stop`停止（Rancher运行且既有宿主代理可用）。自动模式与旧workbench不能同时启用；新代码由独立只读observer提供V2页面，当前运行切换状态见[当前状态](docs/project/current-status.md)。[自动运行说明](docs/project/operations.md#容器自动模拟监控)。
 
 每日交易日报：工作台首页“查看今天交易日报”或[报告页面](http://127.0.0.1:8321/reports/daily)。按上海日保存资金、入出金、成交/策略、盈亏及模型费用JSON/Markdown/HTML；页面和文字报告使用中文，新模型策略说明要求中文。运行工作台每分钟刷新，paper结束时生成；生成报告不调用模型。口径和补历史入口见[运行手册](docs/project/operations.md#每日交易日报)。
+
+大屏工作台V2：[http://127.0.0.1:8321/workbench/](http://127.0.0.1:8321/workbench/)。中文大屏与只读接口的账户、曲线、财务、observer和刷新缺陷已完成代码返修，见[验证报告](docs/research/20261026-workbench-repair-verification.md)。现有后端进程未重启，修复需按既有停启流程加载；实际大屏视觉、交互与回退仍待验收，[ARCH-027](docs/architecture/27-chinese-large-screen-workbench.md)保持implementing。构建见[setup](docs/project/setup.md)，运行边界见[operations](docs/project/operations.md)。
 
 已新增24例提示行为案例及零调用的保存响应评测工具，使用方式见[离线提示评测](docs/project/operations.md#离线提示评测)；工程验证和真实未验项见[本轮报告](docs/research/20261011-prompt-eval-verification.md)。
 

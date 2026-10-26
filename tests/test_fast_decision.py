@@ -367,3 +367,65 @@ def test_buy_waits_when_no_lawful_lot(tmp_path):
     # the one-lot pre-check rejects first: 150+fees > cash budget 50
     assert result.intent.reason=='minimum lawful lot unaffordable'
     assert result.order_id is None
+
+
+# -- TASK-20261025-03: BUY plans must carry SELL + exits (ISSUE-20261025-01) --
+
+def test_buy_without_sell_draft_waits_without_order_or_freeze(tmp_path):
+    """Issue25-01 repro at the planner boundary: a BUY-capable draft without
+    SELL is rejected before caching or JEV; WAIT with categorical reason, no
+    order, no freeze, and the failure feeds the existing health backoff."""
+    pipe, tick = make_pipe(tmp_path)
+    original = pipe.llm.complete.side_effect
+    def buy_only(**kw):
+        out = original(**kw)
+        out.parsed['allowed_actions'] = ['BUY', 'HOLD', 'WAIT']
+        return out
+    pipe.llm.complete.side_effect = buy_only
+    result = pipe.run_decision(I, tick[0])
+    assert result.intent.action.value == 'WAIT' and result.order_id is None
+    assert result.intent.reason == 'invalid strategy contract'
+    assert pipe.ledger.snapshot(tick[0]).reserved_cash == 0
+    assert not pipe.repo.open_orders()
+    pipe.jev.session.post.assert_not_called()
+    health = pipe._fast_pipeline.planner.health_state(tick[0])
+    assert health['consecutive_failures'] == 1
+    assert health['last_failure_category'] == 'invalid_strategy_contract'
+
+
+def test_exit_hit_offers_sell_without_plan_mutation(tmp_path):
+    """With the fixed contract the cached plan already carries SELL, so an
+    exit-condition hit offers SELL directly (no cached-plan surgery needed)."""
+    pipe, tick = make_pipe(tmp_path)
+    assert pipe.run_decision(I, tick[0]).order_id
+    tick[0] += timedelta(minutes=1)
+    assert pipe.poll_fills(tick[0])
+    tick[0] += timedelta(minutes=4)
+    original = pipe.jev.session.post.side_effect
+    def sell(url, json, timeout):
+        offered = json['state']['allowed_actions']
+        assert 'SELL' in offered and 'BUY' in offered
+        response = original(url, json, timeout)
+        options = list(response.body['answers']['action']['probabilities'])
+        response.body['answers']['action'].update(
+            choice='SELL', probabilities={k: int(k == 'SELL') for k in options})
+        return response
+    pipe.jev.session.post.side_effect = sell
+    result = pipe.run_decision(I, tick[0])
+    assert result.intent.action.value == 'SELL' and result.order_id
+
+
+def test_legacy_buy_only_cached_plan_rejected_and_recorded(tmp_path):
+    """A pre-contract BUY-only plan in coalesce storage is refused like a cache
+    miss, recorded once with a categorical reason, and the row is not rewritten."""
+    pipe, tick = make_pipe(tmp_path)
+    pipe.run_decision(I, tick[0])
+    planner = pipe._fast_pipeline.planner
+    row = pipe.repo.get_coalesce(planner.key(I))
+    row['meta']['plan']['allowed_actions'] = ['BUY', 'HOLD', 'WAIT']
+    pipe.repo.save_coalesce(planner.key(I), tick[0], row['meta'])
+    context = pipe.context_builder.build_minute(I, tick[0])
+    assert planner.cached(context, get_profile(I).profile_id, tick[0]) is None
+    health = planner.health_state(tick[0])
+    assert health['last_cache_reject_category'] == 'invalid_cached_plan'
+    assert 'SELL' in health['last_cache_reject_reason']

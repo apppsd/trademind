@@ -28,24 +28,52 @@ def setup_supervisor(tmp_path, stamp='11:40'):
     return Supervisor('config/test.toml',tmp_path,CAL,launch,lambda:now[0]),now,children
 
 
-def test_lunch_to_market_switch_waits_for_serve_exit(tmp_path):
+def test_lunch_idle_launches_observer_then_paper_at_open(tmp_path):
+    # TASK-20261026-07: waiting phases no longer run a serve writer; a
+    # resident read-only observer child is launched instead (ARCH-025).
     s,now,children=setup_supervisor(tmp_path)
-    assert s.tick()['phase']=='serve'
+    state=s.tick()
+    assert state['phase'] is None and s.child is None
+    assert len(children)==1 and 'observer' in children[0][0]
+    assert '--probe-models' not in children[0][0]  # observer: zero paid path
     now[0]=now[0].replace(hour=13,minute=0)
     assert s.tick()['phase']=='paper'
-    children[0][1].wait.assert_called_once_with(timeout=100)
     assert '--probe-models' in children[1][0]
     assert children[1][0][children[1][0].index('--max-seconds')+1]=='3600'
     assert json.loads(s.path.read_text(encoding='utf-8'))['message']=='盘中模拟监控运行中'
 
 
-def test_blocked_run_backs_off_with_dashboard_then_retries(tmp_path):
+def test_observer_respawns_after_crash_and_paper_stays_untouched(tmp_path):
+    s,now,children=setup_supervisor(tmp_path,'13:00')
+    s.tick()
+    assert s.tick()['phase']=='paper'
+    paper_child=children[1][1]
+    children[0][1].poll.return_value=1  # observer crashed
+    s.tick()  # crash is only registered this tick, respawn waits out the backoff
+    assert s.observer is None and len(children)==2 and s.halted is False
+    now[0]+=timedelta(seconds=61)
+    s.tick()
+    assert len(children)==3 and 'observer' in children[2][0]
+    assert children[1][1] is paper_child  # paper child object untouched
+    assert s.halted is False
+
+
+def test_shutdown_stops_observer_and_persists_terminal_state(tmp_path):
+    s,now,children=setup_supervisor(tmp_path,'13:00')
+    s.tick()  # observer + paper
+    s.observer, s.child, s.kind = children[0][1], children[1][1], 'paper'
+    s.shutdown()
+    children[0][1].kill.assert_called_once()  # read-only kill never latches a halt
+    assert json.loads(s.path.read_text(encoding='utf-8'))['terminal'] is True
+
+
+def test_blocked_run_backs_off_then_retries(tmp_path):
     s,now,children=setup_supervisor(tmp_path,'13:00')
     s.tick()
     s.report_path.parent.mkdir(exist_ok=True)
     s.report_path.write_text(json.dumps({'status':'blocked','shutdown':{'worker_active':False}}))
-    children[0][1].poll.return_value=2
-    assert s.tick()['phase']=='serve'
+    children[1][1].poll.return_value=2
+    assert s.tick()['phase'] is None
     now[0]+=timedelta(seconds=301)
     assert s.tick()['phase']=='paper'
 
@@ -53,34 +81,37 @@ def test_blocked_run_backs_off_with_dashboard_then_retries(tmp_path):
 def test_missing_report_latches_halt_across_restart(tmp_path):
     s,now,children=setup_supervisor(tmp_path,'13:00')
     s.tick()
-    children[0][1].poll.return_value=1
+    children[1][1].poll.return_value=1
     assert s.tick()['halted'] is True
     restarted,_,_=setup_supervisor(tmp_path,'13:20')
-    assert restarted.tick()['phase']=='serve' and restarted.halted
+    assert restarted.tick()['phase'] is None and restarted.halted
 
 
 def test_unconfirmed_child_stop_never_launches_another_writer(tmp_path):
     import subprocess
-    s,now,children=setup_supervisor(tmp_path)
+    s,now,children=setup_supervisor(tmp_path,'13:00')
     s.tick()
-    children[0][1].wait.side_effect=subprocess.TimeoutExpired('test',100)
-    now[0]=now[0].replace(hour=13,minute=0)
-    with pytest.raises(subprocess.TimeoutExpired): s.tick()
-    assert len(children)==1
+    assert s.tick()['phase']=='paper'
+    children[1][1].wait.side_effect=subprocess.TimeoutExpired('test',100)
+    s.run_deadline=now[0]-timedelta(seconds=1)
+    s.tick()  # deadline force-stop: exit unconfirmed, halt latches, no new writer
+    assert s.halted is True
+    paper_cmds=[c for c,_ in children if '--probe-models' in c]
+    assert len(children)==2 and len(paper_cmds)==1  # observer only, never a second writer
 
 
 def test_calendar_coverage_gate_blocks_paper_and_paid_requests(tmp_path):
     # 2026-10-14 would sit in an afternoon session, but the calendar's
     # verified coverage ends 2026-10-13: unknown can never start paper or spend.
     s,now,children=setup_supervisor(tmp_path,'11:40')
-    assert s.tick()['phase']=='serve'  # lunch break inside coverage
+    assert s.tick()['phase'] is None  # lunch break inside coverage
     now[0]=now[0].replace(day=14,hour=13,minute=0)
     state=s.tick()
-    assert state['phase']=='serve'
+    assert state['phase'] is None
     assert state['calendar_covered'] is False
     assert state['health_status']=='日历覆盖不足'
     assert '日历覆盖不足' in state['message'] and '付费' in state['message']
-    assert all('--probe-models' not in cmd for cmd,_ in children)  # serve only, zero paid path
+    assert all('--probe-models' not in cmd for cmd,_ in children)  # observer only, zero paid path
     now[0]=now[0].replace(day=13)  # back inside coverage: paper can start
     state=s.tick()
     assert state['phase']=='paper'

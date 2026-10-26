@@ -28,9 +28,10 @@ addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.setuptools.package-data]
-trademind = ["storage/schema.sql", "api/static/*.html"]
+trademind = ["storage/schema.sql", "api/static/*.html", "api/static/workbench/*.html", "api/static/workbench/assets/*"]
 
 [tool.setuptools.data-files]
+"share/trademind" = ["data/etf_whitelist.json"]
 "share/trademind/fixtures" = ["data/fixtures/calendar_xshg.csv"]
 "share/trademind/fixtures/daily" = ["data/fixtures/daily/*.csv"]
 "share/trademind/fixtures/news" = ["data/fixtures/news/*.json"]

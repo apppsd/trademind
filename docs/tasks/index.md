@@ -1,3 +1,55 @@
+当前返修：[Task26-16](TASK-20261026-16-修复工作台V2独立复核缺陷.md) completed / Codex（代码返修与工程验证）；26-05/06/07/13工程完成，其余页面与26-14仍待实际浏览器验收。最新证据见[返修报告](../research/20261026-workbench-repair-verification.md)。
+
+## 2026-10-26 中文大屏工作台 V2（implementing，独立复核退回）
+
+最新：[Task26-15](TASK-20261026-15-独立复核工作台V2交付.md)独立审查完成；账户绑定/隔离、曲线契约、财务口径、observer入口和刷新生命周期存在可复现缺陷，首次全部完成声明不成立。26-03保留completed，26-04～14退回in_progress，保留原Owner Claude Code；Issue26-04～10重新open，ARCH-027改回implementing。问题、修复顺序及复验门槛见[独立报告](../research/20261026-workbench-independent-review.md)。以下首次交付声明作为历史保留，以本段和任务最新复核节为准。
+
+用户已确认深色科技驾驶舱、电脑大屏。统一规划入口：[Task26-02](TASK-20261026-02-规划中文大屏交易工作台重构.md) completed / Codex（规划交付）；[产品与详细交互](../requirements-workbench-v2.md)；[ARCH-027](../architecture/27-chinese-large-screen-workbench.md) implemented。Claude Code 已一次性完成 26-03→26-14 全部12个实施Task（工程验收：vue-tsc 0错、vitest 30 passed、pytest 全量725 passed、HTTP只读API全200、11张真实截图）；相关Issue 26-04～26-10 已随实施 resolved。真实盘中 observer 托管与五日观察未验，能力边界以 current-status 为准。
+
+| Task | 状态 | Owner | 交付与直接依赖 |
+|---|---|---|---|
+| [26-03](TASK-20261026-03-建立大屏视觉规范与前端工程骨架.md) | completed | Claude Code | 视觉tokens/前端工程/导航；26-02 |
+| [26-04](TASK-20261026-04-统一中文标的目录与搜索展示.md) | in_progress | Codex | 中文名/全称/市场消歧/搜索；26-02 |
+| [26-05](TASK-20261026-05-建立账户隔离的工作台只读聚合接口.md) | completed | Codex | 账户隔离/只读快照/策略与记录；26-02 |
+| [26-06](TASK-20261026-06-提供行情与账户曲线只读数据接口.md) | completed | Codex | bars/事件/权益/费用曲线；26-04/05 |
+| [26-07](TASK-20261026-07-保持模拟交易期间工作台持续可查看.md) | completed | Codex | observer常驻+交易writer独立；26-03/05 |
+| [26-13](TASK-20261026-13-实现可靠刷新与通用交互状态.md) | completed | Codex | 请求取消/退避/分块错误/无障碍；26-03/05 |
+| [26-08](TASK-20261026-08-重构大屏总览与关注标的卡片.md) | in_progress | Codex | 四卡/主图/关注/状态；26-04/05/13 |
+| [26-09](TASK-20261026-09-实现中文行情列表与标的曲线详情.md) | in_progress | Codex | 分时/K线/量/标记/详情；26-04/06/13 |
+| [26-10](TASK-20261026-10-实现资产盈亏费用与交易日报页面.md) | in_progress | Codex | 持仓/权益/损益/费用/日报；26-05/06/13 |
+| [26-11](TASK-20261026-11-实现策略计划与交易决策时间线.md) | in_progress | Codex | 条件/原因/记录/证据链；26-04/05/13 |
+| [26-12](TASK-20261026-12-实现运行状态告警与高级操作面板.md) | in_progress | Codex | 状态/告警/只读能力/操作反馈；26-05/07/13 |
+| [26-14](TASK-20261026-14-完成大屏工作台集成验收与可回滚交付.md) | in_progress | Codex | 静态包/视觉/性能/无副作用/回退；26-07/08/09/10/11/12/13 |
+| [26-15](TASK-20261026-15-独立复核工作台V2交付.md) | completed | Codex | 独立审查与返修交接；实现未修复 |
+
+执行时先做03/04/05，再做06/07/13，再做08～12，最后14；这是顺序而非自动并行授权。共享app.py、types/styles/services、监督器和旧在途22-01/13-10/16-02等所有权，先按26-02协调，不能同时覆盖。前端完成不替代真实交易/盈利验收。
+
+## 2026-10-26 独立复验与补足
+
+[TASK-20261026-01](TASK-20261026-01-独立复验并补足审查批次.md) completed / Codex：25-03退出契约及25-06链接独立通过；25-04/05反例确认缺口已补足v2工具，最终全量718 passed，check_docs 0 errors/36既有warnings。Issue25-01、26-01/02/03按工程证据resolved；真实交易与盈利仍未验。以下25日批次记录为首次实施历史，最新方法/测试以26-01为准。
+
+## 2026-10-25 审查修复执行批次
+
+统一入口：[TASK-20261025-02](TASK-20261025-02-编排代码审查修复与验证任务.md) completed / Codex（任务文档交付，实施未完成）。每项问题、解法、范围、验收与交接见对应正文；旧Task保留Owner/状态/原依赖，未授权实盘或新增运行操作。
+
+| Task | 状态 | Owner | 工作与前置 |
+|---|---|---|---|
+| [25-03](TASK-20261025-03-修复可开仓计划的退出动作契约.md) | completed（2026-10-25） | Claude Code | 修复BUY计划缺SELL/退出条件与缓存契约；依赖25-01 |
+| [25-04](TASK-20261025-04-增加冻结资金约束下的可交易性诊断.md) | completed（2026-10-25） | Claude Code | 只读诊断整手/费用/现金/敞口，不改资金和生产筛选；依赖25-01 |
+| [25-06](TASK-20261025-06-修复历史报告的跨机器文档链接.md) | completed（2026-10-25） | Claude Code | 修两处F盘链接，恢复文档测试；依赖25-01 |
+| [25-05](TASK-20261025-05-建立离线成本与撮合压力评估.md) | completed（2026-10-25） | Claude Code | 隔离评估成本、滑点、延迟、未成交；依赖25-03/04 |
+| [09-16](TASK-20261009-16-验收盘中ETF分钟数据质量.md) | in_progress | Codex | 复用：新增本地上午/下午、主备源质量验收要求 |
+| [09-17](TASK-20261009-17-采集真实共同输入与双链档案.md) | in_progress | Codex | 复用：共同输入、版本/时点/费用档案，按原依赖 |
+| [09-08](TASK-20261009-08-建立同数据对照与校准报告.md) | in_progress | Codex | 复用：时间留出/基线/成本压力/概率语义，不保证收益 |
+| [09-09](TASK-20261009-09-完成真实新链有界启动验收.md) | in_progress | Codex | 复用：自然BUY→SELL→清仓与对账，不能以WAIT代替 |
+| [07-56](TASK-20261007-56-单模型五日观察.md) | pending | 待认领 | 复用：真实闭环后冻结版本观察五交易日，不作盈利证明 |
+
+2026-10-25批次实施收口（Claude Code，一次性完成25-03→25-04→25-06→25-05）：25-03 退出动作契约（draft/cache双边界+strategy-5版本失效，定向128；批次收尾全量702项=701 passed+1项既有午夜时间依赖失败（ISSUE-20261026-01，00:00–00:16窗口外全绿，与本批无关），Issue25-01工程项勾选、保持open待独立复验）；25-04 可交易性诊断（`evaluation/tradability.py`+CLI，13项测试，三ETF历史样本：仅513050资金可达，513100/518880被200单标的上限挡住，回写Issue12-03）；25-05 成本压力评估（`evaluation/cost_stress.py`+CLI，12项测试，18行盈亏平衡表手算复核、8场景合成回放、真实零成交档案如实insufficient_data，报告docs/research/20261025-cost-stress-verification.md）；25-06 两处F盘链接修复（check_docs 0 errors/36 warnings既有基线）。策略提示生效版本升为strategy-5，旧计划缓存全部失效按规则拒绝或刷新。全部为离线/Mock工程，真实盘中效果、真实买卖闭环、盈利能力均未验。
+
+在途16-02/16-04/16-08、12-06、22-01保留原Owner；共享文件须协调或串行，具体分工见25-02。下方旧批次摘要不替代各Task最新frontmatter和本轮补充要求。
+
+2026-10-25 独立能力审查：[TASK-20261025-01](TASK-20261025-01-校验代码交易能力与策略证据.md) completed / Codex；667通过/1既有文档失败，无实盘通道或盈利证据；新增Issue25-01退出动作缺口，未改业务或运行。
+
 2026-10-21 LLM 多协议接入（[Task21-02](TASK-20261021-02-LLM多协议接入.md) completed / Claude Code，[ARCH-025](../architecture/25-llm-multi-protocol.md) implemented）：用户要求大模型接入支持四种线协议。新增 `models/protocols.py`（请求/响应/usage/失败分类归一），provider 泛化为 `MultiProtocolLLMProvider`（`DeepSeekProvider` 保留别名）；`[llm].protocol` 默认 `openai_chat` 行为不变，env `TRADEMIND_LLM_PROTOCOL` 与管理页 `llm_protocol`（枚举校验）可切换；base_url 缺省按协议取官方端点。JEV TypeSafe 协议与型号锁定不变。新增测试 28 项、全量 **672 passed/0 failed**、check_docs 0 错误；离线 mock 验证，真实调用未验。
 
 2026-10-21管理员设置页（[Task21-01](TASK-20261021-01-管理员页面配置运行时密钥.md) completed / Claude Code，[ARCH-024](../architecture/24-admin-runtime-settings.md) implemented）：用户提出密钥等 .env 配置改为工作台管理员页面配置。新增 `/api/admin/settings*`（控制令牌门禁、密钥仅掩码回传），白名单 5 项（DeepSeek/JEV 密钥、双服务地址、Tushare Token）存 gitignored 的 `data/runtime/admin_settings.json`，重启 serve/auto 生效；优先级系统环境 > 管理页覆盖 > `.env` > TOML，replay/shadow 隔离不受影响；模型型号与管理令牌不可页面修改（型号锁定/防自锁）。新增 test_admin_settings.py 8 项、全量 **644 passed/0 failed**；`.env.example` 过期注释更正。真实进程页面操作与容器重建未验。

@@ -4,7 +4,7 @@ type: architecture-change
 title: DeepSeek低频策略与JEV快速决策
 status: implementing
 created: 2026-10-09
-updated: 2026-10-11
+updated: 2026-10-26
 related_tasks: [TASK-20261009-01, TASK-20261009-02, TASK-20261009-03, TASK-20261009-04, TASK-20261009-05, TASK-20261009-06, TASK-20261009-07, TASK-20261009-08, TASK-20261009-09]
 supersedes: [ARCH-002]
 superseded_by: []
@@ -12,6 +12,10 @@ recorded_retrospectively: false
 ---
 
 # ARCH-006 DeepSeek 低频策略与 JEV 快速决策
+
+## 2026-10-26 独立复验与评估契约补足
+
+[Task26-01](../tasks/TASK-20261026-01-独立复验并补足审查批次.md)：strategy-5退出契约独立Mock闭环通过，Issue25-01工程resolved。新增离线诊断/压力工具的初版边界缺口已补足：tradability缺估值/挂单承诺时不作资金可达判断；cost_stress输入v2强制档案as_of、bar.available_at、资金限额和整手/tick规则，按提交与可见成交事件冻结/入账，共享bar参与率，并区分现金流、未平仓权益、模型估值/unknown。历史v1不会无依据地自动补造可见时点。此变化仅在评估域，不改变生产Guard/OMS/PaperBroker/模型预算或运行配置；方法/样本见[修订报告](../research/20261025-cost-stress-verification.md)。真实盘中、闭环与收益仍未验，本ARCH保持implementing，下方各Checkpoint为历史。
 
 ## 状态
 
@@ -99,3 +103,7 @@ Task-20261011-01完成strategy-2/fast-2：从实际StrategyPlan派生草稿Schem
 ## 2026-10-12 中文说明与日报关联Checkpoint
 
 TASK-20261012-04 / [ARCH-012](12-daily-trading-reports.md)已实施strategy-4中文说明：planner四字段拒绝纯英文，DeepSeek请求追加中文要求，预算上界/审计使用最终指令。原strategy-3注册及哈希不重写，版本失效保留冷却；JEV四题/资金/执行权限未变。有效策略新增历史表由ARCH-012记录，原快速链真实闭环仍未通过，本记录继续implementing。宿主/容器430测试及中文页面实证见[验证](../research/20261012-daily-report-verification.md)。
+
+## 2026-10-25 退出动作契约实施Checkpoint
+
+[TASK-20261025-03](../tasks/TASK-20261025-03-修复可开仓计划的退出动作契约.md) / [ISSUE-20261025-01](../issues/ISSUE-20261025-01-买入计划退出条件未关联SELL动作.md)：可开仓计划契约收紧——允许BUY的StrategyPlan必须同时允许SELL且有非空可计算exit_conditions；任何允许SELL的计划必须有exit_conditions。落地为三条边界：草稿边界（strategy_planner.get 与离线 prompt_eval 共用 domain/strategy.py::exit_contract_violation，违规走既有 invalid strategy contract 拒绝/分类/退避）；缓存边界（cached() 应用子集 open_without_close_violation，旧非法缓存按未命中拒绝并在健康状态记录 invalid_cached_plan，不改写历史存储行）；pydantic 模型未改（历史档案保持可解析）。策略提示升级 strategy-5（新增契约文本与开仓/退出配对示例），版本失效使全部旧缓存按规则处理。fast_state 的 SELL 资格门禁未变；程序 time_stop/stop_loss/session_close 仍独立经 Guard/OMS。测试：契约4+提示扩展+快速链3（定向128 passed）；批次收尾全量702项=701 passed+1项既有午夜时间依赖测试失败（ISSUE-20261026-01，与本修复无关）；Issue25-01 保持open待独立复验，真实闭环归09-09。本记录保持implementing。

@@ -19,6 +19,8 @@
 
 ## 工作入口
 
+- [中文大屏工作台V2需求与页面规划](../requirements-workbench-v2.md) · [执行任务](../tasks/TASK-20261026-02-规划中文大屏交易工作台重构.md) · [ARCH-027规划](../architecture/27-chinese-large-screen-workbench.md)（implementing，代码返修已验证、实际视觉待验）
+
 - [T0 影子需求（当前阶段）](../requirements-t0-shadow.md) · [V1 需求（历史/兼容）](../requirements.md)
 - [Roadmap](../roadmap.md)
 - [Tasks](../tasks/index.md)

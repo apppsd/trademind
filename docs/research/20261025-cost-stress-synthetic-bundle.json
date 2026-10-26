@@ -1,0 +1,112 @@
+{
+  "bundle_version": 2,
+  "source": "synthetic round-trip fixture (NOT real trades; built 2026-10-25 on 2026-10-23 local-1k price levels 0.948-0.951 for 513050.SH; bar times are synthetic minutes after 2026-10-23T06:50Z)",
+  "account_config": {
+    "initial_cash": "1000",
+    "min_cash_reserve": "100",
+    "max_single_exposure": "200",
+    "max_total_exposure": "300"
+  },
+  "fee_profile": {
+    "commission_rate": "0.0001",
+    "commission_min": "0.1",
+    "stamp_duty_rate_sell": "0",
+    "transfer_fee_rate": "0.00001"
+  },
+  "model_cost": {
+    "settled_cny": "0.20",
+    "pending_cny": "0",
+    "unknown": false
+  },
+  "intents": [
+    {
+      "intent_id": "i-buy",
+      "instrument_id": "513050.SH",
+      "side": "BUY",
+      "limit_price": "0.955",
+      "quantity": "100",
+      "intended_at": "2026-10-23T06:50:00+00:00"
+    },
+    {
+      "intent_id": "i-sell",
+      "instrument_id": "513050.SH",
+      "side": "SELL",
+      "limit_price": "0.945",
+      "quantity": "100",
+      "intended_at": "2026-10-23T06:54:00+00:00"
+    }
+  ],
+  "bars": [
+    {
+      "instrument_id": "513050.SH",
+      "bar_time": "2026-10-23T06:51:00+00:00",
+      "open": "0.949",
+      "high": "0.951",
+      "low": "0.948",
+      "close": "0.950",
+      "volume": "50000",
+      "available_at": "2026-10-23T06:51:00+00:00"
+    },
+    {
+      "instrument_id": "513050.SH",
+      "bar_time": "2026-10-23T06:52:00+00:00",
+      "open": "0.950",
+      "high": "0.951",
+      "low": "0.948",
+      "close": "0.950",
+      "volume": "50000",
+      "available_at": "2026-10-23T06:52:00+00:00"
+    },
+    {
+      "instrument_id": "513050.SH",
+      "bar_time": "2026-10-23T06:53:00+00:00",
+      "open": "0.950",
+      "high": "0.951",
+      "low": "0.948",
+      "close": "0.950",
+      "volume": "50000",
+      "available_at": "2026-10-23T06:53:00+00:00"
+    },
+    {
+      "instrument_id": "513050.SH",
+      "bar_time": "2026-10-23T06:55:00+00:00",
+      "open": "0.950",
+      "high": "0.951",
+      "low": "0.948",
+      "close": "0.950",
+      "volume": "50000",
+      "available_at": "2026-10-23T06:55:00+00:00"
+    },
+    {
+      "instrument_id": "513050.SH",
+      "bar_time": "2026-10-23T06:56:00+00:00",
+      "open": "0.950",
+      "high": "0.951",
+      "low": "0.948",
+      "close": "0.950",
+      "volume": "50000",
+      "available_at": "2026-10-23T06:56:00+00:00"
+    },
+    {
+      "instrument_id": "513050.SH",
+      "bar_time": "2026-10-23T06:57:00+00:00",
+      "open": "0.950",
+      "high": "0.951",
+      "low": "0.948",
+      "close": "0.950",
+      "volume": "50000",
+      "available_at": "2026-10-23T06:57:00+00:00"
+    },
+    {
+      "instrument_id": "513050.SH",
+      "bar_time": "2026-10-23T06:58:00+00:00",
+      "open": "0.950",
+      "high": "0.951",
+      "low": "0.948",
+      "close": "0.950",
+      "volume": "50000",
+      "available_at": "2026-10-23T06:58:00+00:00"
+    }
+  ],
+  "as_of": "2026-10-23T07:00:00+00:00"
+}

@@ -4,7 +4,13 @@
 
 每日交易报告：reports/daily.py（只读快照、上海日资金重建、成交/盈亏/模型费用、策略/决策、JSON/MD/HTML；read_snapshot自2026-10-14支持window参数——调用/意图/计划按上海日±2天、context 7天回看走迁移2索引，账户事件保持全量重放），reports/locale.py（中文动作/状态/原因/条件及历史译文）；runner daily-report CLI；api/app.py lifespan每分钟生成今日/昨日及报告页面，static首页链接；paper_run.finish自动生成，paper_run.read_intraday_health同按日窗口读取。schema.sql追加strategy_plan_history，strategy_planner写有效脱敏计划并校验中文说明；fast_prompts注册strategy-4，models/deepseek统一中文要求与实际审计指纹，runner探针预算计入最终指令。[证据](../research/20261012-daily-report-verification.md)。
 
-提示评测：evaluation/prompt_eval.py（案例/响应指纹、生产草稿校验、四题语义及独立程序结果统计、同输入比较）；scripts/evaluate_prompt_cases.py（保存响应CLI，零联网）；tests/fixtures/prompt_eval/cases.json（24例/12类，prompt-cases-1）。fast_prompts.strategy_examples是配对示例资源，当前策略版本strategy-4、即时题版本fast-2；strategy-3注册及历史hash保留。旧评测证据见[报告](../research/20261011-prompt-eval-verification.md)，中文变更见本页日报证据。
+提示评测：evaluation/prompt_eval.py（案例/响应指纹、生产草稿校验、四题语义及独立程序结果统计、同输入比较）；scripts/evaluate_prompt_cases.py（保存响应CLI，零联网）；tests/fixtures/prompt_eval/cases.json（24例/12类，prompt-cases-1）。fast_prompts.strategy_examples是配对示例资源，当前策略版本strategy-5（2026-10-25起，BUY计划须同时允许SELL并有非空退出条件）、即时题版本fast-2；strategy-3/4注册及历史hash保留。旧评测证据见[报告](../research/20261011-prompt-eval-verification.md)，中文变更见本页日报证据。
+
+工作台V2模块索引（以下描述代码职责；独立复核未通过，生命周期/隔离/分页/数据契约不可视为已验收，详见[独立报告](../research/20261026-workbench-independent-review.md)）：
+
+工作台V2（[ARCH-027](../architecture/27-chinese-large-screen-workbench.md) implementing，2026-10-26，Task26-03→26-14）：api/workbench_routes.py（/api/workbench/* 只读路由，app.py与observer_app共用）、api/read_models.py（WorkbenchReadStore 只读快照：mode=ro+query_only、Path.resolve后as_uri、统一信封、不透明游标分页、activity_detail归属校验）、api/workbench_charts.py（bars 时点可见修订/会话对齐聚合/gap_notes/5000上限、events分型、account/series 日报产物+当日现金重放）、api/instrument_catalog.py（白名单中文目录+搜索+分钟能力声明）、api/observer_app.py（observer 只读应用：静态包+daily-reports挂载+observer-state.json生命周期，HTML路由先于mount防遮蔽）、runner observer/serve 子命令、execution/auto_paper.py（Supervisor等待期phase=None+ensure_observer：崩溃60s退避、跨重启收养、shutdown停observer不解halt）；frontend/（Vite7+Vue3.5+TS5.9+ECharts6按需注册：7页hash路由、services/client.ts+workbenchApi.ts 唯一请求层、composables/useResource+usePolling+usePreferences、构建产物 src/trademind/api/static/workbench/、pyproject package-data 已含）。测试：test_auto_paper.py 21 / test_local_lifecycle.py 32 / test_observer_app.py 6 + frontend vitest 30。截图证据 docs/research/20261026-workbench-screens/。
+
+离线评估工具（Task25-04/05，2026-10-26经Task26-01补足）：evaluation/tradability.py（snapshot v1/tool v2，新鲜持仓估值、BUY挂单敞口承诺、含费现金、规则/输入指纹；不完整时数据不足）与scripts/check_t0_tradability.py；evaluation/cost_stress.py（bundle/tool v2，as_of/available_at、提交/mark/成交事件、现金/可卖量冻结、T0整手/tick/限额、共享bar参与率、权益/回撤/unknown）与scripts/evaluate_t0_cost_stress.py。均只读输入、不联网/不读.env、不修改生产撮合。退出契约：domain/strategy.py::exit_contract_violation/open_without_close_violation，strategy_planner与prompt_eval共用；Mock闭环独立通过。证据：[可达性样本](../research/20261025-tradability-local-sample.md)、[修订成本报告](../research/20261025-cost-stress-verification.md)、[独立复验](../tasks/TASK-20261026-01-独立复验并补足审查批次.md)；测试test_tradability/test_cost_stress及固定时钟test_t0_runtime_repairs，实际计数集中Task。
 
 快速链提示资源：agents/fast_prompts.py（strategy-3/fast-2、派生Schema与四题）；strategy_planner.py绑定输入与草稿校验/缓存版本，fast_decider.py与fast_pipeline.py记录新决策/意图版本；models/jev.py允许每次调用单独传审计版本。验证见[本轮提示报告](../research/20261011-prompt-verification.md)。
 
@@ -48,14 +54,16 @@ Task16分钟特征已修复：连续1m窗口遇缺口/午休/隔夜重置，当�
 
 | 文件 | 职责 |
 |---|---|
-| src/trademind/domain/strategy.py | 计划、可计算条件、事实与动作契约 |
-| src/trademind/agents/strategy_planner.py | flash计划/校验/版本化缓存 |
+| src/trademind/domain/strategy.py | 计划、可计算条件、事实与动作契约（含退出动作契约 25-03） |
+| src/trademind/agents/strategy_planner.py | flash计划/校验/版本化缓存（strategy-5，缓存拒绝记录） |
 | src/trademind/context/fast_state.py | 可见原始事实、合法动作与账户版本 |
 | src/trademind/agents/fast_decider.py | 官方JEV原子题组合、低可信WAIT |
 | src/trademind/agents/fast_pipeline.py | 单模型槽、刷新与意图规范 |
 | src/trademind/models/jev.py、daily_budget.py | 官方协议/usage及统一计数/费率预约 |
 | src/trademind/pipeline.py、runner.py | 显式profile/Guard/OMS/最大持有退出/CLI |
 | src/trademind/evaluation/fast_comparison.py | 无网络归档意图对照与隔离账户 |
+| src/trademind/evaluation/tradability.py、cost_stress.py | 只读可达性诊断与成本/撮合压力评估（25-04/05） |
+| scripts/check_t0_tradability.py、evaluate_t0_cost_stress.py | 上述两工具的零调用CLI |
 | scripts/check_fast_startup.py | 无凭据、有界免费行情启动预检 |
 
 无包布局重构或新数据库表；既有coalesce/audit使用版本化payload。Provider实际目录为models/。

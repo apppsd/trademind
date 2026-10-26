@@ -3,7 +3,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from pydantic import ValidationError
-from ..domain.strategy import StrategyPlan
+from ..domain.strategy import StrategyPlan, open_without_close_violation, exit_contract_violation
 from ..domain.base import new_id, utcnow
 from ..errors import ProviderError
 from ..market.base import BEIJING
@@ -45,6 +45,9 @@ class StrategyPlanner:
                 'last_failure_at': None,
                 'last_failure_category': None,
                 'last_failure_reason': None,
+                'last_cache_reject_at': None,
+                'last_cache_reject_category': None,
+                'last_cache_reject_reason': None,
                 'backoff_seconds': 0,
                 'next_allowed_request_at': None,
             }
@@ -54,6 +57,9 @@ class StrategyPlanner:
         meta.setdefault('last_failure_at', None)
         meta.setdefault('last_failure_category', None)
         meta.setdefault('last_failure_reason', None)
+        meta.setdefault('last_cache_reject_at', None)
+        meta.setdefault('last_cache_reject_category', None)
+        meta.setdefault('last_cache_reject_reason', None)
         meta.setdefault('backoff_seconds', 0)
         meta.setdefault('next_allowed_request_at', None)
         return meta
@@ -124,6 +130,18 @@ class StrategyPlanner:
             plan=StrategyPlan.model_validate(row['meta']['plan'])
         except ValidationError:
             return None
+        violation=open_without_close_violation(plan)
+        if violation:
+            # Legacy plans that could open but never close are refused like a
+            # cache miss and recorded once per health-day (TASK-20261025-03);
+            # the stored row itself is never rewritten.
+            state=self.health_state(now)
+            if not state.get('last_cache_reject_at'):
+                state.update({'last_cache_reject_at':now.isoformat(),
+                              'last_cache_reject_category':'invalid_cached_plan',
+                              'last_cache_reject_reason':violation})
+                self.repo.save_coalesce(self.health_key(),now,state)
+            return None
         fingerprint=self.cfg.__dict__.copy()
         fingerprint={k:str(v) for k,v in fingerprint.items()}
         if row['meta'].get('config')!=fingerprint or plan.prompt_version!=STRATEGY_PROMPT_VERSION or plan.data_cutoff > context.as_of or any(c.matches(context.features.values) for c in plan.invalidation_conditions):
@@ -187,9 +205,10 @@ class StrategyPlanner:
                     prompt_version=STRATEGY_PROMPT_VERSION,
                     evidence_ids=context.evidence_ids)
                 conditions=plan.entry_conditions+plan.exit_conditions+plan.invalidation_conditions
+                violation=exit_contract_violation(plan)
                 if (type(parsed['holding_horizon_seconds']) is not int or plan.holding_horizon_seconds>maximum_horizon
                     or any(c.field not in context.features.values for c in conditions)
-                    or any(a.value=='SELL' for a in plan.allowed_actions) and not plan.exit_conditions):
+                    or violation):
                     raise ValueError('unsupported strategy draft')
             except (ValidationError,TypeError,ValueError):
                 raise ProviderError('invalid strategy contract') from None

@@ -1,0 +1,60 @@
+/* TradeMind 大屏工作台设计 tokens（需求文档第4节，深色科技驾驶舱）。
+ * 页面局部样式只引用这些变量，不得重置全局。 */
+:root {
+  /* 背景 */
+  --bg-page: #080d18;
+  --bg-card-1: #101827;
+  --bg-card-2: #152033;
+  --bg-inset: #0c1322;
+  --bg-hover: rgba(85, 199, 255, 0.06);
+
+  /* 边框与描边 */
+  --border-weak: rgba(142, 165, 199, 0.14);
+  --border-strong: rgba(85, 199, 255, 0.35);
+  --border-card: 1px solid var(--border-weak);
+
+  /* 强调 */
+  --accent: #55c7ff;
+  --accent-soft: rgba(85, 199, 255, 0.14);
+  --cyan: #33d6c6;
+
+  /* 文本 */
+  --text-primary: #e8eef8;
+  --text-secondary: #9eacc0;
+  --text-faint: #64748e;
+  --text-on-accent: #06101f;
+
+  /* 涨跌（A股习惯红涨绿跌）与状态 */
+  --up: #ff5c5c;
+  --down: #34d399;
+  --warn: #f5b04d;
+  --danger: #ff4d4f;
+  --stale: #f5b04d;
+
+  /* 布局 */
+  --page-max: 2200px;
+  --page-pad: 28px;
+  --card-gap: 18px;
+  --radius-card: 16px;
+  --radius-small: 10px;
+
+  /* 字体 */
+  --font-body: 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei',
+    'Source Han Sans SC', 'Segoe UI', sans-serif;
+  --font-mono: 'Cascadia Mono', Consolas, 'SFMono-Regular', monospace;
+  --fs-body: 15px;
+  --fs-secondary: 13px;
+  --fs-metric: 34px;
+  --fs-metric-unit: 14px;
+  --fs-title: 18px;
+  --fs-caption: 12px;
+
+  /* 动效（尊重 prefers-reduced-motion，见 base.css） */
+  --motion-fast: 160ms;
+  --motion-slow: 240ms;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* 层级 */
+  --z-drawer: 60;
+  --z-toast: 70;
+}

@@ -22,6 +22,16 @@ restart unless-stopped使Rancher恢复后可恢复已启用服务；手动stop�
 
 监督行为与容器 auto 相同（日历时段、单 writer、预算、halted 语义）。差异：状态/日志在配置的运行根目录（如 `data/runtime/local-1k/`：auto-paper-state.json、auto-paper.log、auto-paper.pid、auto-paper.stop）；重复 start 有存活心跳即拒绝；端口被占或无代理拒绝启动；**停止期间监督器不启动任何新 writer**（serve/paper 均先排空）；停止超时仅在进程映像确认 python 后强制结束该 pid，监督器自身与 run_local 双层原子持久化 halted 及原因，重启保持人工核对暂停（人工核对账本、确认后编辑 state 文件清除 halted 才能再启动，不自动解锁）；监督器收尾持久化失败会显式报错退出，此时重启可能丢失暂停门禁，须人工核对账本后再启动。**外部硬终止后重启的恢复语义**：恢复分类只在人工 `start` 重启时执行，**进程死亡后不会自行恢复**；start 会核验上一轮状态（phase=paper 且未终态时），按 `result_policy` 分类旧排空报告并对存活旧子进程探活——缺失/损坏/未知/失败原子保留 halted 待人工核对（编辑 state 文件清除后才恢复），报告合法完成或 serve 阶段被杀则正常恢复；不存在"任意被杀直接 start 即安全恢复"的无条件保证，halted 出现时先核对账本与报告。改代码后先 stop → 核对 → 再 start（venv 可编辑安装，无需重装依赖）。电脑关机/睡眠期间不运行。真实双模型运行验收见 [TASK-20261022-01](../tasks/TASK-20261022-01-本地千元双模型自动模拟交易落地.md)、停止边界修复见 [TASK-20261022-03](../tasks/TASK-20261022-03-修复本地停止误启动与强停锁定丢失.md) 与 [Issue22-02](../issues/ISSUE-20261022-02-异常终止重启未核验上一轮paper结果.md)。
 
+## 工作台V2与观察服务（2026-10-26，ARCH-027 implementing）
+
+入口为`/workbench/`；新`/api/workbench/*`只读，不产生交易授权或行情/模型请求；旧控制端点保持原令牌边界，observer无控制能力。新代码的observer与paper为独立进程，paper仍独占账户writer。独立observer命令为`.venv/Scripts/python.exe -m trademind.runner --config <显式配置> observer`；切换前必须按原流程核对并停止端口占用，不能与当前8321服务抢端口。本轮没有对当前进程执行此操作。
+
+监督器启动时识别账户/存储/地址/展示约束摘要与新鲜心跳，再收养同一配置的observer；状态含实际服务PID与每次启动实例ID。停止通过实例匹配的observer-stop.json请求，避免把磁盘PID重用进程当作服务；Windows自有Popen启动器必要时按其进程树清理。状态心跳每秒写入，30秒以上或PID不存在则不算活跃；崩溃重生退避60秒，不自动解除halted，不停止正常paper。
+
+财务与图表只读已保存产物：金额字符串，未知为null，权益估值缺失不显示0；现金包含冻结，冻结不重复加减；现金序列有历史期初，模型费用另计。曲线按真实字段/可见修订/账户筛选，有缺口则断线，成交量为份；仅Fill称成交。生成前最近留存Context只能作为条件阅读证据，不能冒充确证模型输入。资金可达仅为冻结限额诊断，不是下单授权。
+
+`cd frontend`后`npm run build`重建静态包；Node只用于构建。Python没有热重载：当前8321后端未重启，不会自动应用返修。正式切换、真实大屏截图/缩放/事件/回退仍归Task26-14；删除静态目录不能替代完整回退验收。隔离验证结果见[返修报告](../research/20261026-workbench-repair-verification.md)。
+
 ## 每日交易日报
 
 自动模式使用方式见下方“容器自动模拟监控”；等待时工作台生成日报，盘中paper结束时生成日报。
@@ -58,11 +68,23 @@ cost含currency=CNY、kind=estimated/settled/pending及amount；usage含非负�
 
 检查命令：`.venv\Scripts\python.exe -m pytest -q tests/test_prompt_eval.py tests/test_prompt_eval_cases.py tests/test_fast_prompt_contract.py`。真实前瞻档案仍由原Task17采集，07适配/审计尚未完成。
 
+## 离线可达性与成本压力诊断（2026-10-25，Task25-04/05）
+
+两个零调用、零联网、不读.env、不写生产数据的只读评估CLI（uv 环境）：
+
+```text
+.venv\Scripts\python.exe scripts/check_t0_tradability.py --snapshot <快照.json> [--max-price-age 300] [--output-json 路径] [--output-md 路径]
+.venv\Scripts\python.exe scripts/evaluate_t0_cost_stress.py --bundle <档案包.json> [--output-json 路径] [--output-md 路径]
+```
+
+- 可达性：输入显式JSON快照（snapshot_version=1，tool_version=2）：账户现金/预留、持仓、挂单、逐标的最近价/来源/可见时间、冻结限额。`reserved_cash`已含挂单现金冻结、只扣一次；BUY挂单需提供side、quantity/filled_quantity（或remaining_quantity）及limit_price以计算单票/总敞口承诺，SELL不释放敞口；未知挂单或缺字段保持数据不足。缺价/陈旧/未来持仓估值不按0放行，重复持仓行累计。输出限额余量、整手含费成本、规则与输入指纹。**资金可达 ≠ 下单授权**。示例：[历史样本](../research/20261025-tradability-local-sample.md)。
+- 成本压力：仅接受`bundle_version=2`：as_of档案截止、意图、后续bar的bar_time/available_at/OHLC/volume、空仓隔离账户initial_cash/min_cash_reserve/max_single_exposure/max_total_exposure、模拟费率、显式模型成本。v1包不能默认补造真实时间后冒充v2；已保存合成包显式用available_at=bar_time。8场景按提交/可见成交排序，先冻结再入账，保留限价并向不利tick取整、共享bar整手参与率。零/缺量和单价bar不假定成交；单次尝试余单取消，缺后续bar则pending/incomplete。输出现金流、未平仓权益损益、采样回撤及已结算模型估值；缺成本或pending>0使combined_net=unknown，估值非供应商账单。仅支持核验T0 ETF，不模拟完整调度/日历/模型路径重生成，不用于生产。详见[报告及输入包](../research/20261025-cost-stress-verification.md)。
+
 ## 快速链提示编辑与生效
 
 2026-10-12用户授权重建并重新创建workbench，strategy-3/fast-2已在实际容器导入且hash与宿主一致，414容器测试/healthy/HTTP200通过。[操作与证据](../research/20261012-image-update-verification.md)。只运行工作台；下方此前未重建的描述按日期理解，交易仍须单writer入口。
 
-主入口是 `src/trademind/agents/fast_prompts.py`（当前strategy-4/fast-2）；strategy_examples提供独立中文配对示例，追加到系统提示，不能当当前行情。StrategyPlanner绑定输入Schema/可用字段/费用/限制及中文说明，FastDecider生成四题。更改语义时同步提升对应版本，保持Schema与程序字段所有权；不得靠降低阈值或清预算迫使买卖。旧版本计划被拒绝后仍遵守刷新冷却。
+主入口是 `src/trademind/agents/fast_prompts.py`（当前strategy-5/fast-2；2026-10-25起可开仓计划必须同时允许SELL且有非空可计算退出条件，草稿与离线评测同一校验入口）；strategy_examples提供独立中文配对示例，追加到系统提示，不能当当前行情。StrategyPlanner绑定输入Schema/可用字段/费用/限制及中文说明，FastDecider生成四题。更改语义时同步提升对应版本，保持Schema与程序字段所有权；不得靠降低阈值或清预算迫使买卖。旧版本计划被拒绝后仍遵守刷新冷却；无SELL的旧缓存计划按缓存未命中拒绝并在健康状态记录 `last_cache_reject_category=invalid_cached_plan` 与原因（每健康日一条，不改写历史行），按既有节流正常刷新即可恢复。
 
 本机验证：`.venv\Scripts\python.exe -m pytest -o addopts='' -q tests/test_fast_prompt_contract.py`，再跑完整回归。测试不调用真实API；提示表达效果须以后续真实档案对照确认。
 

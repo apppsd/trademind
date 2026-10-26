@@ -14,3 +14,7 @@ logs/
 
 config/*.local.toml
 config/*.local.json
+
+node_modules/
+.pytest-tmp/
+.pytest-tmp2/

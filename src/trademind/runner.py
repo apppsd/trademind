@@ -98,6 +98,25 @@ def cmd_serve() -> int:
     return 0
 
 
+def cmd_observer() -> int:
+    """Resident read-only workbench service (TASK-20261026-07).
+
+    No pipeline init, no writer lease, no providers: GET requests can never
+    start trading or create accounts. Holds the API port so pages stay
+    readable while the paper writer runs in its own process.
+    """
+    import uvicorn
+
+    cfg = load_config(_config_path, load_credentials=False)
+    from .api.observer_app import create_observer_app
+
+    app = create_observer_app(cfg)
+    server = uvicorn.Server(uvicorn.Config(app, host=cfg.api.host, port=cfg.api.port))
+    app.state.request_shutdown = lambda: setattr(server, 'should_exit', True)
+    server.run()
+    return 0
+
+
 def cmd_probe_llm() -> int:
     """Minimal capability probe; prints redacted result, never the key."""
     cfg = _load()
@@ -576,6 +595,7 @@ def main(argv=None) -> int:
     p_rep = sub.add_parser("replay-demo")
     p_rep.add_argument("--days", type=int, default=40)
     sub.add_parser("serve")
+    sub.add_parser("observer", help="Resident read-only workbench service (no trading init)")
     sub.add_parser("probe-llm")
     sub.add_parser("recover")
     p_t0 = sub.add_parser("t0-paper")
@@ -638,6 +658,8 @@ def _dispatch(args) -> int:
         return cmd_poll()
     if args.cmd == "replay-demo":
         return cmd_replay_demo(args.days)
+    if args.cmd == "observer":
+        return cmd_observer()
     if args.cmd == "serve":
         return cmd_serve()
     if args.cmd == "probe-llm":

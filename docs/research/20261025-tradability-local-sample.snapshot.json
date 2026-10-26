@@ -1,0 +1,34 @@
+{
+  "snapshot_version": 1,
+  "account_id": "paper-t0-local-1k",
+  "as_of": "2026-10-23T06:57:16+00:00",
+  "cash": "1000",
+  "reserved_cash": "0",
+  "positions": [],
+  "open_orders": [],
+  "limits": {
+    "max_single_exposure": "200",
+    "max_total_exposure": "300",
+    "min_cash_reserve": "100"
+  },
+  "instruments": [
+    {
+      "instrument_id": "513050.SH",
+      "price": "0.949",
+      "price_source": "local-1k trademind.db context_snapshots (read-only)",
+      "price_time": "2026-10-23T06:57:16+00:00"
+    },
+    {
+      "instrument_id": "513100.SH",
+      "price": "2.241",
+      "price_source": "local-1k trademind.db context_snapshots (read-only)",
+      "price_time": "2026-10-23T06:57:16+00:00"
+    },
+    {
+      "instrument_id": "518880.SH",
+      "price": "8.197",
+      "price_source": "local-1k trademind.db context_snapshots (read-only)",
+      "price_time": "2026-10-23T06:57:16+00:00"
+    }
+  ]
+}

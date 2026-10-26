@@ -14,10 +14,14 @@ from trademind.errors import ProviderError
 
 
 def test_chinese_prompt_version_preserves_old_fingerprint():
-    from trademind.agents.fast_prompts import get_strategy_prompt_hash, get_strategy_prompt
-    assert STRATEGY_PROMPT_VERSION=='strategy-4'
+    from trademind.agents.fast_prompts import get_strategy_prompt_hash, get_strategy_prompt, STRATEGY_PROMPTS
+    assert STRATEGY_PROMPT_VERSION=='strategy-5'
     assert get_strategy_prompt_hash('strategy-3')=='69e997a86e9807727a112ff435f586725bba7980bc2cffdbaee0612d7f882fd4'
     assert '简体中文' in get_strategy_prompt('strategy-4')
+    # TASK-20261025-03: strategy-5 registers the exit contract; older
+    # registered versions keep their pinned texts for replay/evaluation.
+    assert 'BUY must ' in get_strategy_prompt('strategy-5')
+    assert 'strategy-4' in STRATEGY_PROMPTS and 'strategy-3' in STRATEGY_PROMPTS
 
 
 def test_deepseek_request_and_audit_include_chinese_instruction(tmp_path):
@@ -35,10 +39,11 @@ def test_deepseek_request_and_audit_include_chinese_instruction(tmp_path):
 
 
 def test_paired_examples_validate_and_do_not_mutate(tmp_path):
-    from trademind.agents.fast_prompts import strategy_examples, STRATEGY_PROMPT
+    from trademind.agents.fast_prompts import strategy_examples, strategy_examples_v5, STRATEGY_PROMPT
     from trademind.agents.strategy_planner import StrategyPlanner
-    examples = strategy_examples()
+    examples = strategy_examples_v5()  # superset: base pairs + strategy-5 open/exit pairing
     assert '不是当前行情' in STRATEGY_PROMPT
+    assert examples[-1]['output']['allowed_actions'] == ['BUY', 'SELL', 'HOLD', 'WAIT']
     for example in examples:
         pipe, tick = make_pipe(tmp_path / example['case'])
         context = pipe.context_builder.build_minute(I, tick[0])
@@ -80,7 +85,8 @@ def test_strategy_payload_matches_production_condition_contract(tmp_path):
 
 
 @pytest.mark.parametrize('case', ['metadata', 'missing', 'unknown_field', 'expression',
-                                 'float_horizon', 'sell_without_exit', 'unavailable_field', 'english'])
+                                 'float_horizon', 'sell_without_exit', 'unavailable_field', 'english',
+                                 'buy_without_sell', 'buy_sell_without_exit'])
 def test_invalid_drafts_are_rejected_before_cache_or_jev(tmp_path, case):
     pipe, tick = make_pipe(tmp_path)
     draft = strategy()
@@ -92,6 +98,8 @@ def test_invalid_drafts_are_rejected_before_cache_or_jev(tmp_path, case):
     if case == 'sell_without_exit': draft['exit_conditions'] = []
     if case == 'unavailable_field': draft['entry_conditions'][0]['field'] = 'ret_5m'
     if case == 'english': draft['reason'] = 'No supported setup'
+    if case == 'buy_without_sell': draft['allowed_actions'] = ['BUY', 'HOLD', 'WAIT']
+    if case == 'buy_sell_without_exit': draft['exit_conditions'] = []
     # Direct planner input exercises validation independently of the outer quality gate.
     from trademind.agents.strategy_planner import StrategyPlanner
     planner = StrategyPlanner(pipe.llm, pipe.repo, pipe.cfg.t0, pipe.cfg.account_id, lambda: tick[0])

@@ -79,6 +79,30 @@ def healthy(path):
         return False
 
 
+class AdoptedObserver:
+    """An adopted observer is stopped by an instance-scoped file request.
+
+    Never send an OS signal to a PID recovered from disk: it may be reused.
+    Only the observer with the matching startup nonce accepts this request.
+    """
+    def __init__(self, pid, instance_id, root, alive):
+        self.pid, self.instance_id, self.root, self.alive = pid, instance_id, root, alive
+
+    def poll(self):
+        return None if self.alive() else 0
+
+    def kill(self):
+        atomic_json(self.root/'observer-stop.json', {'instance_id': self.instance_id})
+
+    def wait(self, timeout=30):
+        deadline = time.monotonic()+timeout
+        while self.poll() is None:
+            if time.monotonic() >= deadline:
+                raise subprocess.TimeoutExpired('adopted observer', timeout)
+            time.sleep(0.1)
+        return 0
+
+
 class Supervisor:
     def __init__(self, config, root, calendar, launch=subprocess.Popen, clock=None, account_id=None, db_path=None, t0_cfg=None):
         self.config, self.root, self.calendar = config, Path(root), calendar
@@ -92,9 +116,21 @@ class Supervisor:
         self.halted = False
         self.note = '等待连续交易时段'
         self.path = self.root/'auto-paper-state.json'
+        # Resident read-only observer (TASK-20261026-07): independent child,
+        # never a writer. The paper writer slot above stays single-account.
+        self.observer = None
+        self.observer_retry_at = self.clock()
+        self.observer_state_path = self.root/'observer-state.json'
         self.account_id = account_id
         self.db_path = Path(db_path) if db_path else self.root/'trademind.db'
         self.t0_cfg = t0_cfg
+        self.observer_config_identity = None
+        if Path(self.config).exists():
+            try:
+                from .observer_identity import observer_identity
+                self.observer_config_identity = observer_identity(load_config(self.config, load_credentials=False))
+            except Exception:
+                pass  # no identity means an existing process cannot be adopted
         if self.account_id is None:
             try:
                 cfg = load_config(self.config, load_credentials=False)
@@ -199,9 +235,103 @@ class Supervisor:
             pass
         self.stopping = True
 
+    def observer_alive(self):
+        return self.observer is not None and self.observer.poll() is None
+
+    def _observer_pid_from_state(self):
+        """Liveness of an observer launched by a previous supervisor run."""
+        try:
+            state = json.loads(self.observer_state_path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            return None
+        pid = state.get('pid')
+        try:
+            age = (self.clock()-datetime.fromisoformat(state['heartbeat'])).total_seconds()
+            belongs = (state.get('account_id') == self.account_id
+                       and state.get('database') == str(self.root.resolve())
+                       and self.observer_config_identity is not None
+                       and state.get('config_identity') == self.observer_config_identity
+                       and bool(state.get('instance_id')))
+            if belongs and state.get('running') and pid and 0 <= age < 30 and _pid_alive(int(pid)):
+                return int(pid)
+        except (KeyError, TypeError, ValueError):
+            pass
+        return None
+
+    def ensure_observer(self, now):
+        """Keep exactly one resident read-only observer child (ARCH-025).
+
+        An observer crash only affects the web view; paper keeps running and
+        halts are never cleared by a respawn. A live observer from a previous
+        supervisor run is adopted instead of a port-conflicting second one.
+        """
+        if self.stopping:
+            return
+        if self.observer is not None and self.observer.poll() is not None:
+            self.observer = None
+            self.observer_retry_at = now+timedelta(seconds=60)  # bounded respawn backoff
+        if self.observer is None and now >= self.observer_retry_at:
+            pid = self._observer_pid_from_state()
+            if pid is not None:
+                try:
+                    state = json.loads(self.observer_state_path.read_text(encoding='utf-8'))
+                except (OSError, ValueError):
+                    return
+                if state.get('pid') != pid:
+                    return  # state replaced between validation and adoption
+                instance = state['instance_id']
+                def alive():
+                    try:
+                        current = json.loads(self.observer_state_path.read_text(encoding='utf-8'))
+                        return (current.get('instance_id') == instance
+                                and current.get('running') and _pid_alive(pid))
+                    except (OSError, ValueError):
+                        return False
+                self.observer = AdoptedObserver(pid, instance, self.root, alive)
+                return
+            command = [sys.executable, '-m', 'trademind.runner', '--config', self.config, 'observer']
+            self.observer_retry_at = now+timedelta(seconds=60)
+            try:
+                self.observer = self.launch(command)
+            except OSError:
+                self.observer = None  # a web startup failure cannot interrupt paper
+
+    def stop_observer(self):
+        if self.observer is None:
+            return
+        if self.observer.poll() is None:
+            # Windows venv python may be a launcher with a real Python child.
+            # Ask the service itself to exit before considering its owned tree.
+            pid = self._observer_pid_from_state()
+            if pid is not None:
+                try:
+                    state = json.loads(self.observer_state_path.read_text(encoding='utf-8'))
+                    atomic_json(self.root/'observer-stop.json', {'instance_id': state['instance_id']})
+                    self.observer.wait(timeout=10)
+                except (OSError, ValueError, KeyError, subprocess.TimeoutExpired):
+                    pass
+            if self.observer.poll() is None:
+                if isinstance(self.observer, AdoptedObserver):
+                    self.observer.kill()  # instance request, never signal a disk PID
+                elif sys.platform == 'win32' and isinstance(self.observer, subprocess.Popen):
+                    # Popen still owns a live handle; this is our launcher's tree.
+                    try:
+                        subprocess.run(['taskkill', '/PID', str(self.observer.pid), '/T', '/F'],
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+                    except (OSError, subprocess.TimeoutExpired):
+                        pass
+                else:
+                    self.observer.kill()
+            try:
+                self.observer.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                return  # retain an unconfirmed handle rather than claiming exit
+        self.observer = None
+
     def tick(self):
         now = self.clock()
         self.request_stop()
+        self.ensure_observer(now)
         if self.stopping:
             self.note = '收到停止请求，等待子进程排空后退出'
         if self.child is not None and self.child.poll() is not None:
@@ -226,14 +356,20 @@ class Supervisor:
         # Calendar coverage gates every paid start: beyond verified data the
         # session state is unknown, so paper never launches and no model
         # request is spent on a possibly-holiday day (ISSUE-20261013-07).
-        desired = 'paper' if covered and seconds >= 5 and now >= self.retry_at and not self.halted else 'serve'
+        # Waiting phases no longer launch a serve child: the resident
+        # read-only observer owns the web port (TASK-20261026-07/ARCH-025).
+        desired = 'paper' if covered and seconds >= 5 and now >= self.retry_at and not self.halted else None
         if self.kind == 'paper' or self.stopping:
             # Let the bounded paper runner drain itself; while stopping no new
             # writer may start at all (ISSUE-20261022-01).
             pass
-        elif self.kind != desired:
+        elif desired == 'paper' and self.kind != 'paper':
             self.stop_child()
-            self.start(desired, seconds)
+            self.start('paper', seconds)
+        elif desired is None and self.kind == 'paper':
+            # Session over: the bounded runner is closing out; drain it the
+            # same way the old serve-switch did (Windows waits, then force).
+            self.stop_child()
         if not covered and not self.halted and self.kind != 'paper':
             self.note = '交易日历覆盖不足，已停止模拟与付费请求，等待人工更新日历'
 
@@ -274,13 +410,14 @@ class Supervisor:
         elif self.halted or now < self.retry_at:
             msg = self.note
         else:
-            msg = '休市或午休等待，开市自动检查并启动'
+            msg = '休市或午休等待，开市自动检查并启动（网页由只读观察服务持续提供）'
 
         if self.stopping:
             msg = self.note  # draining must not look like ordinary idle waiting
 
-        state = {'pid':os.getpid(), 'heartbeat':now.isoformat(), 'phase':self.kind,
+        state = {'account_id':self.account_id, 'pid':os.getpid(), 'heartbeat':now.isoformat(), 'phase':self.kind,
                  'child_pid': self.child.pid if self.child else None,
+                 'observer_pid': self.observer.pid if self.observer_alive() else None,
                  'halted':self.halted, 'session_open':bool(seconds),
                  'calendar_covered':covered,
                  'retry_at':self.retry_at.isoformat(), 'report_path':str(self.report_path) if self.report_path else None,
@@ -296,7 +433,7 @@ class Supervisor:
 
     def persist_final_state(self):
         """Write the terminal state; a restart must inherit any halt."""
-        state = {'pid': os.getpid(), 'heartbeat': self.clock().isoformat(),
+        state = {'account_id':getattr(self, 'account_id', None), 'pid': os.getpid(), 'heartbeat': self.clock().isoformat(),
                  'phase': None, 'halted': self.halted, 'session_open': False,
                  'calendar_covered': True, 'retry_at': self.retry_at.isoformat(),
                  'report_path': str(self.report_path) if self.report_path else None,
@@ -310,15 +447,17 @@ class Supervisor:
             raise
 
     def shutdown(self):
-        """Terminal path for run(): drain the child, classify a paper run's
-        final report, then persist final state. Stop errors must not report a
-        clean drain nor clear an unknown outcome."""
+        """Terminal path for run(): drain the paper child, stop the observer,
+        classify a paper run's final report, then persist final state. Stop
+        errors must not report a clean drain nor clear an unknown outcome."""
         was_paper, report_path = (self.kind == 'paper'), self.report_path
         try:
             self.stop_child()
         except Exception as exc:  # noqa: BLE001 - terminal path must persist state
             self.halted = True
             self.note = f'停止过程异常({type(exc).__name__})，子进程结果未知，需人工核对'
+        # The observer is read-only: kill is always safe and never latches a halt.
+        self.stop_observer()
         if was_paper and report_path is not None:
             # A paper run that exits on its own during the stop wait still has
             # a final drain report; missing/corrupt/unknown outcomes must keep

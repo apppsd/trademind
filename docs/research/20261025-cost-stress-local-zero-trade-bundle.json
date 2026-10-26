@@ -1,0 +1,24 @@
+{
+  "bundle_version": 2,
+  "source": "real local-1k daily-report extract (read-only): paper-t0-local-1k 2026-10-23, 1441 recorded WAIT intents, no BUY/SELL; settled_cny is a configured model-cost estimate, not a vendor invoice",
+  "account_config": {
+    "initial_cash": "1000",
+    "min_cash_reserve": "100",
+    "max_single_exposure": "200",
+    "max_total_exposure": "300"
+  },
+  "fee_profile": {
+    "commission_rate": "0.0001",
+    "commission_min": "0.1",
+    "stamp_duty_rate_sell": "0",
+    "transfer_fee_rate": "0.00001"
+  },
+  "model_cost": {
+    "settled_cny": "0.196991805180",
+    "pending_cny": "0",
+    "unknown": false
+  },
+  "intents": [],
+  "bars": [],
+  "as_of": "2026-10-23T16:36:57.471935+08:00"
+}

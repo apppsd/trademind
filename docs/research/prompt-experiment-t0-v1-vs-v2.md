@@ -2,7 +2,7 @@
 
 ## 1. 实验背景与目标
 
-根据 [TASK-20261007-59](file:///f:/Project/TradeMind/docs/tasks/TASK-20261007-59-%E7%AD%96%E7%95%A5%E4%B8%8E%E6%8F%90%E7%A4%BA%E8%AF%8D%E8%BF%AD%E4%BB%A3.md) 要求，在 [TASK-20261007-58](file:///f:/Project/TradeMind/docs/tasks/TASK-20261007-58-%E6%9C%80%E5%B0%8F%E6%A8%A1%E6%8B%9F%E7%9B%98%E5%90%AF%E5%8A%A8.md) 已交付可运行最小模拟盘基线的前提下，针对 T+0 ETF 策略提示词开展受控版本对照实验。
+根据 [TASK-20261007-59](../tasks/TASK-20261007-59-策略与提示词迭代.md) 要求，在 [TASK-20261007-58](../tasks/TASK-20261007-58-最小模拟盘启动.md) 已交付可运行最小模拟盘基线的前提下，针对 T+0 ETF 策略提示词开展受控版本对照实验。
 
 - **基线版本 (v1)**：`t0_candidate:flash:v1` 与 `t0_final:flash:v1`，遵循标准 Trend/Risk/Critic 三角剖析和固定 5~15 分钟持有周期建议。
 - **实验版本 (v2)**：`t0_candidate:flash:v2` 与 `t0_final:flash:v2`，增加日内 ATR(14) 波动度动态匹配持有期、量比（`volume_ratio >= 1.5`）放量确认要求，以及更为严苛的震荡收敛期过滤器。

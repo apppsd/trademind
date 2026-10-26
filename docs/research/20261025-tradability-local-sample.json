@@ -1,0 +1,112 @@
+{
+  "tool": "check_t0_tradability",
+  "tool_version": 2,
+  "snapshot_version": 1,
+  "account_id": "paper-t0-local-1k",
+  "as_of": "2026-10-23T06:57:16+00:00",
+  "max_price_age_seconds": 300,
+  "input_sha256": "5eebbe796c48b7d9ca7bc3aff25acc7ace63639025ecbb57e0d58a87ecc6bb5f",
+  "limits": {
+    "max_single_exposure": "200",
+    "max_total_exposure": "300",
+    "min_cash_reserve": "100"
+  },
+  "cash": "1000",
+  "reserved_cash": "0",
+  "open_orders_count": 0,
+  "pending_buy_notional": "0",
+  "rules_sha256": "1c61992dc6d67b43c67800d83159d67f3f3ce22225febc53bb6fa6abc9f8b56f",
+  "order_commitment_gaps": [],
+  "position_valuation_note": null,
+  "summary": {
+    "资金可达": 1,
+    "仅观察": 2,
+    "数据不足": 0,
+    "total": 3
+  },
+  "instruments": [
+    {
+      "instrument_id": "513050.SH",
+      "price": "0.949",
+      "price_source": "local-1k trademind.db context_snapshots (read-only)",
+      "price_time": "2026-10-23T06:57:16+00:00",
+      "price_age_seconds": 0,
+      "status": "资金可达",
+      "reasons": [],
+      "lot_size": 100,
+      "settlement_rule": "T+0",
+      "one_lot_notional": "94.900",
+      "one_lot_fees": "0.10",
+      "one_lot_cost": "95.000",
+      "max_affordable_lots": 2,
+      "rule_version": "mp-etf-513050.SH-2017-01-04",
+      "fee_schedule": {
+        "commission_rate": "0.0001",
+        "commission_min": "0.1",
+        "stamp_duty_rate_sell": "0.0",
+        "transfer_fee_rate": "0.00001"
+      },
+      "cash_budget": "900",
+      "single_exposure_room": "200.000",
+      "total_exposure_room": "300",
+      "pending_buy_notional": "0"
+    },
+    {
+      "instrument_id": "513100.SH",
+      "price": "2.241",
+      "price_source": "local-1k trademind.db context_snapshots (read-only)",
+      "price_time": "2026-10-23T06:57:16+00:00",
+      "price_age_seconds": 0,
+      "status": "仅观察",
+      "reasons": [
+        "单标的上限（一手名义价值超出 max_single_exposure 余量）"
+      ],
+      "lot_size": 100,
+      "settlement_rule": "T+0",
+      "one_lot_notional": "224.100",
+      "one_lot_fees": "0.10",
+      "one_lot_cost": "224.200",
+      "max_affordable_lots": null,
+      "rule_version": "mp-etf-513100.SH-2013-05-15",
+      "fee_schedule": {
+        "commission_rate": "0.0001",
+        "commission_min": "0.1",
+        "stamp_duty_rate_sell": "0.0",
+        "transfer_fee_rate": "0.00001"
+      },
+      "cash_budget": "900",
+      "single_exposure_room": "200.000",
+      "total_exposure_room": "300",
+      "pending_buy_notional": "0"
+    },
+    {
+      "instrument_id": "518880.SH",
+      "price": "8.197",
+      "price_source": "local-1k trademind.db context_snapshots (read-only)",
+      "price_time": "2026-10-23T06:57:16+00:00",
+      "price_age_seconds": 0,
+      "status": "仅观察",
+      "reasons": [
+        "单标的上限（一手名义价值超出 max_single_exposure 余量）",
+        "总敞口上限（一手名义价值超出 max_total_exposure 余量）"
+      ],
+      "lot_size": 100,
+      "settlement_rule": "T+0",
+      "one_lot_notional": "819.700",
+      "one_lot_fees": "0.11",
+      "one_lot_cost": "819.810",
+      "max_affordable_lots": null,
+      "rule_version": "mp-etf-518880.SH-2013-07-29",
+      "fee_schedule": {
+        "commission_rate": "0.0001",
+        "commission_min": "0.1",
+        "stamp_duty_rate_sell": "0.0",
+        "transfer_fee_rate": "0.00001"
+      },
+      "cash_budget": "900",
+      "single_exposure_room": "200.000",
+      "total_exposure_room": "300",
+      "pending_buy_notional": "0"
+    }
+  ]
+}

@@ -14,9 +14,12 @@ from ..domain.base import new_id
 
 import json
 from pathlib import Path
+import sys
 
 _FEES_SOURCE = "exchange public fee schedule; simulated defaults confirmed by TASK-20261007-04"
 _WHITELIST_PATH = Path(__file__).resolve().parents[3] / "data" / "etf_whitelist.json"
+if not _WHITELIST_PATH.exists():
+    _WHITELIST_PATH = Path(sys.prefix) / 'share' / 'trademind' / 'etf_whitelist.json'
 _ETF_WHITELIST_MAP: dict[str, dict] = {}
 
 

@@ -83,3 +83,8 @@ market-data读取无凭据配置→五市场批量行情→规则/权限/资金�
 OMS生命周期与Guard恢复/同标的扫描均已账户化（17-08）：外账户订单取消/撮合/对账/恢复一律拒绝且零副作用，Ledger拒收外账户fill；管理级全库查询仅保留在storage层。
 
 成交费用流（17-09）：撮合校验→Fill.fee预填（ledger费率）→持久化→apply_fill实扣（同输入同值）→返回Fill/落库行/事件note/现金差单一事实。
+
+
+## 工作台V2只读流程（代码返修后，运行切换待验）
+
+显式cfg→app.state→账户只读Store→已有Context/账户/日报/记录→统一信封→前端资源世代与陈旧判断→图表/中文条件/时间线。无提供者调用、迁移或writer租约。交易仍独立由paper→Guard/OMS→账本写入；observer启动/收养按非凭据身份+实例ID管理，退出不解锁halted。真实并存和只读验证见[返修报告](../research/20261026-workbench-repair-verification.md)；真实盘中与实际浏览器未验。

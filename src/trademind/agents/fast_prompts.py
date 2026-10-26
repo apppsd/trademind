@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 from ..domain.strategy import FEATURE_FIELDS, StrategyPlan
 
-STRATEGY_PROMPT_VERSION = 'strategy-4'
+STRATEGY_PROMPT_VERSION = 'strategy-5'
 FAST_PROMPT_VERSION = 'fast-2'
 STRATEGY_OUTPUT_FIELDS = (
     'trend', 'risk', 'critic', 'reason', 'allowed_actions', 'entry_conditions',
@@ -97,12 +97,55 @@ STRATEGY_PROMPT_V4 = STRATEGY_PROMPT_BASE + (
     '数字、单位及必要技术名词可以保留，禁止整段英文说明。'
     '\n以下合成示例仅说明格式与边界，不是当前行情或通用阈值：\n'
     + json.dumps(strategy_examples(),ensure_ascii=False,allow_nan=False))
-STRATEGY_PROMPT = STRATEGY_PROMPT_V4
+
+
+def strategy_examples_v5(language='zh'):
+    """strategy-5 adds the open-position pairing example (TASK-20261025-03).
+
+    Separate from strategy_examples() so registered strategy-2/3/4 prompt
+    texts (and their pinned fingerprints) stay byte-identical.
+    """
+    examples = deepcopy(strategy_examples(language))
+    pairing = {'case': 'open_position_with_entry_and_exit', 'synthetic': True,
+               'input': {**{'as_of': '2026-10-09T10:30:00+08:00',
+                            'max_holding_horizon_seconds': 300,
+                            'shorting': False, 'leverage': False},
+                         'features': {'close': '1.60', 'vwap': '1.55', 'ret_5m': '0.002'},
+                         'portfolio': {'held': 0, 'sellable': 0}},
+               'output': {'trend': 'Close 1.60 is above supplied VWAP 1.55 with positive 5m return.',
+                          'risk': 'A position opened here must stay closeable: SELL is required.',
+                          'critic': 'Entry evidence is thin; exits realise a loss below cost.',
+                          'reason': 'Buy only with the exit plan attached; no order without it.',
+                          'allowed_actions': ['BUY', 'SELL', 'HOLD', 'WAIT'],
+                          'entry_conditions': [{'field': 'close', 'operator': 'gt', 'value': '1.55'}],
+                          'exit_conditions': [{'field': 'close', 'operator': 'lt', 'value': '1.50'}],
+                          'invalidation_conditions': [{'field': 'ret_5m', 'operator': 'lt', 'value': '-0.01'}],
+                          'holding_horizon_seconds': 300}}
+    if language == 'zh':
+        pairing['output'].update({
+            'trend': '收盘1.60高于输入的成交量加权均价1.55，5分钟收益为正。',
+            'risk': '此处开仓必须保留平仓能力：必须包含SELL。',
+            'critic': '入场证据单薄；低于成本的退出会实现亏损。',
+            'reason': '只在附带退出计划时买入；没有退出计划不下单。'})
+    examples.append(pairing)
+    return examples
+
+
+STRATEGY_PROMPT_V5 = STRATEGY_PROMPT_V4 + (
+    '\nContract update (strategy-5): a draft whose allowed_actions include BUY must '
+    'ALSO include SELL together with nonempty computable exit_conditions; a plan '
+    'that could open a position but never close it (BUY-only or BUY/WAIT) is '
+    'invalid and will be rejected by the program. WAIT-only plans and '
+    'SELL/HOLD/WAIT exit plans remain valid. Do not list SELL without exit '
+    'conditions.\n以下合成示例展示完整的开仓/退出配对契约：\n'
+    + json.dumps(strategy_examples_v5()[2:], ensure_ascii=False, allow_nan=False))
+STRATEGY_PROMPT = STRATEGY_PROMPT_V5
 
 STRATEGY_PROMPTS = {
     'strategy-2': STRATEGY_PROMPT_BASE,
     'strategy-3': STRATEGY_PROMPT_V3,
     'strategy-4': STRATEGY_PROMPT_V4,
+    'strategy-5': STRATEGY_PROMPT_V5,
 }
 
 

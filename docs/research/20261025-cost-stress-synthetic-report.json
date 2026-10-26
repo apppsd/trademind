@@ -1,0 +1,999 @@
+{
+  "tool": "evaluate_t0_cost_stress",
+  "tool_version": 2,
+  "bundle_version": 2,
+  "source": "synthetic round-trip fixture (NOT real trades; built 2026-10-25 on 2026-10-23 local-1k price levels 0.948-0.951 for 513050.SH; bar times are synthetic minutes after 2026-10-23T06:50Z)",
+  "input_sha256": "1afd1306b1e084e6ed0fc0752302a5d3264934473f2af5912cf310c66a11f179",
+  "sample_scope": {
+    "intents": 2,
+    "bars": 7,
+    "as_of": "2026-10-23T07:00:00+00:00",
+    "account_limits": {
+      "min_cash_reserve": "100",
+      "max_single_exposure": "200",
+      "max_total_exposure": "300"
+    },
+    "intent_range": [
+      "2026-10-23T06:50:00+00:00",
+      "2026-10-23T06:54:00+00:00"
+    ],
+    "initial_cash": "1000"
+  },
+  "breakeven_table": [
+    {
+      "notional_cny": "100",
+      "slippage_bps": 5,
+      "commission_min_cny": "0.1",
+      "buy_fee": "0.10",
+      "sell_fee": "0.10",
+      "slippage_cost": "0.10",
+      "round_trip_cost": "0.30",
+      "breakeven_ratio": "0.0030",
+      "base_note": "按 100 股一手、名义本金 100 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "100",
+      "slippage_bps": 5,
+      "commission_min_cny": "1",
+      "buy_fee": "1.00",
+      "sell_fee": "1.00",
+      "slippage_cost": "0.10",
+      "round_trip_cost": "2.10",
+      "breakeven_ratio": "0.0210",
+      "base_note": "按 100 股一手、名义本金 100 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "100",
+      "slippage_bps": 5,
+      "commission_min_cny": "5",
+      "buy_fee": "5.00",
+      "sell_fee": "5.00",
+      "slippage_cost": "0.10",
+      "round_trip_cost": "10.10",
+      "breakeven_ratio": "0.1010",
+      "base_note": "按 100 股一手、名义本金 100 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "100",
+      "slippage_bps": 10,
+      "commission_min_cny": "0.1",
+      "buy_fee": "0.10",
+      "sell_fee": "0.10",
+      "slippage_cost": "0.20",
+      "round_trip_cost": "0.40",
+      "breakeven_ratio": "0.0040",
+      "base_note": "按 100 股一手、名义本金 100 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "100",
+      "slippage_bps": 10,
+      "commission_min_cny": "1",
+      "buy_fee": "1.00",
+      "sell_fee": "1.00",
+      "slippage_cost": "0.20",
+      "round_trip_cost": "2.20",
+      "breakeven_ratio": "0.0220",
+      "base_note": "按 100 股一手、名义本金 100 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "100",
+      "slippage_bps": 10,
+      "commission_min_cny": "5",
+      "buy_fee": "5.00",
+      "sell_fee": "5.00",
+      "slippage_cost": "0.20",
+      "round_trip_cost": "10.20",
+      "breakeven_ratio": "0.1020",
+      "base_note": "按 100 股一手、名义本金 100 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "100",
+      "slippage_bps": 20,
+      "commission_min_cny": "0.1",
+      "buy_fee": "0.10",
+      "sell_fee": "0.10",
+      "slippage_cost": "0.40",
+      "round_trip_cost": "0.60",
+      "breakeven_ratio": "0.0060",
+      "base_note": "按 100 股一手、名义本金 100 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "100",
+      "slippage_bps": 20,
+      "commission_min_cny": "1",
+      "buy_fee": "1.00",
+      "sell_fee": "1.00",
+      "slippage_cost": "0.40",
+      "round_trip_cost": "2.40",
+      "breakeven_ratio": "0.0240",
+      "base_note": "按 100 股一手、名义本金 100 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "100",
+      "slippage_bps": 20,
+      "commission_min_cny": "5",
+      "buy_fee": "5.00",
+      "sell_fee": "5.00",
+      "slippage_cost": "0.40",
+      "round_trip_cost": "10.40",
+      "breakeven_ratio": "0.1040",
+      "base_note": "按 100 股一手、名义本金 100 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "200",
+      "slippage_bps": 5,
+      "commission_min_cny": "0.1",
+      "buy_fee": "0.10",
+      "sell_fee": "0.10",
+      "slippage_cost": "0.20",
+      "round_trip_cost": "0.40",
+      "breakeven_ratio": "0.0020",
+      "base_note": "按 100 股一手、名义本金 200 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "200",
+      "slippage_bps": 5,
+      "commission_min_cny": "1",
+      "buy_fee": "1.00",
+      "sell_fee": "1.00",
+      "slippage_cost": "0.20",
+      "round_trip_cost": "2.20",
+      "breakeven_ratio": "0.0110",
+      "base_note": "按 100 股一手、名义本金 200 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "200",
+      "slippage_bps": 5,
+      "commission_min_cny": "5",
+      "buy_fee": "5.00",
+      "sell_fee": "5.00",
+      "slippage_cost": "0.20",
+      "round_trip_cost": "10.20",
+      "breakeven_ratio": "0.0510",
+      "base_note": "按 100 股一手、名义本金 200 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "200",
+      "slippage_bps": 10,
+      "commission_min_cny": "0.1",
+      "buy_fee": "0.10",
+      "sell_fee": "0.10",
+      "slippage_cost": "0.40",
+      "round_trip_cost": "0.60",
+      "breakeven_ratio": "0.0030",
+      "base_note": "按 100 股一手、名义本金 200 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "200",
+      "slippage_bps": 10,
+      "commission_min_cny": "1",
+      "buy_fee": "1.00",
+      "sell_fee": "1.00",
+      "slippage_cost": "0.40",
+      "round_trip_cost": "2.40",
+      "breakeven_ratio": "0.0120",
+      "base_note": "按 100 股一手、名义本金 200 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "200",
+      "slippage_bps": 10,
+      "commission_min_cny": "5",
+      "buy_fee": "5.00",
+      "sell_fee": "5.00",
+      "slippage_cost": "0.40",
+      "round_trip_cost": "10.40",
+      "breakeven_ratio": "0.0520",
+      "base_note": "按 100 股一手、名义本金 200 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "200",
+      "slippage_bps": 20,
+      "commission_min_cny": "0.1",
+      "buy_fee": "0.10",
+      "sell_fee": "0.10",
+      "slippage_cost": "0.80",
+      "round_trip_cost": "1.00",
+      "breakeven_ratio": "0.0050",
+      "base_note": "按 100 股一手、名义本金 200 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "200",
+      "slippage_bps": 20,
+      "commission_min_cny": "1",
+      "buy_fee": "1.00",
+      "sell_fee": "1.00",
+      "slippage_cost": "0.80",
+      "round_trip_cost": "2.80",
+      "breakeven_ratio": "0.0140",
+      "base_note": "按 100 股一手、名义本金 200 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    },
+    {
+      "notional_cny": "200",
+      "slippage_bps": 20,
+      "commission_min_cny": "5",
+      "buy_fee": "5.00",
+      "sell_fee": "5.00",
+      "slippage_cost": "0.80",
+      "round_trip_cost": "10.80",
+      "breakeven_ratio": "0.0540",
+      "base_note": "按 100 股一手、名义本金 200 元计算；摊销当日模型成本需另加 模型成本/本金 的收益"
+    }
+  ],
+  "model_cost": {
+    "settled_cny": "0.20",
+    "pending_cny": "0",
+    "unknown": false,
+    "note": "模型成本独立于交易损益；零交易也照实计入"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "baseline",
+      "params": {
+        "slippage_bps": 5,
+        "commission_min": "0.1",
+        "delay_bars": 0,
+        "participation": null
+      },
+      "status": "ok",
+      "fills": [
+        {
+          "intent_id": "i-buy",
+          "instrument_id": "513050.SH",
+          "side": "BUY",
+          "quantity": "100",
+          "price": "0.952",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:51:00+00:00",
+          "available_at": "2026-10-23T06:51:00+00:00"
+        },
+        {
+          "intent_id": "i-sell",
+          "instrument_id": "513050.SH",
+          "side": "SELL",
+          "quantity": "100",
+          "price": "0.947",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:55:00+00:00",
+          "available_at": "2026-10-23T06:55:00+00:00"
+        }
+      ],
+      "rejected": [],
+      "unfilled": [],
+      "incomplete": [],
+      "fees_total": "0.20",
+      "fills_count": 2,
+      "open_positions": {},
+      "pending_orders": [],
+      "ending_cash": "999.300",
+      "ending_equity": "999.300",
+      "equity_curve": [
+        {
+          "at": "2026-10-23T06:50:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:52:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:53:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:54:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:56:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:57:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:58:00+00:00",
+          "equity": "999.300"
+        }
+      ],
+      "max_drawdown": "0.0007",
+      "trading_equity_net": "-0.700",
+      "open_position_note": null,
+      "trading_cash_net": "-0.700",
+      "model_cost_cny": "0.20",
+      "combined_net": "-0.900",
+      "net_after_settled_model_estimate": "-0.900",
+      "combined_net_unknown": false
+    },
+    {
+      "scenario_id": "slippage-10bps",
+      "params": {
+        "slippage_bps": 10,
+        "commission_min": "0.1",
+        "delay_bars": 0,
+        "participation": null
+      },
+      "status": "ok",
+      "fills": [
+        {
+          "intent_id": "i-buy",
+          "instrument_id": "513050.SH",
+          "side": "BUY",
+          "quantity": "100",
+          "price": "0.952",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:51:00+00:00",
+          "available_at": "2026-10-23T06:51:00+00:00"
+        },
+        {
+          "intent_id": "i-sell",
+          "instrument_id": "513050.SH",
+          "side": "SELL",
+          "quantity": "100",
+          "price": "0.947",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:55:00+00:00",
+          "available_at": "2026-10-23T06:55:00+00:00"
+        }
+      ],
+      "rejected": [],
+      "unfilled": [],
+      "incomplete": [],
+      "fees_total": "0.20",
+      "fills_count": 2,
+      "open_positions": {},
+      "pending_orders": [],
+      "ending_cash": "999.300",
+      "ending_equity": "999.300",
+      "equity_curve": [
+        {
+          "at": "2026-10-23T06:50:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:52:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:53:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:54:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:56:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:57:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:58:00+00:00",
+          "equity": "999.300"
+        }
+      ],
+      "max_drawdown": "0.0007",
+      "trading_equity_net": "-0.700",
+      "open_position_note": null,
+      "trading_cash_net": "-0.700",
+      "model_cost_cny": "0.20",
+      "combined_net": "-0.900",
+      "net_after_settled_model_estimate": "-0.900",
+      "combined_net_unknown": false
+    },
+    {
+      "scenario_id": "slippage-20bps",
+      "params": {
+        "slippage_bps": 20,
+        "commission_min": "0.1",
+        "delay_bars": 0,
+        "participation": null
+      },
+      "status": "ok",
+      "fills": [
+        {
+          "intent_id": "i-buy",
+          "instrument_id": "513050.SH",
+          "side": "BUY",
+          "quantity": "100",
+          "price": "0.953",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:51:00+00:00",
+          "available_at": "2026-10-23T06:51:00+00:00"
+        },
+        {
+          "intent_id": "i-sell",
+          "instrument_id": "513050.SH",
+          "side": "SELL",
+          "quantity": "100",
+          "price": "0.946",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:55:00+00:00",
+          "available_at": "2026-10-23T06:55:00+00:00"
+        }
+      ],
+      "rejected": [],
+      "unfilled": [],
+      "incomplete": [],
+      "fees_total": "0.20",
+      "fills_count": 2,
+      "open_positions": {},
+      "pending_orders": [],
+      "ending_cash": "999.100",
+      "ending_equity": "999.100",
+      "equity_curve": [
+        {
+          "at": "2026-10-23T06:50:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "999.600"
+        },
+        {
+          "at": "2026-10-23T06:52:00+00:00",
+          "equity": "999.600"
+        },
+        {
+          "at": "2026-10-23T06:53:00+00:00",
+          "equity": "999.600"
+        },
+        {
+          "at": "2026-10-23T06:54:00+00:00",
+          "equity": "999.600"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "999.600"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "999.100"
+        },
+        {
+          "at": "2026-10-23T06:56:00+00:00",
+          "equity": "999.100"
+        },
+        {
+          "at": "2026-10-23T06:57:00+00:00",
+          "equity": "999.100"
+        },
+        {
+          "at": "2026-10-23T06:58:00+00:00",
+          "equity": "999.100"
+        }
+      ],
+      "max_drawdown": "0.0009",
+      "trading_equity_net": "-0.900",
+      "open_position_note": null,
+      "trading_cash_net": "-0.900",
+      "model_cost_cny": "0.20",
+      "combined_net": "-1.100",
+      "net_after_settled_model_estimate": "-1.100",
+      "combined_net_unknown": false
+    },
+    {
+      "scenario_id": "commission-min-1",
+      "params": {
+        "slippage_bps": 5,
+        "commission_min": "1",
+        "delay_bars": 0,
+        "participation": null
+      },
+      "status": "ok",
+      "fills": [
+        {
+          "intent_id": "i-buy",
+          "instrument_id": "513050.SH",
+          "side": "BUY",
+          "quantity": "100",
+          "price": "0.952",
+          "fee": "1.00",
+          "bar_time": "2026-10-23T06:51:00+00:00",
+          "available_at": "2026-10-23T06:51:00+00:00"
+        },
+        {
+          "intent_id": "i-sell",
+          "instrument_id": "513050.SH",
+          "side": "SELL",
+          "quantity": "100",
+          "price": "0.947",
+          "fee": "1.00",
+          "bar_time": "2026-10-23T06:55:00+00:00",
+          "available_at": "2026-10-23T06:55:00+00:00"
+        }
+      ],
+      "rejected": [],
+      "unfilled": [],
+      "incomplete": [],
+      "fees_total": "2.00",
+      "fills_count": 2,
+      "open_positions": {},
+      "pending_orders": [],
+      "ending_cash": "997.500",
+      "ending_equity": "997.500",
+      "equity_curve": [
+        {
+          "at": "2026-10-23T06:50:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "998.800"
+        },
+        {
+          "at": "2026-10-23T06:52:00+00:00",
+          "equity": "998.800"
+        },
+        {
+          "at": "2026-10-23T06:53:00+00:00",
+          "equity": "998.800"
+        },
+        {
+          "at": "2026-10-23T06:54:00+00:00",
+          "equity": "998.800"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "998.800"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "997.500"
+        },
+        {
+          "at": "2026-10-23T06:56:00+00:00",
+          "equity": "997.500"
+        },
+        {
+          "at": "2026-10-23T06:57:00+00:00",
+          "equity": "997.500"
+        },
+        {
+          "at": "2026-10-23T06:58:00+00:00",
+          "equity": "997.500"
+        }
+      ],
+      "max_drawdown": "0.0025",
+      "trading_equity_net": "-2.500",
+      "open_position_note": null,
+      "trading_cash_net": "-2.500",
+      "model_cost_cny": "0.20",
+      "combined_net": "-2.700",
+      "net_after_settled_model_estimate": "-2.700",
+      "combined_net_unknown": false
+    },
+    {
+      "scenario_id": "commission-min-5",
+      "params": {
+        "slippage_bps": 5,
+        "commission_min": "5",
+        "delay_bars": 0,
+        "participation": null
+      },
+      "status": "ok",
+      "fills": [
+        {
+          "intent_id": "i-buy",
+          "instrument_id": "513050.SH",
+          "side": "BUY",
+          "quantity": "100",
+          "price": "0.952",
+          "fee": "5.00",
+          "bar_time": "2026-10-23T06:51:00+00:00",
+          "available_at": "2026-10-23T06:51:00+00:00"
+        },
+        {
+          "intent_id": "i-sell",
+          "instrument_id": "513050.SH",
+          "side": "SELL",
+          "quantity": "100",
+          "price": "0.947",
+          "fee": "5.00",
+          "bar_time": "2026-10-23T06:55:00+00:00",
+          "available_at": "2026-10-23T06:55:00+00:00"
+        }
+      ],
+      "rejected": [],
+      "unfilled": [],
+      "incomplete": [],
+      "fees_total": "10.00",
+      "fills_count": 2,
+      "open_positions": {},
+      "pending_orders": [],
+      "ending_cash": "989.500",
+      "ending_equity": "989.500",
+      "equity_curve": [
+        {
+          "at": "2026-10-23T06:50:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "994.800"
+        },
+        {
+          "at": "2026-10-23T06:52:00+00:00",
+          "equity": "994.800"
+        },
+        {
+          "at": "2026-10-23T06:53:00+00:00",
+          "equity": "994.800"
+        },
+        {
+          "at": "2026-10-23T06:54:00+00:00",
+          "equity": "994.800"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "994.800"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "989.500"
+        },
+        {
+          "at": "2026-10-23T06:56:00+00:00",
+          "equity": "989.500"
+        },
+        {
+          "at": "2026-10-23T06:57:00+00:00",
+          "equity": "989.500"
+        },
+        {
+          "at": "2026-10-23T06:58:00+00:00",
+          "equity": "989.500"
+        }
+      ],
+      "max_drawdown": "0.0105",
+      "trading_equity_net": "-10.500",
+      "open_position_note": null,
+      "trading_cash_net": "-10.500",
+      "model_cost_cny": "0.20",
+      "combined_net": "-10.700",
+      "net_after_settled_model_estimate": "-10.700",
+      "combined_net_unknown": false
+    },
+    {
+      "scenario_id": "delay-1",
+      "params": {
+        "slippage_bps": 5,
+        "commission_min": "0.1",
+        "delay_bars": 1,
+        "participation": null
+      },
+      "status": "ok",
+      "fills": [
+        {
+          "intent_id": "i-buy",
+          "instrument_id": "513050.SH",
+          "side": "BUY",
+          "quantity": "100",
+          "price": "0.952",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:52:00+00:00",
+          "available_at": "2026-10-23T06:52:00+00:00"
+        },
+        {
+          "intent_id": "i-sell",
+          "instrument_id": "513050.SH",
+          "side": "SELL",
+          "quantity": "100",
+          "price": "0.947",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:56:00+00:00",
+          "available_at": "2026-10-23T06:56:00+00:00"
+        }
+      ],
+      "rejected": [],
+      "unfilled": [],
+      "incomplete": [],
+      "fees_total": "0.20",
+      "fills_count": 2,
+      "open_positions": {},
+      "pending_orders": [],
+      "ending_cash": "999.300",
+      "ending_equity": "999.300",
+      "equity_curve": [
+        {
+          "at": "2026-10-23T06:50:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:52:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:52:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:53:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:54:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:56:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:56:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:57:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:58:00+00:00",
+          "equity": "999.300"
+        }
+      ],
+      "max_drawdown": "0.0007",
+      "trading_equity_net": "-0.700",
+      "open_position_note": null,
+      "trading_cash_net": "-0.700",
+      "model_cost_cny": "0.20",
+      "combined_net": "-0.900",
+      "net_after_settled_model_estimate": "-0.900",
+      "combined_net_unknown": false
+    },
+    {
+      "scenario_id": "delay-2",
+      "params": {
+        "slippage_bps": 5,
+        "commission_min": "0.1",
+        "delay_bars": 2,
+        "participation": null
+      },
+      "status": "ok",
+      "fills": [
+        {
+          "intent_id": "i-buy",
+          "instrument_id": "513050.SH",
+          "side": "BUY",
+          "quantity": "100",
+          "price": "0.952",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:53:00+00:00",
+          "available_at": "2026-10-23T06:53:00+00:00"
+        },
+        {
+          "intent_id": "i-sell",
+          "instrument_id": "513050.SH",
+          "side": "SELL",
+          "quantity": "100",
+          "price": "0.947",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:57:00+00:00",
+          "available_at": "2026-10-23T06:57:00+00:00"
+        }
+      ],
+      "rejected": [],
+      "unfilled": [],
+      "incomplete": [],
+      "fees_total": "0.20",
+      "fills_count": 2,
+      "open_positions": {},
+      "pending_orders": [],
+      "ending_cash": "999.300",
+      "ending_equity": "999.300",
+      "equity_curve": [
+        {
+          "at": "2026-10-23T06:50:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:52:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:53:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:53:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:54:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:56:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:57:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:57:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:58:00+00:00",
+          "equity": "999.300"
+        }
+      ],
+      "max_drawdown": "0.0007",
+      "trading_equity_net": "-0.700",
+      "open_position_note": null,
+      "trading_cash_net": "-0.700",
+      "model_cost_cny": "0.20",
+      "combined_net": "-0.900",
+      "net_after_settled_model_estimate": "-0.900",
+      "combined_net_unknown": false
+    },
+    {
+      "scenario_id": "participation-10pct",
+      "params": {
+        "slippage_bps": 5,
+        "commission_min": "0.1",
+        "delay_bars": 0,
+        "participation": "0.10"
+      },
+      "status": "ok",
+      "fills": [
+        {
+          "intent_id": "i-buy",
+          "instrument_id": "513050.SH",
+          "side": "BUY",
+          "quantity": "100",
+          "price": "0.952",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:51:00+00:00",
+          "available_at": "2026-10-23T06:51:00+00:00"
+        },
+        {
+          "intent_id": "i-sell",
+          "instrument_id": "513050.SH",
+          "side": "SELL",
+          "quantity": "100",
+          "price": "0.947",
+          "fee": "0.10",
+          "bar_time": "2026-10-23T06:55:00+00:00",
+          "available_at": "2026-10-23T06:55:00+00:00"
+        }
+      ],
+      "rejected": [],
+      "unfilled": [],
+      "incomplete": [],
+      "fees_total": "0.20",
+      "fills_count": 2,
+      "open_positions": {},
+      "pending_orders": [],
+      "ending_cash": "999.300",
+      "ending_equity": "999.300",
+      "equity_curve": [
+        {
+          "at": "2026-10-23T06:50:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "1000"
+        },
+        {
+          "at": "2026-10-23T06:51:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:52:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:53:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:54:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "999.700"
+        },
+        {
+          "at": "2026-10-23T06:55:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:56:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:57:00+00:00",
+          "equity": "999.300"
+        },
+        {
+          "at": "2026-10-23T06:58:00+00:00",
+          "equity": "999.300"
+        }
+      ],
+      "max_drawdown": "0.0007",
+      "trading_equity_net": "-0.700",
+      "open_position_note": null,
+      "trading_cash_net": "-0.700",
+      "model_cost_cny": "0.20",
+      "combined_net": "-0.900",
+      "net_after_settled_model_estimate": "-0.900",
+      "combined_net_unknown": false
+    }
+  ],
+  "limitations": [
+    "场景参数是敏感性假设，不是真实券商报价；结果不用于生产，也不构成策略正期望的证据。",
+    "撮合为保守逐bar规则（对手价+滑点、保留限价、参与率封顶），未建模盘口队列路径。",
+    "交易费用按生产 compute_fees 语义每笔成交只扣一次；模型成本独立汇总，不与交易损益混算。",
+    "预留（reservation）不是账单；未知费用使组合净结果为 unknown 而非 0。",
+    "跨场景净值不保证单调：触价/未成交会改变后续路径，报告只陈述各路径事实。",
+    "仅支持核验T0 ETF、初始空仓且无冻结的隔离账户；每意图一次撮合尝试，余单按评估规则取消。",
+    "成交现金/持仓按available_at入账；同刻先提交后入账，不能预支同刻成交。回撤为可见bar采样口径。"
+  ]
+}
