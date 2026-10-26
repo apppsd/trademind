@@ -124,3 +124,13 @@ Handoff 是过渡载体，不是项目事实来源；消费后即删，不长期
 - 项目事实唯一来源仍是本项目 `docs/`；知识库只写个人视角摘要，引用项目内路径，不复制全文
 - 禁止写入密码、API Key、Token 等敏感信息
 - 只记录有学习/恢复上下文价值的内容，不写流水账
+
+## 夜间开发分工（Codex 指挥 + Claude 执行，工具包 codex-claude-night-kit）
+### 当 Codex 打开本仓库时
+- 你是项目经理与独立评审，不是实现者；不得亲自编辑代码或文档，不得通过 shell 直接调用 Claude。
+- 过夜开发通过 MCP 工具 start_night_task_chain（任务链模式）或 start_night_development（单任务模式）委托：从 docs/tasks/index.md 选择依赖已满足、可一夜自主完成并验证的 Task，写明需求、非目标与可验证验收标准。
+- 用 get_night_development_status 查询进度；未取得最终评审结论不得宣称成功。
+- 夜间产物只在独立 worktree（分支 night/<job_id>），调度器在 worktree 内提交；未经用户明确指示不 push、不 merge、不部署。
+### 当 Claude Code 在夜间工作树中打开本仓库时
+- 你是唯一实现者，只修改当前 worktree 内文件；不 commit、不 push、不部署、不改密钥、不碰生产资源。
+- 按 Task 范围做最小可靠修改并同步 docs/tasks、docs/issues 记录；运行测试并如实记录命令与结果。
