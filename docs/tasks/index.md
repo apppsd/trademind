@@ -5,7 +5,7 @@
 | Task | 状态 / Owner | 依赖 | 工作与验收重点 |
 |---|---|---|---|
 | [TASK-20261027-02](TASK-20261027-02-规划A股广域观察与决策扩展.md) | completed / Claude Code | 无 | 规划：范围/数据源/筛选规则/调用上限/独立账户 → [ARCH-028](../architecture/28-stock-wide-observation-bounded-decision.md)（planning）；三 ETF 链路不变 |
-| [TASK-20261027-03](TASK-20261027-03-建立股票发现与只读候选池.md) | pending / 待认领 | 02 | 批量发现+候选池（含淘汰原因）；零模型调用零下单 |
+| [TASK-20261027-03](TASK-20261027-03-建立股票发现与只读候选池.md) | completed / Claude Code | 02 | 观察池落地：stock_discovery+akshare 适配+扫描脚本；本机真实扫描 4605→4378 候选；正式重复运行归 150 |
 | [TASK-20261027-04](TASK-20261027-04-验证股票行情与可交易性.md) | pending / 待认领 | 03 | 分钟质量+整手/T+1/费用核验（沪市 100 股整手按官方规则核验）；不合格只观察 |
 | [TASK-20261027-05](TASK-20261027-05-接入有界候选决策与隔离模拟盘.md) | pending / 待认领 | 04 | 每轮少量合格股进 Flash/JEV；独立 paper 账户；预算/Guard/OMS 门禁不变 |
 | [TASK-20261027-06](TASK-20261027-06-盘中验收与对照.md) | pending / 待认领 | 05 | 盘中验收与对照；无自然机会如实记未验，不制造成交 |

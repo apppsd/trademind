@@ -70,7 +70,7 @@ Node 仅构建用；运行时（serve/observer/paper）不依赖 Node。
 ## 语言与依赖
 
 - Python >=3.12；venv 位于 `.venv/`。
-- 直接依赖：pydantic 2.x、requests、python-dotenv；API：fastapi+uvicorn；数据（可选）：akshare/baostock/tushare；开发：pytest、httpx。
+- 直接依赖：pydantic 2.x、requests、python-dotenv；API：fastapi+uvicorn；数据（可选）：akshare/baostock/tushare；开发：pytest、httpx。A股广域观察池扫描（`scripts/scan_stock_candidates.py`，Task27-03）使用 akshare 的 `stock_info_sh_name_code`/`stock_info_sz_name_code` 名单接口（只读、零模型调用；列名映射按常见表头容错，真实 schema 失配显式报错）；本机已单次跑通，正式重复运行在 N150。
 - 锁文件 `requirements.txt` 固定环境依赖并使用本地 `-e .`；更新时保留本地安装入口，不写回远程旧提交自依赖。
 
 ## 环境创建与构建（已验证命令）

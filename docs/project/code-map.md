@@ -2,6 +2,8 @@
 
 自动监控：execution/auto_paper.py（时段期限、互斥子进程、退避/异常锁定、心跳；跨平台探活 `_pid_alive`、Windows msvcrt 互斥锁与停止标志排空/强制+halt 路径）；scripts/run_auto.py（VM启动/停止/状态与代理继承），run_container.py阻止手动paper与auto并发；compose.yaml auto服务。本地无Docker入口：scripts/run_local.py（start/status/stop，脱终端启动、停止标志、强制结束前pid+映像校验）+ config/t0-local.example.toml（本地实验账户/库）；tests/test_auto_paper.py/test_auto_launcher.py/test_local_lifecycle.py覆盖。[ARCH-013](../architecture/13-auto-paper-supervisor.md)、[ARCH-026](../architecture/26-local-windows-runtime.md)。
 
+A股广域观察池（Task27-03，[ARCH-028](../architecture/28-stock-wide-observation-bounded-decision.md) planning）：market/stock_discovery.py（观察层程序化剔除：ST 名称/停牌/上市<60交易日，逐标的淘汰原因，零模型零下单零网络）；market/adapters/stock_list_ak.py（akshare 全 A 名单，沪深主板+创业板 v1，列名容错失配显式报错，科创板/北交所上游排除）；scripts/scan_stock_candidates.py（只读扫描，同日原子幂等落盘 data/candidates/stock_pool_YYYYMMDD.json）；tests/test_stock_discovery.py 17项。akshare 真实名单接口本机单次跑通（4605 scanned/183 ST/44 次新/4378 候选，missing_checks=[suspension]——停牌源未接如实记录）；正式扫描与重复运行证据归 150 部署后。
+
 每日交易报告：reports/daily.py（只读快照、上海日资金重建、成交/盈亏/模型费用、策略/决策、JSON/MD/HTML；read_snapshot自2026-10-14支持window参数——调用/意图/计划按上海日±2天、context 7天回看走迁移2索引，账户事件保持全量重放），reports/locale.py（中文动作/状态/原因/条件及历史译文）；runner daily-report CLI；api/app.py lifespan每分钟生成今日/昨日及报告页面，static首页链接；paper_run.finish自动生成，paper_run.read_intraday_health同按日窗口读取。schema.sql追加strategy_plan_history，strategy_planner写有效脱敏计划并校验中文说明；fast_prompts注册strategy-4，models/deepseek统一中文要求与实际审计指纹，runner探针预算计入最终指令。[证据](../research/20261012-daily-report-verification.md)。
 
 提示评测：evaluation/prompt_eval.py（案例/响应指纹、生产草稿校验、四题语义及独立程序结果统计、同输入比较）；scripts/evaluate_prompt_cases.py（保存响应CLI，零联网）；tests/fixtures/prompt_eval/cases.json（24例/12类，prompt-cases-1）。fast_prompts.strategy_examples是配对示例资源，当前策略版本strategy-5（2026-10-25起，BUY计划须同时允许SELL并有非空退出条件）、即时题版本fast-2；strategy-3/4注册及历史hash保留。旧评测证据见[报告](../research/20261011-prompt-eval-verification.md)，中文变更见本页日报证据。
@@ -92,7 +94,7 @@ Task16分钟特征已修复：连续1m窗口遇缺口/午休/隔夜重置，当�
 |---|---|
 | src/trademind/domain/ | 领域契约（enums/base/instruments/evidence/context/research/judgments/intents/orders/outcome/memory/modelcall） |
 | src/trademind/config.py, errors.py | 配置加载（TOML+env+管理页覆盖 `data/runtime/admin_settings.json`、模式隔离、设置白名单/掩码）与错误分类 |
-| src/trademind/market/ | base（Bar 等记录）、calendar（覆盖/越界门禁）、calendar_update（官方日历合并）、profiles、quality、router、multi_asset、adapters/{fixture,live,sina_etf} |
+| src/trademind/market/ | base（Bar 等记录）、calendar（覆盖/越界门禁）、calendar_update（官方日历合并）、profiles、quality、router、multi_asset、stock_discovery（A股广域观察池发现与程序化剔除，纯逻辑零网络）、adapters/{fixture,live,sina_etf,stock_list_ak} |
 | src/trademind/storage/ | schema.sql、db.py（Database/Repository/AuditSink、migrate/backup_to/verify_database、逐账户事件重放对账）、sqlite_url.py（sqlite URL→路径单一语义，Database与writer_lock共用） |
 | src/trademind/context/ | builder.py、features.py |
 | src/trademind/orchestrator/ | scheduler.py（有界队列、排队与执行合并、持仓优先） |
