@@ -16,10 +16,15 @@ from .fast_prompts import FAST_PROMPT_VERSION
 
 
 class FastDecisionPipeline:
-    def __init__(self, llm, jev, repo, cfg, account_id, ledger, calendar, budget, clock, risk_state):
+    def __init__(self, llm, jev, repo, cfg, account_id, ledger, calendar, budget, clock, risk_state,
+                 profile_resolver=None, allow_t_plus_one=False):
         self.llm,self.jev,self.repo,self.cfg=llm,jev,repo,cfg
         self.account_id,self.ledger,self.calendar,self.budget,self.clock=account_id,ledger,calendar,budget,clock
         self.risk_state=risk_state
+        # Injectable resolver + T+1 tolerance exist for the stock chain
+        # (Task27-05/ARCH-028); defaults keep ETF behavior byte-identical.
+        self._profile_resolver = profile_resolver or get_profile
+        self._allow_t_plus_one = allow_t_plus_one
         self.planner=StrategyPlanner(llm,repo,cfg,account_id,clock)
         self.decider=FastDecider(jev,cfg,clock)
 
@@ -30,8 +35,9 @@ class FastDecisionPipeline:
         action,target,confidence,plan,decision=TradeAction.WAIT,Decimal('0'),Decimal('0'),None,None
         reason='fast decision not eligible'
         try:
-            profile=get_profile(context.instrument_id)
-            if context.instrument_id not in self.cfg.whitelist or profile.t_plus_days!=0:
+            profile=self._profile_resolver(context.instrument_id)
+            if context.instrument_id not in self.cfg.whitelist or (
+                    profile.t_plus_days != 0 and not self._allow_t_plus_one):
                 raise ProviderError('instrument not in verified T0 whitelist')
             if not self.calendar.is_session_open(now) or now>=context.expires_at:
                 raise ProviderError('outside continuous session or expired context')

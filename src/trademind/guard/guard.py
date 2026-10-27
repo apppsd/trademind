@@ -149,7 +149,11 @@ class Guard:
             if intent.mode == RunMode.LIVE:
                 return self._verdict(intent, ["live_mode_forbidden"], now, details), None
             if self.t0_config and self.t0_config.enabled and intent.action == TradeAction.BUY:
-                if intent.instrument_id not in self.t0_config.whitelist or profile.t_plus_days != 0:
+                # stock_chain (Task27-05/ARCH-028) permits T+1 board profiles;
+                # the ETF T0 gate semantics are unchanged when false.
+                allow_t_plus_one = getattr(self.t0_config, "stock_chain", False)
+                if intent.instrument_id not in self.t0_config.whitelist or (
+                        profile.t_plus_days != 0 and not allow_t_plus_one):
                     return self._verdict(intent, ["t0_whitelist_or_settlement"], now, details), None
 
             # 3. freshness

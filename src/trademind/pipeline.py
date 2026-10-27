@@ -438,7 +438,14 @@ class Pipeline:
                         return result
                     from .agents.fast_pipeline import FastDecisionPipeline
                     if not hasattr(self, '_fast_pipeline'):
-                        self._fast_pipeline = FastDecisionPipeline(
+                        # Stock chain (Task27-05/ARCH-028): board profiles + T+1
+                        # tolerance; default path constructs the plain pipeline.
+                        if getattr(self.cfg.t0, 'stock_chain', False):
+                            from .agents.stock_fast_pipeline import StockFastPipeline
+                            pipeline_cls = StockFastPipeline
+                        else:
+                            pipeline_cls = FastDecisionPipeline
+                        self._fast_pipeline = pipeline_cls(
                             self.llm, self.jev, self.repo, self.cfg.t0, self.cfg.account_id,
                             self.ledger, self.calendar, self.model_budget,
                             lambda: self._now(as_of) if self.clock else utcnow(),

@@ -134,6 +134,10 @@ class T0ExperimentConfig:
     close_out_time: str = "14:55"
     no_new_entry_time: str = "14:50"
     whitelist: list[str] = field(default_factory=lambda: ["513050.SH", "513100.SH", "518880.SH"])
+    # Stock decision chain (ARCH-028 / Task27-05): resolves A-share board
+    # profiles and permits T+1. Default off — the ETF chain behavior is
+    # byte-identical when false.
+    stock_chain: bool = False
     # Operator-verified current CNY prices; missing prices block paid requests.
     model_input_cny_per_million: Decimal | None = None
     model_output_cny_per_million: Decimal | None = None

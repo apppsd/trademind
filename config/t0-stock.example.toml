@@ -1,0 +1,54 @@
+# A股广域观察股票决策链示例配置（ARCH-028 / TASK-20261027-05）。
+# 复制为 config/t0-stock.local.toml 后按需修改；local 文件不入库。
+# 关键边界：本账户与 ETF 千元实验（paper-t0-local-1k）零共享——独立库、
+# 独立账户、独立 writer；冻结参数只属于 ETF 实验，此处为 ARCH-028 提案值
+# （2026-10-27 用户授权放宽 200 元单证券上限，仅限股票新账户）。
+
+[storage]
+url = "sqlite:///data/runtime/trademind-stock.db"
+
+[account]
+account_id = "paper-stock-1"
+
+[t0]
+enabled = true
+profile = "jev_fast_decision"
+stock_chain = true          # 板块 profile + T+1 容许（默认 false，ETF 链不变）
+
+# ARCH-028 提案参数（Task27-05 冻结；非 ETF 冻结表）
+initial_cash = "1000"
+max_single_exposure = "450"   # 单证券上限（原 200 仅放宽于此账户）
+max_total_exposure = "900"
+min_cash_reserve = "100"
+
+# 风控沿用冻结表，不因股票放宽
+stop_loss_ratio = "0.008"
+max_daily_loss_ratio = "0.03"
+consecutive_losses_limit = 3
+daily_new_orders_limit = 10
+candidate_cooldown_seconds = 300
+close_out_time = "14:55"      # 股票链 T+1 下当日买入不可卖；清仓语义见 ARCH-028
+no_new_entry_time = "14:50"
+
+# 决策层白名单由选择器从候选池+可交易性档案产出后写入此处（Task06 前人工/脚本维护）
+whitelist = []
+
+# 模型预算：总上限与 ETF 共享红线不变；股票链子分配须与 ETF 链配置相加 ≤ 100 请求/日、5 CNY/日
+daily_decision_call_budget = 100
+daily_model_cost_limit_cny = "5.0"
+strategy_request_limit = 30
+jev_request_limit = 60
+probe_request_limit = 10
+
+# 价格须为已核验真实 CNY 价；未知价格拒绝收费请求
+model_input_cny_per_million = "0"
+model_output_cny_per_million = "0"
+jev_input_cny_per_million = "0"
+jev_output_cny_per_million = "0"
+
+[paper]
+slippage_bps = 5
+fill_lag_bars = 1
+
+[data]
+provider_pref = ["akshare"]   # 股票分钟走 ARCH-020 路由（新浪已验证；东财视 150 出口）

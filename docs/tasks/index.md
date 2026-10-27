@@ -7,7 +7,7 @@
 | [TASK-20261027-02](TASK-20261027-02-规划A股广域观察与决策扩展.md) | completed / Claude Code | 无 | 规划：范围/数据源/筛选规则/调用上限/独立账户 → [ARCH-028](../architecture/28-stock-wide-observation-bounded-decision.md)（planning）；三 ETF 链路不变 |
 | [TASK-20261027-03](TASK-20261027-03-建立股票发现与只读候选池.md) | completed / Claude Code | 02 | 观察池落地：stock_discovery+akshare 适配+扫描脚本；本机真实扫描 4605→4378 候选；正式重复运行归 150 |
 | [TASK-20261027-04](TASK-20261027-04-验证股票行情与可交易性.md) | in_progress / Claude Code | 03 | 新浪股票分钟源已验证（60 只收盘线 0 失败、单位=股）；affordable 10/60、费用占比中位 2.87%；余盘中时效样本（10-28）与沪市规则官方 source_url |
-| [TASK-20261027-05](TASK-20261027-05-接入有界候选决策与隔离模拟盘.md) | pending / 待认领 | 04 | 每轮少量合格股进 Flash/JEV；独立 paper 账户；预算/Guard/OMS 门禁不变 |
+| [TASK-20261027-05](TASK-20261027-05-接入有界候选决策与隔离模拟盘.md) | completed / Claude Code | 04 | 离线全链落地：StockFastPipeline（T+1 板块 profile）+ 确定性选择器 + `paper-stock-1` 独立库建账 + stock_chain 配置开关（默认关）；600000.SH BUY 100 股 Guard ALLOW 集成通过；创业板 Guard 注入与退出域接线归部署 |
 | [TASK-20261027-06](TASK-20261027-06-盘中验收与对照.md) | pending / 待认领 | 05 | 盘中验收与对照；无自然机会如实记未验，不制造成交 |
 
 ## 2026-10-27 审查修复批次

@@ -2,7 +2,7 @@
 id: ARCH-028
 type: architecture-change
 title: A股广域观察与有界股票决策扩展
-status: planning
+status: implementing
 created: 2026-10-27
 updated: 2026-10-27
 related_tasks: [TASK-20261027-02, TASK-20261027-03, TASK-20261027-04, TASK-20261027-05, TASK-20261027-06]
@@ -13,9 +13,13 @@ recorded_retrospectively: false
 
 # ARCH-028 A 股广域观察与有界股票决策扩展
 
+## 2026-10-27 离线实施 Checkpoint（Task03/04/05）
+
+状态 planning → **implementing**（股票链离线工程落地）：观察池（4403 只候选）、新浪分钟源验证（60 只收盘线 0 失败、单位=股）、可交易性档案（affordable 10/60、费用占比中位 2.87%）、`StockFastPipeline`（T+1 板块 profile，继承全部门禁/尺寸器/strategy-5 契约）、确定性选择器（持仓优先）、`paper-stock-1` 独立库幂等建账、`t0.stock_chain` 配置开关（默认关，ETF 链行为不变）。离线集成：600000.SH @4.00 全链 BUY 100 股 Guard ALLOW（450 上限绑定 1 手）；全量 847 passed。**未实施**：创业板 Guard resolver 注入（当前 Guard 对创业板意图 market_profile_unknown 拒绝）、退出域接线（最大持有期限强制平仓）、运行时 supervisor 接线、真实盘中（归 Task06，上游 Issue26-27-02 未解）。详见 [Task27-05](../tasks/TASK-20261027-05-接入有界候选决策与隔离模拟盘.md)。
+
 ## 状态
 
-planning（TASK-20261027-02 产出，未实施）。实施按 Task03（只读候选池）→ Task04（行情与可交易性）→ Task05（有界决策+隔离模拟盘）→ Task06（盘中验收）推进，每步以真实证据转阶段。本记录为方案；system-overview 只写实际实现。
+implementing（2026-10-27 起，Task02 产出方案、Task03/04/05 离线落地，见顶部 Checkpoint）。实施按 Task03（只读候选池）→ Task04（行情与可交易性，in_progress）→ Task05（有界决策+隔离模拟盘，completed 离线范围）→ Task06（盘中验收）推进，每步以真实证据转阶段。system-overview 只写实际实现。
 
 ## 背景与目标
 
