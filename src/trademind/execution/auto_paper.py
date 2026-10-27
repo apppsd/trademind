@@ -119,6 +119,7 @@ class Supervisor:
         # Optional unattended alerting: one webhook per transition into a
         # needs-human state, re-armed when the condition clears (26-23).
         self._alerted = {'halted': False, 'uncovered': False}
+        self._alert_attempts = {'halted': 0, 'uncovered': 0}
         self.path = self.root/'auto-paper-state.json'
         # Resident read-only observer (TASK-20261026-07): independent child,
         # never a writer. The paper writer slot above stays single-account.
@@ -427,24 +428,46 @@ class Supervisor:
                  'retry_at':self.retry_at.isoformat(), 'report_path':str(self.report_path) if self.report_path else None,
                  'health_status':health_status, 'intraday_health':intraday,
                  'message':msg}
-        # Unattended alerting (Task-20261026-23): one webhook per transition
-        # into a needs-human state, re-armed after clearance. notify_webhook
-        # is a no-op unless TRADEMIND_NOTIFY_WEBHOOK is set and never raises.
+        # Heartbeat first (alert I/O must never delay it — 2026-10-27 review),
+        # then the unattended alerting hook below.
+        atomic_json(self.path, state)
+        self._maybe_alert(covered, health_status, msg, now)
+        return state
+
+    _ALERT_MAX_ATTEMPTS = 3
+
+    def _maybe_alert(self, covered, health_status, msg, now):
+        """Unattended alerting (Task-20261026-23; hardened 2026-10-27): one
+        webhook per transition into a needs-human state, re-armed after
+        clearance. A failing webhook retries on later ticks at most
+        _ALERT_MAX_ATTEMPTS times per incident, then is dropped quietly —
+        trading is never affected. No-op unless TRADEMIND_NOTIFY_WEBHOOK is
+        set; never raises."""
         if self.halted and not self._alerted['halted']:
-            self._alerted['halted'] = notify_webhook(
-                f'监督器已暂停，需要人工核对：账户 {self.account_id}，'
-                f'状态 {health_status}，原因 {msg}（北京 '
-                f'{now.astimezone(BEIJING).strftime("%m-%d %H:%M")}）')
+            if self._alert_attempts['halted'] < self._ALERT_MAX_ATTEMPTS:
+                self._alert_attempts['halted'] += 1
+                if notify_webhook(
+                        f'监督器已暂停，需要人工核对：账户 {self.account_id}，'
+                        f'状态 {health_status}，原因 {msg}（北京 '
+                        f'{now.astimezone(BEIJING).strftime("%m-%d %H:%M")}）'):
+                    self._alerted['halted'] = True
+            else:
+                self._alerted['halted'] = True  # give up quietly, stop retrying
         elif not self.halted:
             self._alerted['halted'] = False
+            self._alert_attempts['halted'] = 0
         if not covered and not self._alerted['uncovered']:
-            self._alerted['uncovered'] = notify_webhook(
-                f'交易日历覆盖不足：账户 {self.account_id} 已停止模拟与付费请求，'
-                '需人工更新日历后才恢复')
+            if self._alert_attempts['uncovered'] < self._ALERT_MAX_ATTEMPTS:
+                self._alert_attempts['uncovered'] += 1
+                if notify_webhook(
+                        f'交易日历覆盖不足：账户 {self.account_id} 已停止模拟与付费请求，'
+                        '需人工更新日历后才恢复'):
+                    self._alerted['uncovered'] = True
+            else:
+                self._alerted['uncovered'] = True
         elif covered:
             self._alerted['uncovered'] = False
-        atomic_json(self.path, state)
-        return state
+            self._alert_attempts['uncovered'] = 0
 
     def persist_halt(self):
         """Atomically persist the halt right away: even a later crash must not
@@ -465,6 +488,10 @@ class Supervisor:
         except OSError:
             self.note = (self.note or '') + '；终态持久化失败，重启可能丢失人工核对门禁，需人工核对账本'
             raise
+        # Terminal states must alert too (2026-10-27 review: the tick hook
+        # never runs once the supervisor exits). covered=True matches the
+        # terminal state above; clearance resets are harmless on restart.
+        self._maybe_alert(True, state['health_status'], state['message'], self.clock())
 
     def shutdown(self):
         """Terminal path for run(): drain the paper child, stop the observer,

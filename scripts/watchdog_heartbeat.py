@@ -33,6 +33,11 @@ def check(root, now=None, stale_seconds=STALE_SECONDS, notify=None):
         return 'halted', '监督器处于终态（已停止或待人工核对）'
     if age > stale_seconds:
         account = state.get('account_id', '未知账户')
+        if alert_path.exists():
+            # One notification per incident: a previous stale run already
+            # alerted; recovery (below) clears the marker and re-arms.
+            return 'stale', (f'看门狗：监督器心跳停止（{account}，最后心跳 {int(age)} 秒前）'
+                             '——本事件已告警过，不重复通知')
         message = (f'看门狗：监督器心跳停止（{account}，最后心跳 {int(age)} 秒前）。'
                    '模拟交易未在运行，请检查主机/代理并重新 run_local start。')
         if notify:
@@ -41,6 +46,11 @@ def check(root, now=None, stale_seconds=STALE_SECONDS, notify=None):
                                           'account': account}, ensure_ascii=False),
                               encoding='utf-8')
         return 'stale', message
+    if alert_path.exists():
+        try:
+            alert_path.unlink()  # recovered: re-arm for the next incident
+        except OSError:
+            pass
     return 'ok', f'心跳正常（{int(age)} 秒前）'
 
 

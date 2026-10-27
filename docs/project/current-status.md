@@ -1,3 +1,5 @@
+2026-10-27 审查缺陷修复（Task26-27-01，Codex 审查触发）：夜间二轮四处缺陷全部修复并回归钉住——①备份改临时文件+原子替换，0 字节残留自动清理重试；②代理不可达/不可解析输出脱敏（userinfo→***）；③告警移到心跳持久化之后、每事件最多 3 次尝试、**终态路径同样告警**；④看门狗事件级去重（恢复清标记再武装）。定向+全量 pytest exit 0（2026-10-27 实测）；150 重启部署与开盘前体检复检见 Task 记录。见 [Issue26-27-01](../issues/ISSUE-20261027-01-夜间二轮四处运维缺陷.md)。
+
 2026-10-26 夜间二轮部署验证（Task26-22）：a685192 已在 150 运行——监督器重启为 **pid 376396**（paper-t0-local-1k， halted=false）；代理预检、当日自动备份（首份 `data\backups\paper-t0-local-1k\2026-10-26\`）实跑生效；`check_morning_readiness.py` 150 实跑 **8 项全绿退出码 0**。10-27 就绪。
 
 2026-10-26 夜间二轮（Task26-22/23/24，运维韧性）：run_local 启动新增**代理存活 TCP 预检**与**当日账本自动备份**（幂等，失败不阻断）；新增晨间体检脚本 `scripts/check_morning_readiness.py`（8 项只读，退出码 0/1/2）；新增看门狗 `scripts/watchdog_heartbeat.py`（心跳>120s→告警，计划任务注册由用户决定）；可选 webhook 告警（`TRADEMIND_NOTIFY_WEBHOOK`，默认关闭，halted/日历不足一次性推送）。开源借鉴扫描产出 research 笔记：影子对照常态化与绩效指标**明确推迟至五日观察有真实样本**。全量 pytest exit 0（首轮全量发现 `test_workbench_contracts` observer 采用测试一次偶发失败、单跑与复跑均绿，判定既有偶发交 Codex 观察）；check_docs 0 错误。

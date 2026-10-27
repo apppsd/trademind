@@ -113,6 +113,18 @@ def _code_version():
         return 'unknown'
 
 
+def _redact_url(url):
+    """Proxy URL with any userinfo replaced by *** — never print credentials."""
+    from urllib.parse import urlsplit, urlunsplit
+    parts = urlsplit(url if '//' in url else '//'+url)
+    host = parts.hostname
+    if not host:
+        return '<无法解析的代理地址>'
+    port = parts.port or (443 if parts.scheme == 'https' else 80)
+    netloc = f'***@{host}:{port}' if parts.username else f'{host}:{port}'
+    return urlunsplit((parts.scheme or 'http', netloc, '', '', ''))
+
+
 def _proxy_alive(proxy_url, timeout=3.0, connect=None):
     """TCP-connect to the HTTPS_PROXY host:port. A configured-but-dead proxy
     otherwise only surfaces as JEV 451 at the next morning's double probe."""
@@ -121,7 +133,7 @@ def _proxy_alive(proxy_url, timeout=3.0, connect=None):
     parts = urlsplit(proxy_url if '//' in proxy_url else '//'+proxy_url)
     host, port = parts.hostname, parts.port or (443 if parts.scheme == 'https' else 80)
     if not host or not port:
-        raise ValueError(f'无法解析代理地址: {proxy_url!r}')
+        raise ValueError('无法解析 HTTPS_PROXY 代理地址，请检查其格式（凭据不会回显）')
     try:
         with connect((host, port), timeout=timeout):
             return True
@@ -132,29 +144,45 @@ def _proxy_alive(proxy_url, timeout=3.0, connect=None):
 def _sqlite_backup(source, target):
     """Online consistent copy through SQLite's backup API (WAL content
     included) from a read-only connection — the same mechanism the storage
-    layer's backup_to uses, without opening the app/migration stack."""
+    layer's backup_to uses, without opening the app/migration stack. Writes a
+    temp file first and renames, so ``target`` never exists partially."""
+    import os
     import sqlite3
+    from uuid import uuid4
+    target = Path(target)
     target.parent.mkdir(parents=True, exist_ok=True)
+    temp = target.with_name(target.name+'.'+uuid4().hex+'.tmp')
     src = sqlite3.connect(f'file:{Path(source).as_posix()}?mode=ro', uri=True)
     try:
-        dst = sqlite3.connect(str(target))
+        dst = sqlite3.connect(str(temp))
         try:
             src.backup(dst)
             dst.commit()
         finally:
             dst.close()
+        os.replace(temp, target)
+    except BaseException:
+        temp.unlink(missing_ok=True)
+        raise
     finally:
         src.close()
 
 
 def _backup_if_due(db, account, today=None, backup=None):
     """One consistent daily backup per account+day under <runtime root's
-    data>/backups/<account>/<date>/. Idempotent (skips when today's copy
-    exists); never blocks startup — failures print a warning."""
+    data>/backups/<account>/<date>/. Idempotent (skips when today's complete
+    copy exists; cleans up and retries a 0-byte leftover from a failed
+    attempt); never blocks startup — failures print a warning."""
     today = today or datetime.date.today()
     target = db.parents[2]/'backups'/account/today.isoformat()/db.name
     if target.exists():
-        return None
+        if target.stat().st_size > 0:
+            return None
+        try:
+            target.unlink()  # 0-byte leftover of a failed attempt: retry now
+        except OSError as exc:
+            print(f'!! 无法清理损坏的 0 字节备份残留，今日跳过备份：{exc}')
+            return None
     if not db.exists():
         print(f'账本文件尚不存在，跳过今日备份：{db}')
         return None
@@ -190,7 +218,7 @@ def cmd_start(config):
         print(str(exc))
         return 2
     if not alive:
-        print(f'HTTPS_PROXY 指向的代理当前不可达：{proxy}。'
+        print(f'HTTPS_PROXY 指向的代理当前不可达：{_redact_url(proxy)}。'
               '请先启动宿主代理（如 Clash Verge，混合端口见其设置；150 主机当前为 7897），再启动监督器。'
               '凌晨或盘前可用 scripts\\check_morning_readiness.py 一键复检。')
         return 2

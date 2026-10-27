@@ -92,3 +92,72 @@ def test_supervisor_transition_alerts_fire_once_and_rearm(tmp_path, monkeypatch)
     covered[0] = False
     sup.tick()
     assert sum('交易日历覆盖不足' in s for s in sent) == 2  # re-armed
+
+
+def _sup(tmp_path, now, monkeypatch=None, covered=True):
+    """Real Supervisor on a temp root, hermetic: observer respawn disabled,
+    calendar coverage/seconds injected via the module namespace."""
+    from datetime import timedelta
+    import trademind.execution.auto_paper as ap
+    from trademind.execution.auto_paper import Supervisor
+
+    class Calendar:
+        coverage_start = coverage_end = None
+
+    sup = Supervisor(config='missing.local.toml', root=tmp_path, calendar=Calendar(),
+                     clock=lambda: now, account_id='paper-test', db_path=tmp_path/'db.sqlite')
+    sup.retry_at = now
+    sup.observer_retry_at = now+timedelta(hours=1)
+    if monkeypatch is not None:
+        covered_box = [covered]
+        monkeypatch.setattr(ap, 'calendar_covered', lambda calendar, now: covered_box[0])
+        monkeypatch.setattr(ap, 'session_seconds', lambda calendar, now: 0)
+        sup._covered_box = covered_box
+    return sup
+
+
+def test_alert_fires_after_heartbeat_persist(tmp_path, monkeypatch):
+    """2026-10-27 review: alert I/O must never delay the heartbeat — the
+    state write must land before the webhook call."""
+    from datetime import datetime, timezone
+    import trademind.execution.auto_paper as ap
+    now = datetime(2026, 10, 27, 1, 30, tzinfo=timezone.utc)
+    sup = _sup(tmp_path, now, monkeypatch)
+    order = []
+    monkeypatch.setattr(ap, 'atomic_json', lambda path, state: order.append('persist'))
+    monkeypatch.setattr(ap, 'notify_webhook', lambda text, **kw: order.append('alert') or True)
+    sup.halted = True
+    sup.note = '测试'
+    sup.tick()
+    assert order == ['persist', 'alert']
+
+
+def test_failing_webhook_retries_bounded_then_gives_up(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+    import trademind.execution.auto_paper as ap
+    now = datetime(2026, 10, 27, 1, 30, tzinfo=timezone.utc)
+    sup = _sup(tmp_path, now, monkeypatch)
+    attempts = []
+    monkeypatch.setattr(ap, 'notify_webhook', lambda text, **kw: attempts.append(text) or False)
+    sup.halted = True
+    sup.note = '测试'
+    for _ in range(6):
+        sup.tick()
+    assert len(attempts) == 3  # bounded per incident; no endless retry loop
+    sup.tick()
+    sup.tick()
+    assert len(attempts) == 3
+
+
+def test_persist_final_state_also_alerts(tmp_path, monkeypatch):
+    """2026-10-27 review: the terminal write path bypassed the tick alert."""
+    from datetime import datetime, timezone
+    import trademind.execution.auto_paper as ap
+    now = datetime(2026, 10, 27, 1, 30, tzinfo=timezone.utc)
+    sup = _sup(tmp_path, now, monkeypatch)
+    sent = []
+    monkeypatch.setattr(ap, 'notify_webhook', lambda text, **kw: sent.append(text) or True)
+    sup.halted = True
+    sup.note = '终态暂停'
+    sup.persist_final_state()
+    assert any('需要人工核对' in s and '终态暂停' in s for s in sent)

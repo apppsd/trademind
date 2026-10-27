@@ -92,3 +92,43 @@ def test_backup_failure_does_not_block_startup(rl, tmp_path, capsys):
 
     assert rl._backup_if_due(db, 'acc1', today=date(2026, 10, 26), backup=boom) is None
     assert '备份失败' in capsys.readouterr().out
+
+
+def test_backup_retries_after_zero_byte_leftover(rl, tmp_path):
+    """2026-10-27 review: a failed attempt used to leave a 0-byte target and
+    every later start skipped the backup for that day. The leftover must be
+    cleaned up and the backup retried."""
+    db = _make_db(tmp_path)
+    day = date(2026, 10, 26)
+    target = tmp_path/'backups'/'acc1'/day.isoformat()/db.name
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b'')  # leftover of a failed attempt
+    calls = []
+
+    def backup(source, tgt):
+        calls.append(tgt)
+        rl._sqlite_backup(source, tgt)
+
+    out = rl._backup_if_due(db, 'acc1', today=day, backup=backup)
+    assert out == target and len(calls) == 1
+    assert target.stat().st_size > 0
+
+
+def test_sqlite_backup_failure_leaves_no_partial_file(rl, tmp_path):
+    source = tmp_path/'runtime'/'a'/ 'trademind.db'  # missing → connect fails
+    source.parent.mkdir(parents=True)
+    target = tmp_path/'backups'/'a'/ '2026-10-27'/ 'trademind.db'
+    with pytest.raises(sqlite3.OperationalError):
+        rl._sqlite_backup(source, target)
+    assert not target.exists()
+    assert list(target.parent.glob('*.tmp')) == []
+
+
+def test_redact_url_hides_credentials(rl):
+    out = rl._redact_url('http://alice:s3cret@127.0.0.1:7897')
+    assert 's3cret' not in out and 'alice' not in out
+    assert out == 'http://***@127.0.0.1:7897'
+
+
+def test_redact_url_plain_host_unchanged(rl):
+    assert rl._redact_url('http://127.0.0.1:7897') == 'http://127.0.0.1:7897'

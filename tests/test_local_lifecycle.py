@@ -96,6 +96,10 @@ def test_stop_child_windows_paper_overrun_forces_and_halts(tmp_path):
     sup.clock = _fixed_clock()
     sup.retry_at = _fixed_clock()()
     sup.report_path = None
+    sup.account_id = 'acc'
+    # terminal states alert too (Task-20261027-01); unused here — silenced
+    sup._alerted = {'halted': False, 'uncovered': False}
+    sup._alert_attempts = {'halted': 0, 'uncovered': 0}
     sup.child, sup.kind, sup.halted, sup.note = FakeChild(exit_on_kill=True), 'paper', False, ''
     sup.stop_child()
     assert sup.child is None and sup.kind is None
