@@ -107,7 +107,14 @@ class Pipeline:
             pref=cfg.data.provider_pref, fixture_root=cfg.data.fixtures_dir or None, tushare_token=cfg.data.tushare_token,
             minute_policy=MinuteRoutingPolicy.from_data_config(cfg.data),
             audit_cb=lambda what, note: self.audit.record("data", "route", what))
-        fees = get_profile(cfg.universe[0]).fees if cfg.universe else None
+        # Stock chain (Task27-05/ARCH-028): board profiles incl. ChiNext —
+        # used for both the account fee schedule and the Guard resolver.
+        stock_resolver = None
+        if getattr(cfg.t0, "stock_chain", False) and cfg.universe:
+            from .market.stock_profiles import stock_profile_for_instrument
+            stock_resolver = stock_profile_for_instrument
+        fees = (stock_resolver(cfg.universe[0]) if stock_resolver
+                else get_profile(cfg.universe[0])).fees if cfg.universe else None
         self.ledger = Ledger(self.db, cfg.account_id, fees)
         self.memory = MemoryStore(self.repo)
         self.outcomes = OutcomeService(self.repo, self.router, self.calendar)
@@ -141,6 +148,7 @@ class Pipeline:
             day_start_equity_provider=self._adjusted_day_start,
             valuation_complete_provider=lambda: not self._valuation_failures,
             t0_config=getattr(cfg, "t0", None),
+            profile_resolver=stock_resolver,
         )
         self.broker = PaperBroker(self.router, self.calendar, fees,
                                   PaperConfig(slippage_bps=cfg.paper.slippage_bps,

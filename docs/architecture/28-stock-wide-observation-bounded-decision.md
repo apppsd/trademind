@@ -13,9 +13,9 @@ recorded_retrospectively: false
 
 # ARCH-028 A 股广域观察与有界股票决策扩展
 
-## 2026-10-27 离线实施 Checkpoint（Task03/04/05）
+## 2026-10-27 离线实施 Checkpoint（Task03/04/05 + 自评审续）
 
-状态 planning → **implementing**（股票链离线工程落地）：观察池（4403 只候选）、新浪分钟源验证（60 只收盘线 0 失败、单位=股）、可交易性档案（affordable 10/60、费用占比中位 2.87%）、`StockFastPipeline`（T+1 板块 profile，继承全部门禁/尺寸器/strategy-5 契约）、确定性选择器（持仓优先）、`paper-stock-1` 独立库幂等建账、`t0.stock_chain` 配置开关（默认关，ETF 链行为不变）。离线集成：600000.SH @4.00 全链 BUY 100 股 Guard ALLOW（450 上限绑定 1 手）；全量 847 passed。**未实施**：创业板 Guard resolver 注入（当前 Guard 对创业板意图 market_profile_unknown 拒绝）、退出域接线（最大持有期限强制平仓）、运行时 supervisor 接线、真实盘中（归 Task06，上游 Issue26-27-02 未解）。详见 [Task27-05](../tasks/TASK-20261027-05-接入有界候选决策与隔离模拟盘.md)。
+状态 planning → **implementing**（股票链离线工程落地）：观察池（4403 只候选）、新浪分钟源验证（60 只收盘线 0 失败、单位=股）、可交易性档案（affordable 10/60、费用占比中位 2.87%）、`StockFastPipeline`（T+1 板块 profile，继承全部门禁/尺寸器/strategy-5 契约）、确定性选择器（持仓优先）、`paper-stock-1` 独立库幂等建账、`t0.stock_chain` 配置开关（默认关，ETF 链行为不变）。离线集成：600000.SH @4.00 全链 BUY 100 股 Guard ALLOW（450 上限绑定 1 手）；自评审续补**创业板全链贯通**（Guard/Pipeline 构造 resolver 注入，300750.SZ BUY 100 股 Guard ALLOW）与 **T+1 端到端钉住**（JEV 动作集无当日 SELL；程序期限退出被 Guard `sell_exceeds_available` 正确拦截）。全量 849 passed。**未实施**：期限强平遇 T+1 不可卖的顺延策略（当前安全侧保仓、延迟至次日）、运行时 supervisor 接线、真实盘中（归 Task06，上游 Issue26-27-02 未解）。详见 [Task27-05](../tasks/TASK-20261027-05-接入有界候选决策与隔离模拟盘.md)。
 
 ## 状态
 

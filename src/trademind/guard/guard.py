@@ -12,7 +12,7 @@ from __future__ import annotations
 import threading
 from datetime import datetime
 from decimal import Decimal, ROUND_DOWN
-from typing import Callable
+from typing import Any, Callable
 
 from ..config import RiskConfig, T0ExperimentConfig
 from ..domain.base import new_id, utcnow
@@ -38,11 +38,16 @@ class Guard:
                  mode: str, universe: list[str], audit: AuditSink,
                  day_start_equity_provider: Callable[[], Decimal] | None = None,
                  valuation_complete_provider: Callable[[], bool] | None = None,
-                 t0_config: T0ExperimentConfig | None = None) -> None:
+                 t0_config: T0ExperimentConfig | None = None,
+                 profile_resolver: Callable[[str], Any] | None = None) -> None:
         self.repo = repo
         self.ledger = ledger
         self.risk = risk
         self.t0_config = t0_config
+        # Injectable market-profile resolution for the stock chain
+        # (Task27-05): ChiNext ids have no V1 get_profile entry. Default
+        # keeps every existing chain byte-identical.
+        self._profile_resolver = profile_resolver or get_profile
         self.mode = mode
         self.universe = set(universe)
         self.audit = audit
@@ -143,7 +148,7 @@ class Guard:
             if intent.instrument_id not in self.universe:
                 return self._verdict(intent, ["instrument_out_of_universe"], now, details), None
             try:
-                profile = get_profile(intent.instrument_id)
+                profile = self._profile_resolver(intent.instrument_id)
             except ValueError as exc:
                 return self._verdict(intent, ["market_profile_unknown"], now, {"err": str(exc)}), None
             if intent.mode == RunMode.LIVE:

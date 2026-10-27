@@ -118,6 +118,40 @@ def test_stock_chain_buys_one_lot_within_caps(tmp_path):
     assert state["account"]["cash"] == "1000"
 
 
+def test_chinext_full_chain_buy_allowed(tmp_path):
+    # 300750.SZ has no V1 get_profile entry; the stock chain resolves it via
+    # the board factory in BOTH the pipeline and the Guard, so the intent
+    # reaches Guard ALLOW instead of market_profile_unknown VETO.
+    pipe, tick = make_stock_pipe(tmp_path, instrument="300750.SZ")
+    result = pipe.run_decision("300750.SZ", tick[0])
+    assert result.error is None
+    assert result.intent.action.value == "BUY"
+    assert result.guard_verdict == "ALLOW" and result.qty == 100
+
+
+def test_t1_same_day_sell_not_offered(tmp_path):
+    # T+1 semantics, end to end. After today's BUY fills: (a) the JEV is never
+    # offered SELL (available_quantity=0 keeps it out of the legal action set),
+    # and (b) when the program's holding-horizon exit (strategy horizon=300s)
+    # fires a deterministic SELL later, the Guard still vetoes it with
+    # sell_exceeds_available — T+1 binds the program exit path too.
+    pipe, tick = make_stock_pipe(tmp_path)
+    first = pipe.run_decision(I, tick[0])
+    assert first.intent.action.value == "BUY" and first.qty == 100
+    tick[0] += timedelta(minutes=1)
+    assert pipe.poll_fills(tick[0])
+    tick[0] += timedelta(seconds=310)  # past the 300s holding horizon
+    second = pipe.run_decision(I, tick[0])
+    assert second.error is None
+    assert "SELL" not in pipe.jev.session.post.call_args.kwargs["json"]["state"]["allowed_actions"]
+    # The horizon exit's deterministic SELL hit the Guard and was vetoed:
+    assert second.guard_verdict == "VETO"
+    assert "sell_exceeds_available" in second.guard_reasons
+    # Ledger truth: 100 shares held, 0 sellable today (T+1 bought_today).
+    held = [p for p in pipe.ledger.snapshot(tick[0]).positions if p.instrument_id == I]
+    assert held and held[0].quantity == 100 and held[0].available_quantity == 0
+
+
 def test_default_chain_still_rejects_t_plus_one(tmp_path):
     pipe, tick = make_stock_pipe(tmp_path, stock_chain=False)
     result = pipe.run_decision(I, tick[0])
