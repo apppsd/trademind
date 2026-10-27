@@ -149,6 +149,18 @@ def test_list_date_beyond_coverage_uncheckable_kept_and_flagged():
     assert "listing_age" in result.missing_checks
 
 
+def test_recent_listing_near_coverage_end_conservatively_excluded():
+    # A stock listed in the last 60 trading days of calendar coverage cannot
+    # have reached the threshold — exclude, never silently keep.
+    cal = _calendar()
+    end = date.fromisoformat(cal.coverage_end) if isinstance(cal.coverage_end, str) else cal.coverage_end
+    recent = cal.add_trading_days(end, -10)
+    result = discover_stock_pool([_entry("600003", "年底次新", list_date=recent)],
+                                 NOW, cal, _NoSuspensions())
+    assert result.counts["candidates"] == 0
+    assert result.excluded[0].reason == REASON_RECENT_LISTING
+
+
 # -- determinism / serialization ----------------------------------------------
 
 def test_discovery_is_deterministic():

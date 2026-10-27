@@ -222,7 +222,15 @@ def _listed_at_least(
             return False, False
         threshold = calendar.add_trading_days(list_date, min_days - 1)
     except Exception:
-        return False, False
+        # add_trading_days raised — typically because coverage ends before
+        # min_days trading days could elapse. Count the actual covered days
+        # since listing: fewer than min_days proves a recent listing
+        # (conservative exclusion); otherwise leave it uncheckable.
+        try:
+            elapsed = len(calendar.window(list_date, _as_date(calendar.coverage_end)))
+        except Exception:
+            return False, False
+        return elapsed >= min_days, True
     return threshold <= today, True
 
 
