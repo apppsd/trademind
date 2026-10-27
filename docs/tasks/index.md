@@ -9,6 +9,7 @@
 | [TASK-20261027-04](TASK-20261027-04-验证股票行情与可交易性.md) | in_progress / Claude Code | 03 | 新浪股票分钟源已验证（60 只收盘线 0 失败、单位=股）；affordable 10/60、费用占比中位 2.87%；余盘中时效样本（10-28）与沪市规则官方 source_url |
 | [TASK-20261027-05](TASK-20261027-05-接入有界候选决策与隔离模拟盘.md) | completed / Claude Code | 04 | 离线全链落地：StockFastPipeline（T+1 板块 profile）+ 确定性选择器 + `paper-stock-1` 独立库建账 + stock_chain 配置开关（默认关）；600000.SH BUY 100 股 Guard ALLOW 集成通过；创业板 Guard 注入与退出域接线归部署 |
 | [TASK-20261027-06](TASK-20261027-06-盘中验收与对照.md) | pending / 待认领 | 05 | 盘中验收与对照；无自然机会如实记未验，不制造成交 |
+| [TASK-20261027-07](TASK-20261027-07-部署股票观察批次到150并验证.md) | completed / Claude Code | 05 | 150 拉取 1e47d39、pytest 849 门禁、监督切换 391268、身份/版本/halted/overview 验证；股票链开关未启用 |
 
 ## 2026-10-27 审查修复批次
 
