@@ -317,3 +317,17 @@ ReplayRunner 默认新内存库，重复运行互不污染；显式 db_url 仅�
 ## 2026-10-08 T0已登记全池更新
 
 默认全池命令：`.venv\Scripts\python -m trademind.runner --config config/t0-paper.local.toml t0-paper --steps 1`。--instrument省略轮询3只；加--instrument可只检查指定一只。免费连通检查：`.venv\Scripts\python -m trademind.runner --config config/t0-paper.local.toml t0-data`，模型调用0，不读.env；返回incomplete时看各标的source_errors。--steps为全池轮数，每轮等待60秒，Ctrl+C停止；本轮测试未启动持续监控。
+
+
+## 股票广域观察与验证
+
+以下入口只获取公开行情并写观察 JSON，不调用模型、不建账、不下单。它们不是后台全市场持续监控服务：
+
+```bat
+.venv\Scripts\python scripts\scan_stock_candidates.py --output-dir data/candidates
+.venv\Scripts\python scripts\verify_stock_tradability.py --output-dir data/candidates --sample-size 60
+```
+
+验证脚本默认选择最新候选文件，可用 `--pool` 显式指定。输出位于 `data/candidates/stock_pool_<日期>.json` 与 `stock_tradability_<日期>.json`；核对文件内时点、missing_checks、样本范围及失败项，不能把观察名单全部视为可交易名单。抽样脚本的历史资金参数不代表当前 ETF 账户参数。
+
+`config/t0-stock.example.toml` 是离线股票链示例，不能仅复制后视为可运行交付；模型费率、标的、股票行情路由、跨账户预算和退出接线须先按 [Task27-06](../tasks/TASK-20261027-06-盘中验收与对照.md) 核验。部署记录与当前开关状态统一看 [current-status](current-status.md)。

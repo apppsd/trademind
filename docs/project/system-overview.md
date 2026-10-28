@@ -138,3 +138,10 @@ orchestrator: Pipeline 入口有界队列、触发合并、持仓优先；models
 日线修订时点可见（2026-10-19工程修复）：[Issue19-02](../issues/ISSUE-20261019-02-未来日线修订提前挤掉历史可见版本.md)曾证实先归并后过滤可丢历史已知版本；Task19-04已修复——`get_daily_bars(as_of=)`在revision归并前过滤可见集合，未来修订不再挤掉历史已知行；`as_of=None`保持实时默认，分钟as_of门禁不变。Task19-10补齐遗漏调用方：`OutcomeService.mature`日线查询传`as_of=now`，结果成熟视角不受未来修订影响。真实多版本源与部署效果未验。
 
 2026-10-19独立续验边界：[Task19-06](../tasks/TASK-20261019-06-独立复验四项时点修复.md)通过记忆跨时区、反思与日线修订原反例；结果标签发布/终点取值通过但盘前候选条件未完成，Issue19-01 open/Task19-02 in_progress。当前没有自动成熟业务调用或生产提前final证据。
+
+
+## 股票广域观察与隔离决策组件
+
+已实现名单发现与分钟抽样工具、纯函数选择器及 `StockFastPipeline`。`Pipeline` 根据 `t0.stock_chain` 选择股票快速链，并向账户费率解析和 Guard 注入股票板块 profile；默认开关为 false。股票账户使用独立 SQLite 库，T+1 当日不可卖由可卖数量及 Guard 限制。
+
+这些组件尚不构成全市场自动决策服务：候选选择器到运行调度、数据路由、跨库预算合计和跨日退出仍需接线验收。实现映射见 [code-map](code-map.md)，设计与未完成项见 [ARCH-028](../architecture/28-stock-wide-observation-bounded-decision.md)，当前运行边界见 [current-status](current-status.md)。

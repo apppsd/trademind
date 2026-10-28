@@ -88,3 +88,12 @@ OMS生命周期与Guard恢复/同标的扫描均已账户化（17-08）：外账
 ## 工作台V2只读流程（代码返修后，运行切换待验）
 
 显式cfg→app.state→账户只读Store→已有Context/账户/日报/记录→统一信封→前端资源世代与陈旧判断→图表/中文条件/时间线。无提供者调用、迁移或writer租约。交易仍独立由paper→Guard/OMS→账本写入；observer启动/收养按非凭据身份+实例ID管理，退出不解锁halted。真实并存和只读验证见[返修报告](../research/20261026-workbench-repair-verification.md)；真实盘中与实际浏览器未验。
+
+
+## 股票扩展流程与接线边界
+
+已实现的只读流程：AKShare 名单 → stock_discovery 筛选/缺失检查记录 → 候选 JSON → 新浪分钟抽样 → 可交易性 JSON。两份文件均为观察证据，不直接触发订单。
+
+已实现的离线决策组件：调用方提供候选及持仓 → StockCandidateSelector 至多选一只 → 配置启用股票分支时由 StockFastPipeline 复用 Flash/JEV → 数量计算 → Guard → 模拟 OMS。候选文件自动更新到运行 universe、选择器生产调用与选择理由落盘尚待接线；股票与 ETF 分库，不代表预算合计已自动协调。
+
+真实运行前置和跨日退出验收见 [Task27-06](../tasks/TASK-20261027-06-盘中验收与对照.md)。

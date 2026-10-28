@@ -1,5 +1,7 @@
 # TradeMind
 
+股票扩展已建立观察与离线决策组件，运行接线和真实验收仍在推进。见 [当前边界](docs/project/current-status.md)、[股票任务](docs/tasks/index.md) 与 [只读扫描操作](docs/project/operations.md#股票广域观察与验证)。
+
 本地自动模拟监控（当前默认，无Docker）：`scripts/run_local.py start/status/stop`，Windows 本地 venv 直跑，账户 `paper-t0-local-1k`（1000 CNY，独立库）。前置：`config/t0-local.local.toml`、根目录 `.env` 双模型 Key、shell 导出宿主代理（`HTTPS_PROXY` 必需）。盘中自动三ETF模拟循环，午休/休市等待，程序计算数量/硬风控/模拟执行；改代码后 `stop`→核对→`start`（可编辑安装即改即生效）。详见 [本地运行操作](docs/project/operations.md#local-windows-auto) 与 [TASK-20261022-01](docs/tasks/TASK-20261022-01-本地千元双模型自动模拟交易落地.md)。
 
 容器自动模拟监控（兼容入口）：auto容器按上海交易日历等待开市，盘中自动运行原三ETF模拟循环，午休/休市等待；原行情、模型、资金及预算门禁保留。使用 `.venv/Scripts/python.exe scripts/run_auto.py start` 启动、`status`查看、`stop`停止（Rancher运行且既有宿主代理可用）。自动模式与旧workbench不能同时启用；新代码由独立只读observer提供V2页面，当前运行切换状态见[当前状态](docs/project/current-status.md)。[自动运行说明](docs/project/operations.md#容器自动模拟监控)。

@@ -1,3 +1,12 @@
+## 2026-10-28 文档同步与资金调整
+
+| Task | 状态 / Owner | 范围 |
+|---|---|---|
+| [TASK-20261028-02](TASK-20261028-02-同步股票扩展当前事实与验收文档.md) | completed / Codex | 股票扩展代码入口、任务、架构与未验边界同步；仅文档 |
+| [TASK-20261028-01](TASK-20261028-01-影子盘资金上调至5000.md) | in_progress / Claude Code | 既有 ETF 资金调整；配置已写，入金/重启等待原任务执行，不由本轮接管 |
+
+股票批次按 Task27-04 补足验证 → Task27-06 检查运行接线并验收继续；Task27-05 的 completed 仅限离线工程。最新边界统一见 [current-status](../project/current-status.md)。
+
 ## 2026-10-28 影子盘资金上调（用户授权，执行中）
 
 | Task | 状态 / Owner | 内容 |
@@ -6,14 +15,14 @@
 
 ## 2026-10-27 A股广域观察与决策扩展批次（Codex 拟案，Claude Code 立项）
 
-用户目标："先扩大观察池，再让合格股票进入模拟决策"——覆盖更多 A 股且不把全市场逐只送模型。共同边界：不提高千元账户 200 元单证券上限等冻结参数；不自动部署 150；候选增多不作收益改善主张；三 ETF 链路行为不变；现有股票分钟数据未验证，追加代码本身不完成这些 Task。**上游阻断**：[Issue26-27-02](../issues/ISSUE-20261027-02-快速链JEV决策全天未发生全景就绪门禁与分钟线缺失.md)（JEV 全景就绪门禁）未定位前，Task06 盘中验收无法完成。夜间 MCP 委托工具不可用期间，经用户指示可由会话执行者认领。
+用户目标："先扩大观察池，再让合格股票进入模拟决策"——覆盖更多 A 股且不把全市场逐只送模型。共同边界：股票独立账户示例参数见 ARCH-028；ETF 后续资金调整另归 Task28-01，不混用两账户参数；不自动部署 150；候选增多不作收益改善主张；三 ETF 链路行为不变；现有股票分钟数据未验证，追加代码本身不完成这些 Task。**上游阻断**：[Issue26-27-02](../issues/ISSUE-20261027-02-快速链JEV决策全天未发生全景就绪门禁与分钟线缺失.md)（JEV 全景就绪门禁）未定位前，Task06 盘中验收无法完成。夜间 MCP 委托工具不可用期间，经用户指示可由会话执行者认领。
 
 | Task | 状态 / Owner | 依赖 | 工作与验收重点 |
 |---|---|---|---|
-| [TASK-20261027-02](TASK-20261027-02-规划A股广域观察与决策扩展.md) | completed / Claude Code | 无 | 规划：范围/数据源/筛选规则/调用上限/独立账户 → [ARCH-028](../architecture/28-stock-wide-observation-bounded-decision.md)（planning）；三 ETF 链路不变 |
-| [TASK-20261027-03](TASK-20261027-03-建立股票发现与只读候选池.md) | completed / Claude Code | 02 | 观察池落地：stock_discovery+akshare 适配+扫描脚本；本机真实扫描 4605→4378 候选；正式重复运行归 150 |
-| [TASK-20261027-04](TASK-20261027-04-验证股票行情与可交易性.md) | in_progress / Claude Code | 03 | 新浪股票分钟源已验证（60 只收盘线 0 失败、单位=股）；affordable 10/60、费用占比中位 2.87%；余盘中时效样本（10-28）与沪市规则官方 source_url |
-| [TASK-20261027-05](TASK-20261027-05-接入有界候选决策与隔离模拟盘.md) | completed / Claude Code | 04 | 离线全链落地：StockFastPipeline（T+1 板块 profile）+ 确定性选择器 + `paper-stock-1` 独立库建账 + stock_chain 配置开关（默认关）；600000.SH BUY 100 股 Guard ALLOW 集成通过；创业板 Guard 注入与退出域接线归部署 |
+| [TASK-20261027-02](TASK-20261027-02-规划A股广域观察与决策扩展.md) | completed / Claude Code | 无 | 规划：范围/数据源/筛选规则/调用上限/独立账户 → [ARCH-028](../architecture/28-stock-wide-observation-bounded-decision.md)（implementing，规划任务已完成）；三 ETF 链路不变 |
+| [TASK-20261027-03](TASK-20261027-03-建立股票发现与只读候选池.md) | completed / Claude Code | 02 | 观察池落地：stock_discovery+akshare 适配+扫描脚本；本机初次扫描记录保留；后续样本口径见 Task04；正式重复运行归 150 |
+| [TASK-20261027-04](TASK-20261027-04-验证股票行情与可交易性.md) | in_progress / Claude Code | 03 | 新浪股票分钟源已验证（60 只收盘线 0 失败、单位=股）；affordable 10/60、费用占比中位 2.87%；10-28 已补盘中时点样本；余完整时段质量证据与官方规则 source_url |
+| [TASK-20261027-05](TASK-20261027-05-接入有界候选决策与隔离模拟盘.md) | completed / Claude Code | 04 | 离线全链落地：StockFastPipeline（T+1 板块 profile）+ 确定性选择器 + `paper-stock-1` 独立库建账 + stock_chain 配置开关（默认关）；600000.SH BUY 100 股 Guard ALLOW 集成通过；创业板 Guard 注入已补；选择器运行接线、预算合计与跨日退出仍待验 |
 | [TASK-20261027-06](TASK-20261027-06-盘中验收与对照.md) | pending / 待认领 | 05 | 盘中验收与对照；无自然机会如实记未验，不制造成交 |
 | [TASK-20261027-07](TASK-20261027-07-部署股票观察批次到150并验证.md) | completed / Claude Code | 05 | 150 拉取 1e47d39、pytest 849 门禁、监督切换 391268、身份/版本/halted/overview 验证；股票链开关未启用 |
 

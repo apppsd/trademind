@@ -15,6 +15,8 @@
 
 ## 工作入口
 
+- [A 股广域观察与有界决策设计](../architecture/28-stock-wide-observation-bounded-decision.md) · [股票只读扫描](operations.md#股票广域观察与验证) · [当前边界](current-status.md)
+
 - [中文大屏工作台V2需求与页面规划](../requirements-workbench-v2.md) · [执行任务](../tasks/index.md) · [ARCH-027](../architecture/27-chinese-large-screen-workbench.md)（implementing，代码返修已验证、实际视觉待验）
 
 - [T0 影子需求（当前阶段）](../requirements-t0-shadow.md) · [V1 需求（历史/兼容）](../requirements.md)
