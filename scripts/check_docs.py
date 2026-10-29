@@ -157,6 +157,8 @@ def check(root: Path) -> list:
     # 2) 逐文件扫描：坏链接、索引状态一致性
     tasks_index = docs / "tasks" / "index.md"
     issues_index = docs / "issues" / "index.md"
+    # 归档索引也算"被索引引用"（2026-10-29 治理 #7）；重复行检测仍只看活动 index.md
+    task_index_files = {tasks_index, docs / "tasks" / "archive.md"}
     linked_task_paths: set = set()
     task_index_rows: dict = {}  # resolved task path -> [行号…]；索引重复行检测（2026-10-29）
     linked_issue_paths: set = set()
@@ -191,9 +193,9 @@ def check(root: Path) -> list:
                     err(rel, lineno, f"本地链接目标不存在：{target}")
                     continue
                 rp = resolved.resolve()
-                if f == tasks_index:
+                if f in task_index_files:
                     linked_task_paths.add(rp)
-                    if stripped.startswith("|"):  # 只统计表格行；正文引用可重复
+                    if f == tasks_index and stripped.startswith("|"):  # 只统计活动索引表格行
                         task_index_rows.setdefault(rp, []).append(lineno)
                 elif f == issues_index:
                     linked_issue_paths.add(rp)

@@ -22,7 +22,6 @@ Task18安全工程：runner免费门禁先于收费双探针，daily_budget只�
 
 Task16分钟特征已修复：连续1m窗口遇缺口/午休/隔夜重置，当天已观察量额VWAP，分钟版本minute-feat-2026-10-09；实现context/features.py与builder.py，308离线测试通过。真实盘中质量未验收，详见[验证报告](../research/20261009-task16-verification.md)。
 
-容器显式网络入口已实施：`scripts/run_container.py check` 或 `paper --steps N`，宿主venv运行；读取既有宿主代理，仅传子进程，不修改compose/.env网络。paper先停workbench并最终恢复，默认不收费探针。工作台本身不继承此参数。操作/验证与限制见[Task15报告](../research/20261009-task15-verification.md)。
 
 ## 显式ETF分钟源（2026-10-09）
 

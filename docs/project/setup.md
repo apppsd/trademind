@@ -14,13 +14,11 @@ Task18启动入口已加免费门禁。显式`paper --steps N --probe-models`闭
 
 Task15显式容器入口完成；Task16窗口工程已验证308测试，真实盘中验收仍待执行。源码变更已触发镜像重建；工作台网络仍不自动继承入口参数。详见[Task16报告](../research/20261009-task16-verification.md)。
 
-容器显式网络入口已实施：`scripts/run_container.py check` 或 `paper --steps N`，宿主venv运行；读取既有宿主代理，仅传子进程，不修改compose/.env网络。paper先停workbench并最终恢复，默认不收费探针。工作台本身不继承此参数。操作/验证与限制见[Task15报告](../research/20261009-task15-verification.md)。
 
 后续变更按[Task15～18及原验收队列](../tasks/index.md#后续实施入口2026-10-09)实施；本手册只写已验证命令，规划中的新入口完成后由执行者补命令及结果。
 
 ## 显式ETF分钟源（2026-10-09）
 
-[ARCH-008](../architecture/08-etf-minute-source.md) implemented：market/adapters/sina_etf.py及DatasetRouter显式sina_etf，核验ETF限定、1m、8秒、量额单位/字段校验、未闭合分钟过滤、fetch可见时点。container示例及container/fast local已选择该源，不调用股票SDK回退。三ETF数据能读取，夜间正确stale；源完整性/盘中新鲜度待验收。更新Key后JEV经现有代理三题型HTTP200，直连451/正常启动网络条件与盘中质量仍待验收。完整证据与下一步统一见[运行连接报告](../research/20261009-runtime-connectivity.md)。
 
 ## 免费分钟质量路由（2026-10-14）
 
