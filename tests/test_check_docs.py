@@ -141,3 +141,38 @@ def test_parse_frontmatter_block_and_inline_lists():
 def test_real_repo_has_zero_errors():
     findings = check_docs.check(ROOT)
     assert errors(findings) == []
+
+
+# -- 2026-10-29 治理审阅补充：斜杠状态格式与索引重复行 ---------------------------
+
+def test_index_slash_status_format_recognized(tmp_path):
+    """「completed / Owner」是索引常用格式，必须参与 frontmatter 一致性校验。"""
+    write(tmp_path / "docs" / "tasks" / "TASK-20261029-01.md",
+          "---\nid: TASK-20261029-01\nstatus: completed\n---\n正文")
+    write(tmp_path / "docs" / "tasks" / "index.md",
+          "| [TASK-20261029-01](TASK-20261029-01.md) | in_progress / Claude Code | 内容 |\n")
+    errs = errors(check_docs.check(tmp_path))
+    assert any("in_progress" in f[3] and "TASK-20261029-01" in f[3] for f in errs)
+
+
+def test_index_duplicate_task_rows_warned(tmp_path):
+    """同一 Task 在索引多个表格行 → WARN（历史小节收敛提示）。"""
+    write(tmp_path / "docs" / "tasks" / "TASK-20261029-01.md",
+          "---\nid: TASK-20261029-01\nstatus: completed\n---\n正文")
+    write(tmp_path / "docs" / "tasks" / "index.md",
+          "| [A](TASK-20261029-01.md) | completed / Claude Code | 行一 |\n"
+          "\n正文段落引用 [A](TASK-20261029-01.md) 不算行。\n"
+          "| [B](TASK-20261029-01.md) | completed / Claude Code | 行二 |\n")
+    warns = [f for f in check_docs.check(tmp_path) if f[0] == "WARN"]
+    assert any("出现 2 行" in f[3] and "TASK-20261029-01" in f[3] for f in warns)
+
+
+def test_index_prose_reference_not_counted_as_row(tmp_path):
+    """正文段落重复引用同一 Task 不是表格行，不应告警。"""
+    write(tmp_path / "docs" / "tasks" / "TASK-20261029-01.md",
+          "---\nid: TASK-20261029-01\nstatus: completed\n---\n正文")
+    write(tmp_path / "docs" / "tasks" / "index.md",
+          "| [A](TASK-20261029-01.md) | completed / Claude Code | 表格行 |\n"
+          "\n正文一 [A](TASK-20261029-01.md)。\n正文二 [A](TASK-20261029-01.md)。\n")
+    warns = [f for f in check_docs.check(tmp_path) if f[0] == "WARN"]
+    assert not any("出现" in f[3] for f in warns)

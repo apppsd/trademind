@@ -91,9 +91,20 @@ def split_refs(value) -> list:
 
 
 def cell_status_tokens(cell: str, allowed: set) -> list:
-    """单元格中的状态词：整格等于状态词，或以状态词后接全/半角括号开头。"""
+    """单元格中的状态词：整格等于状态词；状态词后接全/半角括号；
+    或索引常用格式「状态词 / Owner」「状态词/Owner」（2026-10-29 补，治理审阅）。"""
     c = cell.strip()
-    return [st for st in allowed if c == st or c.startswith(st + "（") or c.startswith(st + "(")]
+    out = []
+    for st in allowed:
+        if c == st or c.startswith(st + "（") or c.startswith(st + "("):
+            out.append(st)
+            continue
+        rest = c[len(st):] if c.startswith(st) else None
+        if rest is not None:
+            stripped = rest.lstrip()
+            if stripped.startswith(("/", "／")) and len(stripped) > 1:
+                out.append(st)
+    return out
 
 
 def strip_anchor(target: str) -> str:
@@ -147,6 +158,7 @@ def check(root: Path) -> list:
     tasks_index = docs / "tasks" / "index.md"
     issues_index = docs / "issues" / "index.md"
     linked_task_paths: set = set()
+    task_index_rows: dict = {}  # resolved task path -> [行号…]；索引重复行检测（2026-10-29）
     linked_issue_paths: set = set()
 
     for f in files:
@@ -181,6 +193,8 @@ def check(root: Path) -> list:
                 rp = resolved.resolve()
                 if f == tasks_index:
                     linked_task_paths.add(rp)
+                    if stripped.startswith("|"):  # 只统计表格行；正文引用可重复
+                        task_index_rows.setdefault(rp, []).append(lineno)
                 elif f == issues_index:
                     linked_issue_paths.add(rp)
 
@@ -268,6 +282,14 @@ def check(root: Path) -> list:
     for owner, task_ids in sorted(owners.items()):
         if len(task_ids) > 1:
             warn("docs/tasks", 0, f"Owner「{owner}」同时持有 {len(task_ids)} 个 in_progress：{'、'.join(sorted(task_ids))}")
+
+    # 6) 索引重复行提醒（2026-10-29 治理审阅）：同一 Task 在任务索引多个表格行出现，
+    #    容易出现两处状态不一致（Task28-01 曾同时 in_progress/completed）。
+    for rp, linenos in sorted(task_index_rows.items()):
+        if len(linenos) > 1:
+            warn("docs/tasks/index.md", linenos[0],
+                 f"任务在索引出现 {len(linenos)} 行（{', '.join(map(str, linenos))}）："
+                 f"只应保留一条当前记录，历史小节请移除状态行或改为正文引用：{rp.name}")
 
     return findings
 
