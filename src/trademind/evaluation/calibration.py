@@ -8,8 +8,7 @@ separately and never silently dropped.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from decimal import Decimal
-from math import exp, log
+from math import log
 
 
 @dataclass

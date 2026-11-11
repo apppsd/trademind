@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import time
 from decimal import Decimal
-from typing import Any
 
 import requests
 
@@ -103,7 +102,8 @@ class TypeSafeJEVProvider(JEVProvider):
             raise ProviderError('bounded JEV question count exceeded')
         return result
 
-    def evaluate(self, *, state, questions, trace_id, require_all=True, role='jev', question_version=None):
+    def evaluate(self, *, state, questions, trace_id, require_all=True, role='jev', question_version=None,
+                 admit_request=None):
         self.breaker.check()
         if not state:
             raise ProviderError('JEV requires actual visible state')
@@ -119,7 +119,8 @@ class TypeSafeJEVProvider(JEVProvider):
         try:
             if hasattr(self.budget, 'reserve_jev'):
                 try:
-                    reserved = self.budget.reserve_jev(len(encoded.encode('utf-8'))+1024, role=role)
+                    reserve = lambda: self.budget.reserve_jev(len(encoded.encode('utf-8'))+1024, role=role)
+                    reserved = admit_request(role, reserve) if admit_request else reserve()
                 except ProviderError:
                     call.failure_category = 'budget_exhausted'
                     raise

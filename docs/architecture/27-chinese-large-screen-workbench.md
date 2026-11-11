@@ -154,3 +154,11 @@ operations.md（observer 启停/端口 8321/陈旧与部分数据语义）、set
 ## 关联内容
 
 需求：`docs/requirements-workbench-v2.md`；实施入口：Task26-02；Issue26-04～10；既有ARCH-006/017/026和本地运行Owner仍有效。
+
+## 2026-10-30 同次展示演进：统一驾驶舱SAMPLE原型
+
+依用户本地授权，[04](../tasks/TASK-20261030-04-流水线前端盘点与只读契约草案.md)冻结[只读展示合同](../research/ops-cockpit-readonly-contract-v1.md)，[05](../tasks/TASK-20261030-05-流水线交互视觉原型与性能门禁.md)在现有Vue壳新增左右窗格和可禁用SVG/CSS示意动效。仅静态样例→展示组件；不新增HTTP、代理、数据持久化、交易接口或部署边界。真实适配归06；trader事实Owner不变，无第二产品UI。ARCH-027仍implementing，原视觉/回退验收不被本次工程测试替代。
+
+## 2026-10-30 同次展示演进：Ops Stream只读白名单适配（Claude 接线）
+
+依Trade Ops追加授权，05新增前端适配层 `frontend/src/adapters/opsReadonly.ts`：右窗对既有同源 `/api/workbench/{runtime,overview,strategies,activity}` 发只读GET并构建ops.v1展示信封（sample:false），左窗仅当用户配置固定 `ops-trader-base` 时尝试trader `/api/{status,account,plan}`（默认空→保持SAMPLE）；任一请求失败该窗独立回退固定样例并标注LIVE/SAMPLE。无新增代理、collector、持久化、端口或 `/api/control/*` 依赖；无轮询（挂载/手动刷新各一次），trader run-ledger不映射事件脉冲，ok=false零占位金额置null。数据流仍是既有workbench只读快照接口，服务端零改动；轮询/退避/成本实测与双源断连验收归06。ARCH-027保持implementing。

@@ -10,9 +10,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import field_validator, model_validator
 
-from .base import MsgBase, ValueObject, Probability, require_tz, utcnow, new_id
+from .base import MsgBase, ValueObject, Probability, require_tz
 from .enums import ConfidenceSemantics, ProviderKind
 
 # The ARCH-001 question set; actual batch limits decided by capability check

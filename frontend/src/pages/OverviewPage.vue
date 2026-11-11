@@ -69,7 +69,7 @@
 
     <div class="panel event-panel">
       <h3 class="panel-title">最新事件
-        <RouterLink class="more-link" to="/activity">全部交易记录 →</RouterLink>
+        <RouterLink class="more-link" :to="tmLocation('activity')">全部交易记录 →</RouterLink>
       </h3>
       <ul v-if="recentEvents.length" class="event-list">
         <li v-for="e in recentEvents" :key="e.key" class="event-item">
@@ -99,8 +99,11 @@ import type { ActivityItem, AlertData, BarRow } from '../types/workbench'
 import { fetchAccountSeries, fetchActivity, fetchAlerts, fetchBars, fetchInstruments, fetchOverview } from '../services/workbenchApi'
 import { useWorkbenchResource } from '../composables/useWorkbench'
 import { useResource } from '../composables/useResource'
+import { useCockpitNavigation } from '../composables/useCockpitNavigation'
 import { phaseLabel } from '../services/online'
 import { fmtDash, shanghaiTime } from '../utils/format'
+
+const { tmLocation } = useCockpitNavigation()
 
 const overview = useWorkbenchResource((opts) => fetchOverview(opts), 5_000)
 const series = useWorkbenchResource((opts) => fetchAccountSeries(30, opts), 60_000)
@@ -244,7 +247,7 @@ const recentEvents = computed(() => {
       key: `${item.kind ?? 'decision'}-${item.id}`,
       time: shanghaiTime(item.executed_at ?? item.created_at ?? null) ?? '—',
       text: eventText(item),
-      to: item.fill_id ? '/activity' : '/strategy',
+      to: item.fill_id ? tmLocation('activity') : tmLocation('strategy'),
     }))
     .sort((a, b) => (a.time < b.time ? 1 : -1))
     .slice(0, 5)

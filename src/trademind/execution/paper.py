@@ -14,12 +14,11 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from ..domain.base import new_id
 from ..domain.enums import OrderSide, OrderStatus
-from ..domain.instruments import MarketProfile
 from ..domain.orders import Fill, Order
-from ..errors import MarketClosed
 from ..market.calendar import TradingCalendar
 from ..market.router import DatasetRouter
 from ..market.base import BEIJING, MinuteBar
+from .price_quant import quantize_price_to_tick
 
 
 @dataclass
@@ -27,6 +26,10 @@ class PaperConfig:
     slippage_bps: int = 5
     fill_lag_bars: int = 1
     minute_only: bool = False
+    # Trading tick from the instrument's MarketProfile (B07). None keeps the
+    # legacy decimal-places fallback below; the main chain (pipeline) always
+    # passes the profile tick.
+    price_tick: Decimal | str | None = None
 
 
 class PaperBroker:
@@ -60,7 +63,11 @@ class PaperBroker:
     def _eligible_bars(self, instrument_id: str, after: datetime, now: datetime):
         if now <= after:
             return []
-        bars, _ = self.router.get_daily_bars(instrument_id, after.date(), now.date())
+        # as_of carries replay visibility into the router's per-date revision
+        # merge (B04): without it a higher revision not yet visible at `now`
+        # wins the merge and the caller-side visibility filter then drops the
+        # whole date — a historically visible bar would vanish.
+        bars, _ = self.router.get_daily_bars(instrument_id, after.date(), now.date(), as_of=now)
         eligible = sorted((b for b in bars if b.trade_date > after.astimezone(BEIJING).date()
                            and after < b.source_time and after < b.available_at <= now),
                           key=lambda b: b.available_at)
@@ -85,6 +92,29 @@ class PaperBroker:
                 return fill
         return None
 
+    def _quantize_fill_price(self, order: Order, raw: Decimal,
+                             legacy_quant: Decimal) -> Decimal | None:
+        """Quantize a raw fill price under the authorized limit (B07, R1).
+
+        With a configured tick the price is rounded onto the tick lattice.
+        The half-up lattice step may cross an off-lattice limit (a BUY
+        rounds above its limit, a SELL below); the limit authorizes "no
+        worse than this price", so a crossed round leaves no legal fill and
+        the attempt is rejected (None). R1 instead clamped the crossed
+        round back onto the limit, which filled at an off-lattice price and
+        defeated the quantization. Without a tick the path's legacy quantum
+        is kept verbatim (minute: limit-string decimal places; daily:
+        0.01) so unconfigured constructions behave exactly as before.
+        """
+        if self.cfg.price_tick is not None:
+            price = quantize_price_to_tick(raw, Decimal(str(self.cfg.price_tick)))
+            if order.side == OrderSide.BUY and price > order.limit_price:
+                return None  # lattice step crossed the authorized limit
+            if order.side == OrderSide.SELL and price < order.limit_price:
+                return None
+            return price
+        return raw.quantize(legacy_quant, rounding=ROUND_HALF_UP)
+
     def _fill_at_minute_bar(self, order: Order, bar: MinuteBar) -> Fill | None:
         if getattr(bar, "suspended", False) or bar.volume <= 0:
             return None
@@ -99,7 +129,9 @@ class PaperBroker:
                 return None
             raw = max(order.limit_price, bar.open * slip_down)
         quant = Decimal("0.001") if len(str(order.limit_price).split(".")[-1]) > 2 else Decimal("0.01")
-        price = raw.quantize(quant, rounding=ROUND_HALF_UP)
+        price = self._quantize_fill_price(order, raw, quant)
+        if price is None:
+            return None  # lattice round crossed the authorized limit (R1)
         remaining = order.quantity - order.filled_quantity
         if remaining <= 0:
             return None
@@ -134,7 +166,9 @@ class PaperBroker:
             if bar.high < order.limit_price:
                 return None
             raw = max(order.limit_price, bar.open * slip_down)
-        price = raw.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        price = self._quantize_fill_price(order, raw, Decimal("0.01"))
+        if price is None:
+            return None  # lattice round crossed the authorized limit (R1)
         remaining = order.quantity - order.filled_quantity
         if remaining <= 0:
             return None

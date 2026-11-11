@@ -37,7 +37,7 @@
 
     <div class="positions-block panel">
       <h3 class="panel-title">持仓
-        <RouterLink class="more-link" to="/reports">日报 →</RouterLink>
+        <RouterLink class="more-link" :to="tmLocation('reports')">日报 →</RouterLink>
       </h3>
       <table v-if="positionRows.length" class="pos-table">
         <thead>
@@ -80,7 +80,10 @@ import type { InstrumentInfo } from '../types/instrument'
 import { fetchAccountSeries, fetchInstruments, fetchOverview, fetchPositions } from '../services/workbenchApi'
 import { useWorkbenchResource } from '../composables/useWorkbench'
 import { useResource } from '../composables/useResource'
+import { useCockpitNavigation } from '../composables/useCockpitNavigation'
 import { fmtDash, signClass } from '../utils/format'
+
+const { tmLocation } = useCockpitNavigation()
 
 const overview = useWorkbenchResource((opts) => fetchOverview(opts), 8_000)
 const positions = useWorkbenchResource((opts) => fetchPositions(opts), 8_000)

@@ -16,7 +16,6 @@ from typing import Callable
 from ..domain.base import new_id, utcnow
 from ..domain.enums import MemoryReviewState, MemoryType, ProviderKind
 from ..domain.memory import MemoryRecord
-from ..domain.modelcall import ModelCall
 from ..domain.outcome import Outcome, Reflection
 from ..market.base import BEIJING, bar_close_time
 from ..models import LLMProvider

@@ -3,13 +3,13 @@
     <header class="wb-topbar">
       <div class="wb-brand">
         <span class="wb-brand-mark" aria-hidden="true"></span>
-        <span class="wb-brand-name">TradeMind</span>
-        <span class="wb-brand-sub">中文大屏工作台</span>
+        <span class="wb-brand-name">交易系统大屏</span>
+        <span class="wb-brand-sub">trader · TradeMind</span>
       </div>
       <nav class="wb-nav" aria-label="主导航">
         <RouterLink
-          v-for="item in NAV_ITEMS" :key="item.to" :to="item.to"
-          class="wb-nav-link" :class="{ active: isActive(item.to) }">
+          v-for="item in NAV_ITEMS" :key="item.to.path" :to="item.to"
+          class="wb-nav-link" :class="{ active: isActive(item.to.path) }">
           {{ item.label }}
         </RouterLink>
       </nav>
@@ -22,7 +22,7 @@
 
     <div class="wb-status-strip" :data-tone="stripTone">
       <span class="wb-strip-dot" aria-hidden="true"></span>
-      <span><span v-if="accountAlias">账户：{{ accountAlias }} · </span>{{ stripText }}</span>
+      <span><span v-if="accountAlias && !isCockpit">账户：{{ accountAlias }} · </span>{{ stripText }}</span>
       <span v-if="dataUpdatedLabel" class="wb-strip-time">数据更新 {{ dataUpdatedLabel }}</span>
     </div>
 
@@ -37,14 +37,9 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { apiOnline, phaseLabel, accountAlias } from '../services/online'
 
+/** 顶部导航只保留驾驶舱入口；query 用对象形式交给 RouterLink，点击即回到双总览。 */
 const NAV_ITEMS = [
-  { to: '/', label: '总览' },
-  { to: '/market', label: '行情' },
-  { to: '/assets', label: '资产' },
-  { to: '/strategy', label: '策略' },
-  { to: '/activity', label: '交易记录' },
-  { to: '/reports', label: '日报' },
-  { to: '/run', label: '运行中心' },
+  { to: { path: '/cockpit', query: { trader: 'overview', tm: 'overview' } }, label: '双总览' },
 ] as const
 
 /** 'live'：连接真实只读接口；'demo'：离线演示。任一接口成功后自动切 live。 */
@@ -63,8 +58,10 @@ const props = withDefaults(defineProps<{
 const route = useRoute()
 const isActive = (to: string) => route.path === to
 
-const effectiveMode = computed(() => (props.mode === 'demo' && apiOnline.value ? 'live' : props.mode))
+const isCockpit = computed(() => route.path === '/cockpit')
+const effectiveMode = computed(() => isCockpit.value ? 'demo' : (props.mode === 'demo' && apiOnline.value ? 'live' : props.mode))
 const effectivePhase = computed(() => {
+  if (isCockpit.value) return 'OBS / 只读驾驶舱'
   if (effectiveMode.value === 'demo') return '尚未连接'
   return props.phaseLabel || phaseLabel.value || '状态获取中'
 })
@@ -81,6 +78,7 @@ const shanghaiTime = computed(() => new Intl.DateTimeFormat('zh-CN', {
 
 const stripTone = computed(() => (props.degraded ? 'warn' : effectiveMode.value === 'live' ? 'ok' : 'demo'))
 const stripText = computed(() => {
+  if (isCockpit.value) return '统一驾驶舱 · 左trader / 右TradeMind · 只读白名单GET · 失败窗格回退样例 / SAMPLE'
   if (props.degraded) return '数据陈旧 · 展示最后成功快照'
   return effectiveMode.value === 'live' ? '本地只读快照 · 行情来源与模型能力未实时核验' : '尚未连接本地服务 · 数据来源未确认'
 })
@@ -100,7 +98,9 @@ const stripText = computed(() => {
   display: flex;
   align-items: center;
   gap: 28px;
-  height: 60px;
+  min-height: 60px;
+  flex-wrap: wrap;
+  padding-block: 10px;
   border-bottom: 1px solid var(--border-weak);
 }
 
@@ -113,7 +113,7 @@ const stripText = computed(() => {
 .wb-brand-name { font-size: 17px; font-weight: 600; letter-spacing: 0.02em; }
 .wb-brand-sub { font-size: var(--fs-caption); color: var(--text-faint); }
 
-.wb-nav { display: flex; gap: 4px; flex: 1; justify-content: center; }
+.wb-nav { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 500px; justify-content: center; }
 .wb-nav-link {
   color: var(--text-secondary);
   text-decoration: none;
@@ -154,5 +154,12 @@ const stripText = computed(() => {
 .wb-status-strip[data-tone='warn'] { color: var(--warn); }
 .wb-strip-time { color: var(--text-faint); }
 
-.wb-main { flex: 1; padding-top: var(--card-gap); }
+.wb-main { flex: 1; display: flex; flex-direction: column; padding-top: var(--card-gap); }
+@media (max-width: 600px) {
+  .wb-shell { padding-inline: 12px; }
+  .wb-topbar { gap: 12px; }
+  .wb-nav { justify-content: flex-start; }
+  .wb-nav-link { padding: 6px 10px; }
+  .wb-status-strip { flex-wrap: wrap; }
+}
 </style>

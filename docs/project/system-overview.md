@@ -1,12 +1,12 @@
 # 系统概览
 
-自动运行边界（ARCH-013）：一个auto容器内supervisor按上海日历顺序启动serve或既有有界paper，保持一个账户writer。连续时段paper，等待/休市/失败退避serve，盘中UI暂停；状态心跳只写runtime文件，不产生交易授权。模型探针/费用/质量/硬风控仍归原paper，未知worker结果锁定自动重试。排空终态分类（ARCH-015）：收盘排空对已完成的模型结果写`model_drain`审计终态（取消未启动/模型异常/过期废弃/有效不执行）后安全恢复，仅worker未排空、结果不可分类或审计写入失败保持锁定；正常收盘不再误锁次日，监督器保护策略不变。与workbench部署模式互斥；原完整闭环验收不变。本地Windows运行（ARCH-026）：`run_local.py`以同一supervisor逻辑在venv直跑（脱终端、停止标志排空、强制结束前pid+映像校验），与容器入口同端口互斥；每实验独立账户/库（当前 `paper-t0-local-1k`/1000 CNY），supervisor进程持锁即单writer边界，停止/强制路径未知结果一律halted待人工。
+自动运行边界（ARCH-013）：一个auto容器内supervisor按上海日历顺序启动serve或既有有界paper，保持一个账户writer。连续时段paper，等待/休市/失败退避serve，盘中UI暂停；状态心跳只写runtime文件，不产生交易授权。模型探针/费用/质量/硬风控仍归原paper，未知worker结果锁定自动重试。排空终态分类（ARCH-015）：收盘排空对已完成的模型结果写`model_drain`审计终态（取消未启动/模型异常/过期废弃/有效不执行）后安全恢复，仅worker未排空、结果不可分类或审计写入失败保持锁定；正常收盘不再误锁次日，监督器保护策略不变。与workbench部署模式互斥；原完整闭环验收不变。本地Windows运行（ARCH-026）：`run_local.py`以同一supervisor逻辑在venv直跑（脱终端、停止标志排空、强制结束前pid+映像校验），与容器入口同端口互斥；每实验独立账户/库（当前 `paper-t0-local-1k`，5000 元档，参数见 [T0 需求](../requirements-t0-shadow.md)；本机开发、150 运行），supervisor进程持锁即单writer边界，停止/强制路径未知结果一律halted待人工。
 
 工作台V2与观察服务（[ARCH-027](../architecture/27-chinese-large-screen-workbench.md) implementing）：Vue/Vite/TS/ECharts七页静态包经serve或独立observer提供；新API仅使用应用显式cfg绑定的WorkbenchReadStore，SQLite mode=ro/query_only，不初始化Pipeline或账户。Context按账户与可见瞬间过滤，日报按账户目录与内容归属读取。observer与paper分离，由非凭据配置摘要及实例身份支持收养/停止；Windows优先让实际服务退出，只有Popen仍持有的自有树可作为退出失败兜底。请求世代/卸载/完整body超时、金融null与历史口径已修复。工程证据见[返修报告](../research/20261026-workbench-repair-verification.md)；真实浏览器/现有运行切换尚未验收，不能把源代码修复等同当前进程已切换。旧ARCH-013/024互斥描述是原运行基线。
 
 2026-10-14边界补充（同日复核更正serve表述）：账户写租约（[ARCH-017](../architecture/17-writer-lease.md)，更正记录见其复核更正节）——所有写入口构造Pipeline时先取得库+账户级跨进程租约（内核持进程死亡自动释放，无陈旧锁/任意删锁），第二写者立即失败零副作用；锁键与Database共用`storage/sqlite_url.py`路径语义（相对/绝对URL指向同一实际库得到同一租约）。serve经init_app构造Pipeline取得租约并持至进程退出（其kill_switch/decide/poll_fills写端点需token，[ARCH-017](../architecture/17-writer-lease.md)矩阵）；runner运行类命令与评测脚本在进程结束前显式释放；只读日报/查询不取得租约、他进程持锁时照常生成。Windows真实子进程已验；Linux容器验证见current-status与Task-14。估值隔离（[ARCH-016](../architecture/16-position-valuation-isolation.md)）——逐持仓独立估值，单持仓行情失效记入诊断不阻断其他标的风险退出；估值不完整时Guard否决新开买入，不以残缺估值落日初基线。交易日历（[ARCH-018](../architecture/18-calendar-ownership.md)）——覆盖建模为已确认段+未确认空档（段间隙>14天为未知，不是休市），覆盖外/跨空档显式拒绝、覆盖内非交易日按休市，时段判断只在覆盖内进行；auto覆盖不足停止模拟与付费请求，日历更新仅经离线合并接口（官方输入按其区间完整陈述，重叠已确认段整段替换、区间外段保留历史，meta记录csv_sha256供load()一致性比对）。持久化升级（[ARCH-019](../architecture/19-db-upgrade-backup.md)）——`Database()`打开先以只读immutable预检Schema版本再执行任何写入/PRAGMA（更高版本拒绝、文件字节不变）；打开按`schema_migrations`顺序迁移（当前v1→v2附加性）；备份`backup_to`、只读校验`verify_database`含逐账户事件重放资金对账（现金/冻结/活动预留/持仓/版本），账目不平即ok=False。决策条件语义单一来源`context/fast_state.conditions_allow`（BUY全部入场/SELL任一退出/空集不授权），同步构造与异步复核共用；健康与日报历史读取按上海日窗口走索引，账户事件保持全量重放。真实盘中/容器生效均未验。
 
-新增日报边界（ARCH-012 implemented）：主CNY SQLite账户的事件/成交/预算/策略/意图→只读事务快照→中文Markdown/HTML及原始JSON。工作台生命周期每60秒生成今日/昨日，paper结束触发；报告线程只写报告、不执行模型/行情或账户操作。有效策略history追加存储，strategy-4中文说明及planner语言校验已实施，DeepSeek统一中文指令，JEV协议保持；旧缓存按版本失效但保留冷却。日终报不代表交易闭环验收。[报告](../research/20261012-daily-report-verification.md)。
+新增日报边界（ARCH-012 implemented）：主CNY SQLite账户的事件/成交/预算/策略/意图→只读事务快照→中文Markdown/HTML及原始JSON。工作台生命周期每60秒生成今日/昨日，paper结束触发；报告线程只写报告、不执行模型/行情或账户操作。有效策略history追加存储，strategy-4中文说明及planner语言校验已实施，DeepSeek统一中文指令，JEV协议保持；旧缓存按版本失效但保留冷却。日终报不代表交易闭环验收。[报告](../research/20261012-daily-report-verification.md)。2026-11-11 只改了代码位置、不改行为，且尚未加载到 150：日报取数在 `reports/daily_sections.py`，`generate_report` 只编排；`Pipeline._run_decision` 分成开快照、选意图、授权，模型轮换过的快照仍传给授权；`Guard.check` 在同一把锁和同一笔账本事务里分成订单初筛、风险测算、批准。见 [TASK-20261111-05](../tasks/TASK-20261111-05-拆开日报决策与风控长函数.md)。健康读取的实现在 `execution/intraday_health.py`，见 [TASK-20261111-04](../tasks/TASK-20261111-04-拆开盘中健康读取.md)。
 
 提示评测新增只读离线边界：固定合成案例/版本标签＋保存模型响应及程序观测→生产契约/行为检查→分项JSON/Markdown报告；不初始化provider、不联网、不接订单或账户写入。strategy-3追加WAIT/有仓退出配对示例，JEV仍fast-2。真实档案自动适配/晋级/回滚增强尚未实现。详见[本轮证据](../research/20261011-prompt-eval-verification.md)。
 
@@ -48,14 +48,14 @@ jev_fast_decision：原始可见分钟及规则/账户 → 程序止损/时间/�
 - 可转债：10 张申报单位、T+0 交易、20% 涨跌幅限制、强赎/停牌拦截。
 - LOF：QDII 境外/大宗 LOF 允许 T+0 日内回转；境内股票 LOF 为 T+1（当日卖出被拦截）。
 - 港股：严格隔离港币账本 `MultiAssetLedger`（零串币，CNY 与 HKD 互不污染），支持每手股数与印花税/经手费计算。
-- 期货：保证金交易模式（按 `price * qty * multiplier * margin_rate` 占用与释放保证金，计算多空平仓盈亏）。
+- 期货：保证金交易模式（按 `price * qty * multiplier * margin_rate` 占用与释放保证金）；仅实现开多/平多，开空与平空语义未实现、显式拒绝（TASK-20261108-002 B06），且该执行为离线实验组件——`MultiAssetPaperBroker.execute_order` 默认拒绝调用（B05，仅接受 NEW 订单），主链撮合走 OMS+PaperBroker。
 - 候选筛选：`market/selector.py` (`MultiAssetCandidateSelector`) 与 CLI `market-select` 按流动性排序并受 `top_k_per_market` 与 `max_total_candidates` 硬顶截断，零模型调用。
 
 详见 [ARCH-011](../architecture/11-multi-asset-execution.md)，[ISSUE-20261008-05](../issues/ISSUE-20261008-05.md) 已解决关闭。
 
 ## T0当前实现补充（2026-10-08）
 
-T0启用时，Pipeline使用分钟Context、分钟持仓估值和Guard参考价；持仓先由代码检查止损/尾盘退出，经原Guard/OMS执行，之后才进入双模型候选/审核/最终意图。最终意图直接构造PortfolioIntent，代码计算合法数量和硬性否决；不再接旧股票版的额外风险/组合模型调用。原V1路径保留。
+T0启用时，Pipeline使用分钟Context、分钟持仓估值和Guard参考价；持仓先由代码检查止损/尾盘退出，经原Guard/OMS执行，之后才进入双模型候选/审核/最终意图。最终意图直接构造PortfolioIntent，代码计算合法数量和硬性否决；不再接旧股票版的额外风险/组合模型调用。原V1路径保留。执行参考价在 Guard/OMS 前按当前时钟复核；审计的决策快照冻结自模型实际消费的上下文（异步消费轮=模型轮 source，不重查行情源），复核拒绝时结构化携带被拒报价与原因（TASK-20261108-003 B01 + R1 返工）；JEV 决策有效期限取 min(180s, 配置 quote_max_age_seconds)（B01）；其他持仓估值与主标的同走"质量合格+可见+新鲜"门，质量拒绝窗口不进权益、回退均价成本并标 valuation_incomplete（B02，replay 无豁免）。
 
 SQLite仍是账户和审计的存储；审批日计数持久化，连续亏损从实际成交事件的完整平仓重建；模型请求共享交易日持久计数，DeepSeek费用按配置价格与token上界预留。配置未知价格拒绝收费请求；JEV费用解析已完成（[Issue-20261008-02](../issues/ISSUE-20261008-02.md) resolved，配置估值为参考费率而非账单）。CLI各入口显式共享TOML，撮合只看当前可见分钟。
 
@@ -143,3 +143,13 @@ orchestrator: Pipeline 入口有界队列、触发合并、持仓优先；models
 已实现名单发现与分钟抽样工具、纯函数选择器及 `StockFastPipeline`。`Pipeline` 根据 `t0.stock_chain` 选择股票快速链，并向账户费率解析和 Guard 注入股票板块 profile；默认开关为 false。股票账户使用独立 SQLite 库，T+1 当日不可卖由可卖数量及 Guard 限制。
 
 这些组件尚不构成全市场自动决策服务：候选选择器到运行调度、数据路由、跨库预算合计和跨日退出仍需接线验收。实现映射见 [code-map](code-map.md)，设计与未完成项见 [ARCH-028](../architecture/28-stock-wide-observation-bounded-decision.md)，当前运行边界见 [current-status](current-status.md)。
+
+## 模型调用窗口与纸面候选（ARCH-029）
+
+ETF快速链的账户级300秒窗口与flash/JEV成功预算准入在同一事务内复检并提交，事务不跨网络；缓存纯WAIT及准入前拒绝不占用。planner/decider将可选回调传到provider预算预留处；旧时间戳兼容、准入后失败保守保留。股票T+1保留旧窗口语义。
+
+仅paper-t0-local-1k的paper新仓在模型前复用tradability诊断，以可见价格、账本现金/冻结、持仓与挂单承诺检查最小整手；不可达或unknown只观察，逐tick重算，不改universe。已有持仓及程序风险退出原路、Guard/OMS独立复检。模块与验证证据见[ARCH-029](../architecture/29-model-charge-window-paper-candidates.md)及关联Task；本地实现不等于150已加载。
+
+## 统一驾驶舱样例展示边界
+
+现有Vue壳新增Ops Stream左右窗格与只读适配层：右窗接同源 `/api/workbench/*` 白名单GET（ops.v1信封，sample:false），左窗trader仅当配置固定 `ops-trader-base` 时尝试三端点，默认保持SAMPLE；任一GET失败该窗独立回退固定样例并明确LIVE/SAMPLE标注。不新增后端、collector、状态Owner或交易权限，无轮询（挂载/手动刷新各一次）。入口/工程验证见[Task30-05](../tasks/TASK-20261030-05-流水线交互视觉原型与性能门禁.md)；轮询、成本实测与双源正式接线仍待06。

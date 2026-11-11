@@ -19,7 +19,7 @@ daily-report artifacts. Hard rules implemented here:
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 from decimal import Decimal, InvalidOperation
 

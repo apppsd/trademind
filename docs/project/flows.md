@@ -6,6 +6,8 @@
 
 盘中健康读取：auto每5秒/paper结束/日报内嵌调用`read_intraday_health`，model_calls与strategy_plan_history按上海日±2天窗口走索引读取、Python精确日过滤，intents当日最近意图为窗口内有界候选挑选；昨日及更早的失败/计划不进入当日连续失败数或最后成功时间，当日行不丢；行数上界由测试固定（[ISSUE-20261013-08](../issues/ISSUE-20261013-08-高频健康与日报查询扫描全部历史记录.md) resolved）。
 
+前置轮次观测（[TASK-20261103-001](../tasks/TASK-20261103-001-收盘后核验冷却修复与分钟行情可观测性.md)）：T0分钟决策在数据门禁拒绝（NotFresh/WAIT_DATA_QUALITY）与异步等待（WAIT_MODEL_PENDING）时逐轮写`control_audit`的`decision/data_reject`、`decision/model_pending`行（含account/instrument/细分reason，V1链不写）；`build_minute`在aux记录`data_window`真实连续1m根数（16/15所需根数），诊断与`_public_decision`白名单携带`age_threshold_seconds`/`data_window`/`data_reject`/`global_cooldown_seconds_remaining`；`read_intraday_health`新增附加桶`last_blocker_class`（data_reject/async_pending/global_cooldown/strategy_wait）与冷却认领剩余秒数，7档中文状态及优先级不变；日报在已存意图分母外新增`pre_decision_rounds`审计轮次分母（历史无逐轮行的日期分母不可恢复并在报告内明示）。全程只读本地库，不新增行情/模型调用。2026-11-03 FAIL返工：审计轮次逐行校验`payload.account_id`（外账户排除、缺归属/坏payload单列`unknown_account:*`桶）；缺bars与超龄分抛独立子因并经`data_reject`贯通公共摘要/health/日报（参考报价与异步子因同一出口保留）；fast链`age_threshold_seconds`=min(180, quote_max_age)由构造传入（意图180秒有效期单列`intent_max_age_seconds`）；日报入口`generate_for_config`向health传`t0_cfg`，`model_window`含`claim_trace_id`并按decision_id关联到日报决策。
+
 估值与风险退出隔离：每轮决策逐持仓独立取参考价，单持仓行情失效记入`diagnostics.valuation_failures`并跳过，不阻断其他持仓的确定性风险退出；任何持仓估值不完整时Guard以`incomplete_account_valuation`否决新开买入，日初基线不以残缺估值落定，失效标的不交易不补价（[ARCH-016](../architecture/16-position-valuation-isolation.md)；[ISSUE-20261013-05](../issues/ISSUE-20261013-05-单持仓行情失效阻断其他标的风险退出.md) resolved）。
 
 新增离线提示评测：验证案例Schema/标签→核对数据集/输入指纹→读取保存的九字段草稿/四题answers→分别统计模型建议、程序观测、费用/耗时→原子报告。缺响应/未知费用不填零；A/B须同输入/配置/模型。实际Guard/OMS不在这个工具内执行，账户保持只读；证据见[报告](../research/20261011-prompt-eval-verification.md)。
@@ -95,3 +97,13 @@ OMS生命周期与Guard恢复/同标的扫描均已账户化（17-08）：外账
 已实现的离线决策组件：调用方提供候选及持仓 → StockCandidateSelector 至多选一只 → 配置启用股票分支时由 StockFastPipeline 复用 Flash/JEV → 数量计算 → Guard → 模拟 OMS。候选文件自动更新到运行 universe、选择器生产调用与选择理由落盘尚待接线；股票与 ETF 分库，不代表预算合计已自动协调。
 
 真实运行前置和跨日退出验收见 [Task27-06](../tasks/TASK-20261027-06-盘中验收与对照.md)。
+
+## ETF快速链当前窗口与纸面新仓分支
+
+可见分钟/账户 → 程序退出优先 → 纸面指定账户空仓可达性（不满足则WAIT+tradability诊断，观察池保留） → 持久化窗口/预算只检查 → 缓存策略/条件判定 → flash/JEV provider预算准入处，在同一事务复检窗口、成功预留预算并认领窗口 → 提交后HTTP → 模型/规范动作 → 原Guard/OMS与异步账户版本/时效复检。缓存纯WAIT及准入前拒绝不预约；网络不持数据库锁。已有仓位跳过新仓可达性，股票T+1沿用旧前置窗口。
+
+职责、预算与公平限制详见[ARCH-029](../architecture/29-model-charge-window-paper-candidates.md)；工程验证集中Task30-02/03，真实运行未验。
+
+## Ops Stream样例与只读白名单数据流
+
+固定 `opsStreamSample.ts` → 单一Vue壳 → 左trader/右TradeMind的独立展示状态/证据；样例数据无HTTP。实时路径：`adapters/opsReadonly.ts` 挂载/手动刷新时对右窗发同源 `/api/workbench/{runtime,overview,strategies,activity}` 只读GET并构建ops.v1信封（sample:false），左窗仅当配置固定 `ops-trader-base` 时GET `/api/{status,account,plan}`；任一失败该窗独立回退样例。无数据库直连、provider调用、轮询或订单写入，静态依赖不推断因果，trader run-ledger不映射事件脉冲。双源正式接线/轮询成本不在当前流内；见[Task30-05](../tasks/TASK-20261030-05-流水线交互视觉原型与性能门禁.md)。

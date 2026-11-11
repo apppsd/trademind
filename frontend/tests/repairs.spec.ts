@@ -80,8 +80,8 @@ it('an already aborted signal starts no request', async () => {
 })
 
 it('an online fixture API does not claim real market data or a healthy trading worker', async () => {
-  const router = createRouter({ history:createMemoryHistory(), routes:['/','/market','/assets','/strategy','/activity','/reports','/run'].map(path => ({ path, component:{ template:'<div />' } })) })
-  await router.push('/')
+  const router = createRouter({ history:createMemoryHistory(), routes:['/cockpit','/overview','/market','/assets','/strategy','/activity','/reports','/run','/ops-stream'].map(path => ({ path, component:{ template:'<div />' } })) })
+  await router.push('/overview')
   markOnline('fixture-account')
   const page = mount(WorkbenchLayout, { global:{ plugins:[router] } })
   expect(page.text()).toContain('fixture-account')

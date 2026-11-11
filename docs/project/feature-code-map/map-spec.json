@@ -1,0 +1,253 @@
+{
+  "project": {"name": "TradeMind", "default_language": "zh"},
+  "source_roots": [
+    "src/trademind/agents",
+    "src/trademind/context",
+    "src/trademind/domain",
+    "src/trademind/evaluation",
+    "src/trademind/execution",
+    "src/trademind/guard",
+    "src/trademind/market",
+    "src/trademind/memory",
+    "src/trademind/models",
+    "src/trademind/observability",
+    "src/trademind/orchestrator",
+    "src/trademind/portfolio",
+    "src/trademind/reports",
+    "src/trademind/storage",
+    "src/trademind/pipeline.py",
+    "src/trademind/runner.py",
+    "src/trademind/config.py",
+    "src/trademind/errors.py",
+    "frontend/src",
+    "scripts"
+  ],
+  "architecture": [
+    {"id": "a:sys", "label": "交易系统", "kind": "owner"},
+    {"id": "a:pkg-core", "label": "编排与命令", "kind": "package", "parent": "a:sys", "path": "src/trademind"},
+    {"id": "a:pkg-scripts", "label": "本机监督启动", "kind": "package", "parent": "a:sys", "path": "scripts"},
+    {"id": "a:pkg-exec", "label": "执行与监督器", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/execution"},
+    {"id": "a:pkg-market", "label": "行情", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/market"},
+    {"id": "a:pkg-context", "label": "时点上下文", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/context"},
+    {"id": "a:pkg-agents", "label": "决策代理", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/agents"},
+    {"id": "a:pkg-models", "label": "模型接入", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/models"},
+    {"id": "a:pkg-guard", "label": "硬风控", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/guard"},
+    {"id": "a:pkg-portfolio", "label": "账本", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/portfolio"},
+    {"id": "a:pkg-storage", "label": "存储与审计", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/storage"},
+    {"id": "a:pkg-reports", "label": "日报", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/reports"},
+    {"id": "a:pkg-memory", "label": "记忆", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/memory"},
+    {"id": "a:pkg-eval", "label": "离线评测", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/evaluation"},
+    {"id": "a:pkg-api", "label": "管理与只读接口", "kind": "package", "parent": "a:pkg-core", "path": "src/trademind/api"},
+    {"id": "a:pkg-ui", "label": "前端", "kind": "package", "parent": "a:sys", "path": "frontend/src"}
+  ],
+  "features": [
+    {"id": "f:run", "label": "运行", "kind": "domain"},
+    {"id": "f:run:supervise", "label": "监督器", "kind": "capability", "parent": "f:run"},
+    {
+      "id": "f:run:supervise:start",
+      "label": "启动监督并按日历跑纸面",
+      "kind": "action",
+      "parent": "f:run:supervise",
+      "status": "implemented",
+      "summary": "run_local 的 start 拉起监督进程；监督器 tick 在日历覆盖且处于交易时段时把目标设为 paper，否则不新开写者。",
+      "limitations": ["源码已接线。这不表示 150 上的进程已经加载本机未提交改动，也未在本次重新做盘中验收。"],
+      "flow": ["scripts/run_local.py cmd_start", "execution/auto_paper.py Supervisor.tick", "desired=paper 或空"],
+      "anchors": [
+        {"path": "scripts/run_local.py", "needle": "def cmd_start(config):", "symbol": "cmd_start", "role": "entry", "note": "本机启动入口。已在运行则不重复启动。"},
+        {"path": "src/trademind/execution/auto_paper.py", "needle": "    def tick(self):", "symbol": "Supervisor.tick", "role": "handler", "note": "每个周期决定要不要持有 paper 子进程。"},
+        {"path": "src/trademind/execution/auto_paper.py", "needle": "desired = 'paper' if covered and seconds >= 5 and now >= self.retry_at and not self.halted else None", "symbol": "desired", "role": "policy", "note": "日历未覆盖、未开盘、冷却中或已 halt 时不启动 paper。"}
+      ]
+    },
+    {"id": "f:run:lease", "label": "单写者", "kind": "capability", "parent": "f:run"},
+    {
+      "id": "f:run:lease:acquire",
+      "label": "构造管道时取得写租约",
+      "kind": "action",
+      "parent": "f:run:lease",
+      "status": "implemented",
+      "summary": "Pipeline 构造时按库和账户取得跨进程写租约；拿不到就失败，不继续调用模型或写账户。",
+      "limitations": ["内存库不取跨进程租约。本次没有在 150 上复测第二写者。"],
+      "flow": ["Pipeline.__init__", "acquire_writer_lease"],
+      "anchors": [
+        {"path": "src/trademind/pipeline.py", "needle": "self._writer_lease = acquire_writer_lease(cfg.storage.url, cfg.account_id)", "symbol": "Pipeline 构造", "role": "entry", "note": "写入口在构造时占租约。"},
+        {"path": "src/trademind/execution/writer_lock.py", "needle": "def acquire_writer_lease(storage_url: str, account_id: str) -> WriterLease | None:", "symbol": "acquire_writer_lease", "role": "handler", "note": "按库路径和账户取独占租约。"}
+      ]
+    },
+    {"id": "f:decide", "label": "快速决策", "kind": "domain"},
+    {"id": "f:decide:session", "label": "纸面决策命令", "kind": "capability", "parent": "f:decide"},
+    {
+      "id": "f:decide:session:paper",
+      "label": "t0-paper 进入快速链",
+      "kind": "action",
+      "parent": "f:decide:session",
+      "status": "implemented",
+      "summary": "命令 t0-paper 进入 Pipeline。profile 为 jev_fast_decision 时，程序风险退出之后才构造 FastDecisionPipeline；stock_chain 为假时不换股票类。",
+      "limitations": ["150 当前加载的不一定是本机这份 pipeline.py。股票开关默认关闭。"],
+      "flow": ["runner t0-paper", "Pipeline._run_decision", "FastDecisionPipeline"],
+      "anchors": [
+        {"path": "src/trademind/runner.py", "needle": "if args.cmd == \"t0-paper\":", "symbol": "t0-paper", "role": "entry", "note": "CLI 把纸面命令派到 cmd_t0_paper。"},
+        {"path": "src/trademind/pipeline.py", "needle": "from .agents.fast_pipeline import FastDecisionPipeline", "symbol": "FastDecisionPipeline", "role": "handler", "note": "快速链类在决策函数内部导入并构造。"},
+        {"path": "src/trademind/pipeline.py", "needle": "if self.cfg.t0.profile == 'jev_fast_decision':\n                    # Deterministic risk exits above remain available.", "symbol": "jev_fast_decision", "role": "policy", "note": "只有这个 profile 进入快速链；前面的程序风险退出仍然先执行。"}
+      ]
+    },
+    {"id": "f:decide:quality", "label": "分钟质量门", "kind": "capability", "parent": "f:decide"},
+    {
+      "id": "f:decide:quality:reject",
+      "label": "分钟特征不全则不调用模型",
+      "kind": "action",
+      "parent": "f:decide:quality",
+      "status": "implemented",
+      "summary": "快速链在调用模型前，若分钟特征有缺失字段，直接记 WAIT_DATA_QUALITY 并写审计，不启动付费 worker。",
+      "limitations": ["这只说明代码会拒绝缺特征。它不证明某一天的行情源已经完整。"],
+      "flow": ["分钟特征缺失", "WAIT_DATA_QUALITY", "decision/data_reject 审计"],
+      "anchors": [
+        {"path": "src/trademind/pipeline.py", "needle": "if snap.features.missing_fields:", "symbol": "missing_fields", "role": "entry", "note": "快速链在付费调用前先看分钟特征是否齐全。"},
+        {"path": "src/trademind/pipeline.py", "needle": "result.guard_verdict = 'WAIT_DATA_QUALITY'", "symbol": "WAIT_DATA_QUALITY", "role": "policy", "note": "缺分钟特征时的拒绝结论。"},
+        {"path": "src/trademind/pipeline.py", "needle": "self.audit.record('decision', 'data_reject', trace_id,\n                                          {'account_id': self.cfg.account_id, 'instrument_id': instrument_id,\n                                           'reason_class': 'WAIT_DATA_QUALITY', 'reason': 'incomplete minute features',", "symbol": "data_reject", "role": "storage", "note": "缺分钟特征的这一轮写入审计，供日报分母使用。"}
+      ]
+    },
+    {"id": "f:market", "label": "行情", "kind": "domain"},
+    {"id": "f:market:minute", "label": "分钟线", "kind": "capability", "parent": "f:market"},
+    {
+      "id": "f:market:minute:route",
+      "label": "决策读取分钟线",
+      "kind": "action",
+      "parent": "f:market:minute",
+      "status": "implemented",
+      "summary": "Pipeline 向 DatasetRouter 要分钟线；路由按质量策略选择来源。",
+      "limitations": ["调用已接到路由器。盘中某一只 ETF 是否有可见分钟线，取决于当时的数据源，不由这段调用保证。"],
+      "flow": ["Pipeline 参考价/上下文", "DatasetRouter.get_minute_bars"],
+      "anchors": [
+        {"path": "src/trademind/pipeline.py", "needle": "bars, report = self.router.get_minute_bars(", "symbol": "Pipeline 读分钟线", "role": "entry", "note": "决策路径向路由器要分钟线。"},
+        {"path": "src/trademind/market/router.py", "needle": "    def get_minute_bars(", "symbol": "DatasetRouter.get_minute_bars", "role": "handler", "note": "路由器拥有分钟线获取与质量选择。"}
+      ]
+    },
+    {"id": "f:decide:model", "label": "模型动作", "kind": "capability", "parent": "f:decide"},
+    {
+      "id": "f:decide:model:fast",
+      "label": "flash 计划加 JEV 四动作",
+      "kind": "action",
+      "parent": "f:decide:model",
+      "status": "implemented",
+      "summary": "FastDecisionPipeline 先放策略计划器，再放 JEV 决策器。没有可执行策略条件时直接等待，不把模型输出当成订单。",
+      "limitations": ["要求官方 JEV 与 DeepSeek flash。模型结果仍要经过后面的 Guard。150 是否正在跑这份文件，要以当前状态里的版本为准。"],
+      "flow": ["StrategyPlanner", "FastDecider.decide", "无条件则 WAIT"],
+      "anchors": [
+        {"path": "src/trademind/agents/fast_pipeline.py", "needle": "self.planner=StrategyPlanner(llm,repo,cfg,account_id,clock)", "symbol": "StrategyPlanner", "role": "entry", "note": "快速链构造时接上 flash 计划器。"},
+        {"path": "src/trademind/agents/fast_pipeline.py", "needle": "self.decider=FastDecider(jev,cfg,clock,quote_max_age_seconds=quote_max_age_seconds)", "symbol": "FastDecider", "role": "handler", "note": "同一条链接上 JEV 决策器。"},
+        {"path": "src/trademind/agents/fast_decider.py", "needle": "result.reason='no actionable strategy conditions'", "symbol": "no actionable strategy conditions", "role": "policy", "note": "只剩一个动作时不再追问模型，原因是没有可执行条件。"}
+      ]
+    },
+    {"id": "f:decide:guard", "label": "硬风控与成交", "kind": "capability", "parent": "f:decide"},
+    {
+      "id": "f:decide:guard:check",
+      "label": "Guard 通过后 OMS 才接受授权",
+      "kind": "action",
+      "parent": "f:decide:guard",
+      "status": "implemented",
+      "summary": "Pipeline 调用 Guard.check。实盘模式直接否决。OMS 只接受已经持久化且未被改过的 Guard 授权。",
+      "limitations": ["实盘通道在 Guard 里被拒绝。本次没有重跑成交集成测试。"],
+      "flow": ["Pipeline", "Guard.check", "OMS._submit 重读 guard_results"],
+      "anchors": [
+        {"path": "src/trademind/pipeline.py", "needle": "guard_result, qty = self.guard.check(pi, snap, ref_price, now=self._now(as_of))", "symbol": "guard.check", "role": "entry", "note": "决策结果进入硬风控。"},
+        {"path": "src/trademind/guard/guard.py", "needle": "if self.mode == RunMode.LIVE.value:", "symbol": "mode_live_forbidden", "role": "policy", "note": "实盘模式在检查开头被拒绝。"},
+        {"path": "src/trademind/execution/oms.py", "needle": "raise RecoveryRequired(\"persisted Guard authorization required\")", "symbol": "OMS._submit", "role": "storage", "note": "没有已持久化的 Guard 结果就不能提交订单。"}
+      ]
+    },
+    {"id": "f:read", "label": "只读观察", "kind": "domain"},
+    {"id": "f:read:board", "label": "工作台接口", "kind": "capability", "parent": "f:read"},
+    {
+      "id": "f:read:board:overview",
+      "label": "打开工作台总览",
+      "kind": "action",
+      "parent": "f:read:board",
+      "status": "implemented",
+      "summary": "应用挂上只读工作台路由。GET /api/workbench/overview 从只读存储取总览，不在这个处理函数里下单。",
+      "limitations": ["接口已挂载。页面是否正在由 150 的当前进程提供，要看监督器，不由这份源码单独证明。"],
+      "flow": ["app.include_router", "GET /api/workbench/overview", "WorkbenchReadStore.overview"],
+      "anchors": [
+        {"path": "src/trademind/api/app.py", "needle": "app.include_router(_workbench_router)", "symbol": "include_router", "role": "entry", "note": "管理应用挂载工作台只读路由。"},
+        {"path": "src/trademind/api/workbench_routes.py", "needle": "@router.get('/overview')", "symbol": "GET /overview", "role": "route", "note": "总览路由。"},
+        {"path": "src/trademind/api/workbench_routes.py", "needle": "return store.overview(_now())", "symbol": "workbench_overview", "role": "handler", "note": "返回只读总览。"}
+      ]
+    },
+    {"id": "f:read:report", "label": "日报", "kind": "capability", "parent": "f:read"},
+    {
+      "id": "f:read:report:daily",
+      "label": "生成只读日报",
+      "kind": "action",
+      "parent": "f:read:report",
+      "status": "implemented",
+      "summary": "daily-report 命令不加载交易凭据，调用 generate_for_config 写出报告。",
+      "limitations": ["命令本身不跑模型、不下单。报告内容是否覆盖某一天，取决于库里已有事件。"],
+      "flow": ["runner daily-report", "generate_for_config"],
+      "anchors": [
+        {"path": "src/trademind/runner.py", "needle": "if args.cmd == 'daily-report':", "symbol": "daily-report", "role": "entry", "note": "CLI 日报入口。"},
+        {"path": "src/trademind/reports/daily.py", "needle": "def generate_for_config(cfg, day=None):", "symbol": "generate_for_config", "role": "handler", "note": "按配置生成指定上海日的报告。"}
+      ]
+    },
+    {"id": "f:read:cockpit", "label": "驾驶舱", "kind": "capability", "parent": "f:read"},
+    {
+      "id": "f:read:cockpit:trader",
+      "label": "左窗读取 trader",
+      "kind": "action",
+      "parent": "f:read:cockpit",
+      "status": "partial",
+      "summary": "前端默认进入驾驶舱。左窗只有配置了固定基址才请求 trader 的三个只读接口；没配置就返回空，页面保持样例。",
+      "limitations": ["未配置 ops-trader-base 时不发请求。失败也回空，由页面保持 SAMPLE。没有接到交易写接口。"],
+      "flow": ["路由 /cockpit", "loadTraderPane", "无基址则 return null"],
+      "anchors": [
+        {"path": "frontend/src/router.ts", "needle": "{ path: '/cockpit', name: 'cockpit', component: () => import('./pages/CockpitPage.vue') }", "symbol": "/cockpit", "role": "client", "note": "驾驶舱是前端路由上的页面。"},
+        {"path": "frontend/src/adapters/opsReadonly.ts", "needle": "if (!base) return null // 未配置固定主机：不 fetch，左窗保持 SAMPLE", "symbol": "loadTraderPane", "role": "client", "note": "没有固定基址时不请求 trader。"}
+      ]
+    },
+    {"id": "f:side", "label": "未接到运行", "kind": "domain"},
+    {"id": "f:side:stock", "label": "股票链", "kind": "capability", "parent": "f:side"},
+    {
+      "id": "f:side:stock:select",
+      "label": "按持仓挑选一只股票",
+      "kind": "action",
+      "parent": "f:side:stock",
+      "status": "partial",
+      "summary": "stock_chain 为真时，Pipeline 改用 StockFastPipeline。选择器类已经写好，但生产代码没有调用它。",
+      "limitations": ["开关默认关闭。src 里 StockCandidateSelector 只出现在定义处，测试才会构造它。"],
+      "flow": ["pipeline stock_chain 分支", "StockFastPipeline", "StockCandidateSelector 未被生产调用"],
+      "anchors": [
+        {"path": "src/trademind/pipeline.py", "needle": "if getattr(self.cfg.t0, 'stock_chain', False):\n                            from .agents.stock_fast_pipeline import StockFastPipeline", "symbol": "stock_chain", "role": "entry", "note": "只有开关为真才换股票快速链类。"},
+        {"path": "src/trademind/market/stock_selector.py", "needle": "class StockCandidateSelector:", "symbol": "StockCandidateSelector", "role": "handler", "note": "选择器实现在。当前 src 没有生产调用点。"}
+      ]
+    },
+    {"id": "f:side:memory", "label": "记忆", "kind": "capability", "parent": "f:side"},
+    {
+      "id": "f:side:memory:reflect",
+      "label": "用成熟结果做反思",
+      "kind": "action",
+      "parent": "f:side:memory",
+      "status": "partial",
+      "summary": "Pipeline 会构造 OutcomeService。Reflector.reflect 会拒绝未成熟结果，但 src 里没有 .reflect( 或 .mature( 调用。",
+      "limitations": ["没有生产调用方，所以反思不会进入下一轮决策。"],
+      "flow": ["Pipeline 构造 OutcomeService", "Reflector.reflect 未被调用"],
+      "anchors": [
+        {"path": "src/trademind/pipeline.py", "needle": "self.outcomes = OutcomeService(self.repo, self.router, self.calendar)", "symbol": "OutcomeService", "role": "entry", "note": "结果服务被构造，这不等于 mature 已被调度。"},
+        {"path": "src/trademind/memory/memory.py", "needle": "def reflect(self, *, decision_id: str, outcome: Outcome,", "symbol": "Reflector.reflect", "role": "handler", "note": "反思入口会先检查结果是否 final。src 内没有调用它的业务代码。"}
+      ]
+    },
+    {"id": "f:side:multi", "label": "多资产模拟", "kind": "capability", "parent": "f:side"},
+    {
+      "id": "f:side:multi:execute",
+      "label": "多资产模拟成交",
+      "kind": "action",
+      "parent": "f:side:multi",
+      "status": "partial",
+      "summary": "execute_order 默认拒绝，并写明不要接到主链。src 里除定义处外没有调用。",
+      "limitations": ["主链成交走 OMS 与 PaperBroker。这里不是已装载的交易路径。开空语义不在这个默认拒绝之外另行放开。"],
+      "flow": ["execute_order", "allow_offline_experiment 默认 False", "RuntimeError"],
+      "anchors": [
+        {"path": "src/trademind/execution/multi_asset_paper.py", "needle": "def execute_order(", "symbol": "execute_order", "role": "handler", "note": "函数存在，src 中没有其他调用。"},
+        {"path": "src/trademind/execution/multi_asset_paper.py", "needle": "if not allow_offline_experiment:", "symbol": "allow_offline_experiment", "role": "policy", "note": "默认拒绝，避免未授权的旁路成交。"}
+      ]
+    }
+  ],
+  "dependencies": [],
+  "initial_expanded": ["f:decide", "f:decide:session", "f:run", "a:sys", "a:pkg-core"]
+}

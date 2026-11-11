@@ -8,9 +8,7 @@ view is the ledger snapshot at as_of. Missing data is listed, never zeroed.
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
 
-from ..config import RiskConfig
 from ..domain.base import new_id, utcnow
 from ..domain.context import ContextSnapshot, FeatureVector, PortfolioView
 from ..domain.evidence import Evidence
@@ -25,6 +23,7 @@ from .features import (
     bars_visible_at,
     compute_features,
     compute_minute_features,
+    latest_contiguous_1m_segment,
     minute_bars_visible_at,
 )
 
@@ -186,18 +185,37 @@ class ContextBuilder:
         missing: dict[str, str] = {}
 
         start = as_of - dt_mod.timedelta(days=2)
-        bars, _report = self.router.get_minute_bars(
-            instrument_id, start, as_of, period=period,
-            as_of=as_of, quote_max_age_seconds=max_stale_seconds)
-        if getattr(_report, 'limit_violations', None):
+
+        def _valuation_bars(iid):
+            """B02 unified valuation entry: one 'quality-passed + visible +
+            fresh' gate for every minute-quote valuation, main symbol and
+            other holdings alike. Returns (visible, reject) where reject is
+            None when all three gates pass, else 'quality' | 'no_visible' |
+            'stale' — a quality-rejected window can no longer leak its close
+            into equity. Callers translate a rejection into their own failure
+            semantics (main symbol: round-level reject; other holdings:
+            valuation_incomplete)."""
+            bars, report = self.router.get_minute_bars(
+                iid, start, as_of, period=period,
+                as_of=as_of, quote_max_age_seconds=max_stale_seconds)
+            if getattr(report, 'limit_violations', None):
+                return [], 'quality'
+            vis = minute_bars_visible_at(bars, as_of)
+            if not vis:
+                return vis, 'no_visible'
+            if (as_of - vis[-1].bar_time).total_seconds() > max_stale_seconds:
+                return vis, 'stale'
+            return vis, None
+
+        visible, reject = _valuation_bars(instrument_id)
+        if reject == 'quality':
             raise DataUnavailable('minute OHLC quality validation failed')
-        visible = minute_bars_visible_at(bars, as_of)
         values, fmiss, regime = compute_minute_features(visible)
         missing.update(fmiss)
 
         if visible:
             age_seconds = (as_of - visible[-1].bar_time).total_seconds()
-            if age_seconds > max_stale_seconds:
+            if reject == 'stale':
                 missing["freshness"] = f"latest bar is stale by {age_seconds:.0f}s > {max_stale_seconds}s"
             for b in visible[-1:]:
                 ev = self._evidence_from_minute_bar(b)
@@ -207,25 +225,33 @@ class ContextBuilder:
 
         portfolio_view = None
         valuation_incomplete: list[str] = []
+        valuation_prices = {}
         if self.ledger is not None:
             prices = {instrument_id: visible[-1].close} if visible else {}
+            if visible:
+                valuation_prices[instrument_id] = {
+                    'price':str(visible[-1].close), 'price_time':visible[-1].bar_time.isoformat(),
+                    'price_source':visible[-1].provider}
             for pos in self.ledger.snapshot(as_of).positions:
                 if pos.instrument_id in prices:
                     continue
                 try:
-                    other, _ = self.router.get_minute_bars(
-                        pos.instrument_id, start, as_of, period=period,
-                        as_of=as_of, quote_max_age_seconds=max_stale_seconds)
-                    visible_other = minute_bars_visible_at(other, as_of)
-                    if not visible_other or (as_of - visible_other[-1].bar_time).total_seconds() > max_stale_seconds:
+                    visible_other, reject = _valuation_bars(pos.instrument_id)
+                    if reject is not None:
                         raise DataUnavailable(f"missing visible valuation for {pos.instrument_id}")
                     prices[pos.instrument_id] = visible_other[-1].close
+                    valuation_prices[pos.instrument_id] = {
+                        'price':str(visible_other[-1].close),
+                        'price_time':visible_other[-1].bar_time.isoformat(),
+                        'price_source':visible_other[-1].provider}
                 except (DataUnavailable, NotFresh, ProviderError):
-                    # One holding's stale quote must not block this symbol's
-                    # decision (ISSUE-20261013-05). The ledger falls back to avg
-                    # cost for that mark, and Pipeline records the position in
-                    # valuation_failures so the Guard refuses new risk while the
-                    # account valuation is incomplete.
+                    # One holding's stale or empty quote must not block this
+                    # symbol's decision (ISSUE-20261013-05), and a quality-
+                    # rejected window lands here too (B02): the ledger falls
+                    # back to avg cost for that mark instead of adopting the
+                    # rejected close, and Pipeline records the position in
+                    # valuation_failures so the Guard refuses new risk while
+                    # the account valuation is incomplete.
                     valuation_incomplete.append(pos.instrument_id)
             snap = self.ledger.snapshot(as_of, prices)
             portfolio_view = PortfolioView(
@@ -281,5 +307,17 @@ class ContextBuilder:
             "regime": regime,
             "valuation_incomplete": valuation_incomplete,
         }
+        # True contiguous-1m count over the full visible set. Kept out of the
+        # truncated minute_bars sample so diagnostics never fabricate counts
+        # from the last-10 view; absent entirely when there is no 1m data
+        # (consumers must treat a missing key as unknown).
+        if period == "1m" and visible:
+            snap.aux["data_window"] = {
+                "continuous_1m_bars": len(latest_contiguous_1m_segment(visible)),
+                "required_for_ret_15m": 16,
+                "required_for_atr_14": 15,
+            }
+        if self.ledger is not None and self.ledger.account_id == 'paper-t0-local-1k':
+            snap.aux['valuation_prices'] = valuation_prices
         snap.content_hash = snap.compute_hash()
         return snap

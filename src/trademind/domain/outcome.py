@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import field_validator, model_validator
 
-from .base import DecimalStr, MsgBase, require_tz, utcnow, new_id
+from .base import DecimalStr, MsgBase, require_tz
 
 
 class Outcome(MsgBase):

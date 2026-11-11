@@ -12,8 +12,8 @@ from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 
-from .base import DecimalStr, MsgBase, require_tz, utcnow, new_id
-from .enums import OrderSide, OrderStatus, OrderType, RunMode, TradeAction
+from .base import DecimalStr, MsgBase, require_tz, utcnow
+from .enums import OrderSide, OrderStatus, OrderType, RunMode
 
 
 class Order(MsgBase):

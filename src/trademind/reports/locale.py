@@ -20,6 +20,34 @@ INTRADAY_HEALTH_STATUS = (
     '持仓风险处理',
     '需要人工核对',
 )
+# Additive pre-decision blocker buckets (Issue30-01); they refine the two
+# coarse tiers 行情不足/有效策略观望 without changing the seven health_status
+# values or their priority order.
+BLOCKER_CLASS_TEXT = {
+    'data_reject': '行情数据拒绝',
+    'async_pending': '异步模型结果待消费',
+    'global_cooldown': '全局模型冷却',
+    'strategy_wait': '策略观望',
+    'unknown': '未知原因',
+}
+PRE_DECISION_BUCKETS = {
+    'data_reject': '行情数据拒绝轮次',
+    'model_pending': '异步模型等待轮次',
+    # Review R1: audit rows with a missing/blank account_id or an unparseable
+    # payload are never folded into the current account's denominators.
+    'unknown_account:data_reject': '无法归属账户的行情数据拒绝轮次',
+    'unknown_account:model_pending': '无法归属账户的异步等待轮次',
+}
+# Additive no-actionable exclusion classes (t279u item A); slugs match
+# fast_state.action_gate and never replace the protocol reasons.
+EXCLUSION_CLASSES = {
+    'plan_disallowed': '计划未允许',
+    'conditions_unmet': '条件未满足',
+    'pending_order': '存在未成交订单',
+    'cash_reserve': '现金储备不足',
+    'no_position_or_qty': '无持仓或可卖数量',
+    'unknown': '未知',
+}
 FAILURE_CATEGORIES = {
     'none': '无失败',
     'conservative_wait': '策略保守观望',
@@ -46,6 +74,7 @@ FAILURE_CATEGORIES = {
     'unknown': '未知原因',
 }
 REASONS = {
+    'paper new-entry observation only':'当前仅观察：最小手可达性或挂单条件未满足，详见诊断',
     'no actionable strategy conditions':'当前策略未满足可执行条件',
     'global model evaluation cooldown':'模型判断处于全局冷却期',
     'minimum lawful lot unaffordable':'可用资金不足以买入最小合法单位',
@@ -83,6 +112,26 @@ REASONS = {
     'rate limited (429)':'模型接口触发限流（HTTP 429）',
     'model request HTTP failure':'模型HTTP请求连接失败',
     'model request timeout':'模型请求超时',
+    # T0 minute-data gate subtypes (Issue30-01 observability). The merged
+    # 'missing or stale visible minute context' stays mapped for historical
+    # audit rows; current rounds raise the two distinct subtypes (review R2).
+    'missing or stale visible minute context':'可见分钟行情缺失或超过新鲜度门禁',
+    'missing visible minute bars':'as_of 时点缺少可见分钟K线',
+    'stale visible minute context':'可见分钟行情超过新鲜度门禁',
+    'minute reference quote quality validation failed':'分钟参考报价质量校验未通过',
+    # Closed NotFresh whitelist constants (review R2 round 3): the public
+    # reason strings no longer embed instrument ids or wrapped errors, so
+    # each constant gets a fixed Chinese label.
+    'no fresh visible minute quote':'as_of 时点无可见的新鲜分钟报价',
+    'trading calendar coverage insufficient':'交易日历覆盖不足，无法确认参考价格',
+    'no reference price':'无可用参考价格',
+    'context as_of is in the future':'决策时点晚于当前时钟',
+    'account contains future events; historical decisions require a fresh ReplayRunner':'账户存在晚于决策时点的事件；历史决策需要全新的 ReplayRunner',
+    'unknown':'未知子因（未分类原因，原文不入报告）',
+    'incomplete minute features':'分钟特征不完整（连续1分钟K线根数不足）',
+    'async model result expired or account changed':'异步模型结果已过期或账户状态已变化',
+    'async strategy conditions changed before execution':'异步结果执行前策略条件已变化',
+    'model worker pending':'模型工作线程有待消费结果',
 }
 
 
@@ -100,6 +149,18 @@ def explanation(text, translations=None):
         return REASONS[text]
     if text.startswith('model request HTTP ') and text[19:].isdigit():
         return f"模型HTTP请求返回状态码 {text[19:]}"
+    # Dynamic minute-data gate subtypes carry instrument names or numbers;
+    # translate the stable prefixes instead of dropping them into the
+    # untranslated fallback.
+    if text.startswith('no fresh visible minute quote for '):
+        return f"{text[len('no fresh visible minute quote for '):]} 无可见的最新鲜分钟报价"
+    if text.startswith('latest bar is stale by '):
+        return f"最新分钟K线已超龄：{text[len('latest bar is stale by '):]}"
+    if text == 'no visible minute bars at as_of':
+        return 'as_of 时点没有任何可见分钟K线'
+    m=re.match(r'^needs (\d+) contiguous 1m bars, have (\d+)$',text)
+    if m:
+        return f"需要连续1分钟K线 {m.group(1)} 根，实际只有 {m.group(2)} 根"
     digest=hashlib.sha256(text.encode('utf-8')).hexdigest()
     if translations and digest in translations:
         return translations[digest]

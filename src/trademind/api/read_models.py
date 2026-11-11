@@ -28,6 +28,18 @@ ENVELOPE_SCHEMA_VERSION = 1
 
 # 账本已知事件类型（与 reports/daily.py 口径一致）；未知类型不猜测含义。
 _KNOWN_EVENT_KINDS = {'deposit', 'withdraw', 'reserve', 'release', 'fill_buy', 'fill_sell', 'rollover', 'fee'}
+# 工作台运行页只转发这些盘中健康字段。键名与 read_intraday_health 的返回一致；
+# 进度文件里没有 blockers / budget_meta，不能再按那两个旧名字去读。
+_INTRADAY_VIEW_KEYS = (
+    'date', 'health_status', 'status_message_zh',
+    'open_positions_count', 'open_orders_count',
+    'last_decision_reason', 'last_decision_reason_zh',
+    'last_blocker_class', 'last_blocker_class_zh',
+    'last_instrument_id',
+    'last_data_age_seconds', 'last_age_threshold_seconds',
+    'last_missing_fields', 'last_continuous_1m_bars',
+    'last_action_gate',
+)
 
 
 def _iso(at: datetime) -> str:
@@ -540,6 +552,25 @@ class WorkbenchReadStore:
         except (ValueError, TypeError, OSError):
             return False
 
+    def _intraday_view(self, now: datetime) -> dict[str, Any] | None:
+        """Same health object the daily report reads, reduced to display fields.
+
+        The progress file is an input to ``read_intraday_health``, not a second
+        schema. A locked or unreadable database falls back to the keys that
+        file actually stores, and still omits names it never had.
+        """
+        if not self.db_path.exists() and not self._intraday_file.exists():
+            return None
+        from ..execution.paper_run import read_intraday_health
+        try:
+            full = read_intraday_health(self.db_path, self.account_id, now=now)
+        except (OSError, sqlite3.Error, ValueError, TypeError):
+            got = self._read_json(self._intraday_file)
+            if not got or not isinstance(got[0], dict) or got[0].get('account_id') != self.account_id:
+                return None
+            full = got[0]
+        return {k: full.get(k) for k in _INTRADAY_VIEW_KEYS}
+
     def runtime(self, now: datetime | None = None) -> dict[str, Any]:
         """只读运行状态；controls_available 恒为 False（观察服务不做控制）。"""
         now = now or datetime.now(timezone.utc)
@@ -556,13 +587,8 @@ class WorkbenchReadStore:
             if not supervisor['active']: missing.append('监督进程心跳过期或进程不存在')
         else:
             missing.append('自动监督状态文件不存在（自动模拟未运行）')
-        intraday = None
-        got = self._read_json(self._intraday_file)
-        if got and isinstance(got[0], dict) and got[0].get('account_id') == self.account_id:
-            intraday = {k: got[0].get(k) for k in
-                        ('date', 'health_status', 'blockers', 'open_positions_count',
-                         'open_orders_count', 'budget_meta')}
-        else:
+        intraday = self._intraday_view(now)
+        if intraday is None:
             missing.append('今日盘中健康文件不存在或不属于当前账户')
         observer = None
         observer_file = self.db_path.parent / 'observer-state.json'

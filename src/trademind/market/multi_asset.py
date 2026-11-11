@@ -15,7 +15,6 @@ import json
 import re
 import time
 
-from ..config import MarketAccessConfig
 from .profiles import _get_etf_map
 
 MARKETS = ('etf', 'lof', 'convertible_bond', 'hk_stock', 'futures')

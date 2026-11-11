@@ -9,16 +9,18 @@ from trademind.execution.multi_asset_paper import MultiAssetLedger, MultiAssetPa
 from trademind.market.rules import get_rule
 
 NOW = datetime.now(timezone.utc)
+_SEQ = [0]
 
 
 def make_order(instrument_id: str, side: OrderSide, qty: str, price: str, account_id: str = "paper-001") -> Order:
+    _SEQ[0] += 1
     return Order(
         id="test-order",
         trace_id="test-trace",
         created_at=NOW,
         updated_at=NOW,
-        order_id=f"o-{instrument_id}-{side.value}",
-        client_order_id=f"cli-{instrument_id}-{side.value}",
+        order_id=f"o-{instrument_id}-{side.value}-{_SEQ[0]}",
+        client_order_id=f"cli-{instrument_id}-{side.value}-{_SEQ[0]}",
         intent_id="intent-1",
         guard_id="guard-1",
         account_id=account_id,
@@ -39,7 +41,7 @@ def test_convertible_bond_t0_roundtrip_conservation():
 
     # 1. Buy 20 sheets at 120.0 (20 is multiple of 10)
     order_buy = make_order("110001.SH", OrderSide.BUY, "20", "120.0", "paper-cb")
-    fill_buy = broker.execute_order(order_buy, Decimal("120.0"), ledger)
+    fill_buy = broker.execute_order(order_buy, Decimal("120.0"), ledger, allow_offline_experiment=True)
     assert fill_buy is not None
     assert order_buy.status == OrderStatus.FILLED
     # Notional: 20 * 120 = 2400. Fee: max(2400*0.0001, 1.0) = 1.0
@@ -49,14 +51,14 @@ def test_convertible_bond_t0_roundtrip_conservation():
 
     # 2. Same-day Partial Sell 10 sheets at 125.0
     order_sell_1 = make_order("110001.SH", OrderSide.SELL, "10", "125.0", "paper-cb")
-    fill_sell_1 = broker.execute_order(order_sell_1, Decimal("125.0"), ledger)
+    fill_sell_1 = broker.execute_order(order_sell_1, Decimal("125.0"), ledger, allow_offline_experiment=True)
     assert fill_sell_1 is not None
     assert ledger.positions["110001.SH"].quantity == Decimal("10")
     assert ledger.positions["110001.SH"].available == Decimal("10")
 
     # 3. Same-day Final Sell remaining 10 sheets at 130.0 (Clear position)
     order_sell_2 = make_order("110001.SH", OrderSide.SELL, "10", "130.0", "paper-cb")
-    fill_sell_2 = broker.execute_order(order_sell_2, Decimal("130.0"), ledger)
+    fill_sell_2 = broker.execute_order(order_sell_2, Decimal("130.0"), ledger, allow_offline_experiment=True)
     assert fill_sell_2 is not None
     assert "110001.SH" not in ledger.positions
 
@@ -73,7 +75,7 @@ def test_convertible_bond_lot_size_violation_rejected():
     # 15 sheets is not multiple of lot size 10
     order_invalid = make_order("110001.SH", OrderSide.BUY, "15", "120.0", "paper-cb")
     with pytest.raises(ValueError, match="multiple of lot size 10"):
-        broker.execute_order(order_invalid, Decimal("120.0"), ledger)
+        broker.execute_order(order_invalid, Decimal("120.0"), ledger, allow_offline_experiment=True)
 
 
 def test_convertible_bond_early_redemption_or_suspension_blocked():
@@ -81,7 +83,7 @@ def test_convertible_bond_early_redemption_or_suspension_blocked():
     ledger = MultiAssetLedger(account_id="paper-cb", cash_cny=Decimal("5000"))
     # 128017.SZ is flagged is_called_early=True
     order = make_order("128017.SZ", OrderSide.BUY, "10", "150.0", "paper-cb")
-    fill = broker.execute_order(order, Decimal("150.0"), ledger)
+    fill = broker.execute_order(order, Decimal("150.0"), ledger, allow_offline_experiment=True)
     assert fill is None  # Blocked from execution
 
 
@@ -94,13 +96,13 @@ def test_lof_t0_execution_and_conservation():
 
     # 162411.SZ is QDII T+0 LOF
     order_buy = make_order("162411.SZ", OrderSide.BUY, "200", "0.80", "paper-lof")
-    fill_buy = broker.execute_order(order_buy, Decimal("0.80"), ledger)
+    fill_buy = broker.execute_order(order_buy, Decimal("0.80"), ledger, allow_offline_experiment=True)
     assert fill_buy is not None
     assert ledger.positions["162411.SZ"].available == Decimal("200")  # T+0
 
     # Same-day full sell
     order_sell = make_order("162411.SZ", OrderSide.SELL, "200", "0.85", "paper-lof")
-    fill_sell = broker.execute_order(order_sell, Decimal("0.85"), ledger)
+    fill_sell = broker.execute_order(order_sell, Decimal("0.85"), ledger, allow_offline_experiment=True)
     assert fill_sell is not None
     assert "162411.SZ" not in ledger.positions
 
@@ -115,7 +117,7 @@ def test_lof_t1_domestic_same_day_sell_rejected():
 
     # 161725.SZ is domestic equity T+1 LOF
     order_buy = make_order("161725.SZ", OrderSide.BUY, "100", "1.20", "paper-lof")
-    fill_buy = broker.execute_order(order_buy, Decimal("1.20"), ledger)
+    fill_buy = broker.execute_order(order_buy, Decimal("1.20"), ledger, allow_offline_experiment=True)
     assert fill_buy is not None
     assert ledger.positions["161725.SZ"].quantity == Decimal("100")
     assert ledger.positions["161725.SZ"].available == Decimal("0")  # T+1 not available today
@@ -123,7 +125,7 @@ def test_lof_t1_domestic_same_day_sell_rejected():
     # Attempt same-day sell must raise InsufficientFunds
     order_sell = make_order("161725.SZ", OrderSide.SELL, "100", "1.25", "paper-lof")
     with pytest.raises(InsufficientFunds, match="exceeds available 0"):
-        broker.execute_order(order_sell, Decimal("1.25"), ledger)
+        broker.execute_order(order_sell, Decimal("1.25"), ledger, allow_offline_experiment=True)
 
 
 # --- 3. Hong Kong Stocks Execution (TASK-20261008-08) ---
@@ -137,7 +139,7 @@ def test_hk_stock_isolated_hkd_ledger_and_roundtrip():
 
     # Buy 100 shares 00700.HK at 400.0 HKD
     order_buy = make_order("00700.HK", OrderSide.BUY, "100", "400.0", "paper-hk")
-    fill_buy = broker.execute_order(order_buy, Decimal("400.0"), ledger)
+    fill_buy = broker.execute_order(order_buy, Decimal("400.0"), ledger, allow_offline_experiment=True)
     assert fill_buy is not None
     # CNY must be completely untouched
     assert ledger.cash_cny == initial_cny
@@ -148,7 +150,7 @@ def test_hk_stock_isolated_hkd_ledger_and_roundtrip():
 
     # Sell 100 shares at 410.0 HKD
     order_sell = make_order("00700.HK", OrderSide.SELL, "100", "410.0", "paper-hk")
-    fill_sell = broker.execute_order(order_sell, Decimal("410.0"), ledger)
+    fill_sell = broker.execute_order(order_sell, Decimal("410.0"), ledger, allow_offline_experiment=True)
     assert fill_sell is not None
     assert "00700.HK" not in ledger.positions
 
@@ -164,7 +166,7 @@ def test_hk_stock_zero_hkd_cash_cannot_spend_cny():
     ledger = MultiAssetLedger(account_id="paper-hk", cash_cny=Decimal("50000"), cash_hkd=Decimal("0"))
     order_buy = make_order("00700.HK", OrderSide.BUY, "100", "400.0", "paper-hk")
     with pytest.raises(InsufficientFunds, match="exceeds available 0 HKD"):
-        broker.execute_order(order_buy, Decimal("400.0"), ledger)
+        broker.execute_order(order_buy, Decimal("400.0"), ledger, allow_offline_experiment=True)
 
 
 # --- 4. Futures Margin Execution (TASK-20261008-08) ---
@@ -177,7 +179,7 @@ def test_futures_margin_open_close_and_pnl_conservation():
     # Buy 1 lot RB2610.SHFE at 3500.0
     # Multiplier: 10, Margin rate: 0.10. Notional = 35000. Margin = 3500.0
     order_buy = make_order("RB2610.SHFE", OrderSide.BUY, "1", "3500.0", "paper-fut")
-    fill_buy = broker.execute_order(order_buy, Decimal("3500.0"), ledger)
+    fill_buy = broker.execute_order(order_buy, Decimal("3500.0"), ledger, allow_offline_experiment=True)
     assert fill_buy is not None
 
     lot = ledger.positions["RB2610.SHFE"]
@@ -188,7 +190,7 @@ def test_futures_margin_open_close_and_pnl_conservation():
 
     # Sell 1 lot to close at 3600.0 (Profit: (3600 - 3500) * 1 * 10 = +1000.0)
     order_sell = make_order("RB2610.SHFE", OrderSide.SELL, "1", "3600.0", "paper-fut")
-    fill_sell = broker.execute_order(order_sell, Decimal("3600.0"), ledger)
+    fill_sell = broker.execute_order(order_sell, Decimal("3600.0"), ledger, allow_offline_experiment=True)
     assert fill_sell is not None
 
     # Position closed

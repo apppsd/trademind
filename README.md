@@ -2,7 +2,7 @@
 
 股票扩展已建立观察与离线决策组件，运行接线和真实验收仍在推进。见 [当前边界](docs/project/current-status.md)、[股票任务](docs/tasks/index.md) 与 [只读扫描操作](docs/project/operations.md#股票广域观察与验证)。
 
-本地自动模拟监控（当前默认，无Docker）：`scripts/run_local.py start/status/stop`，Windows 本地 venv 直跑，账户 `paper-t0-local-1k`（1000 CNY，独立库）。前置：`config/t0-local.local.toml`、根目录 `.env` 双模型 Key、shell 导出宿主代理（`HTTPS_PROXY` 必需）。盘中自动三ETF模拟循环，午休/休市等待，程序计算数量/硬风控/模拟执行；改代码后 `stop`→核对→`start`（可编辑安装即改即生效）。详见 [本地运行操作](docs/project/operations.md#local-windows-auto) 与 [TASK-20261022-01](docs/tasks/TASK-20261022-01-本地千元双模型自动模拟交易落地.md)。
+本机只开发、不承担当前运行；运行主机为 150（`D:/trademind` 上的 `scripts/run_local.py`，无 Docker）。账户 `paper-t0-local-1k`（当前 5000 元档，参数唯一入口见 [T0 需求](docs/requirements-t0-shadow.md)；独立库）。开发机也可用同一入口：`scripts/run_local.py start/status/stop`，Windows venv 直跑。前置：`config/t0-local.local.toml`（该文件在 150，本机通常仅有 example）、根目录 `.env` 双模型 Key、shell 导出宿主代理（`HTTPS_PROXY` 必需）。盘中自动三ETF模拟循环，午休/休市等待，程序计算数量/硬风控/模拟执行；改代码后 `stop`→核对→`start`（可编辑安装即改即生效），同步到 150 须另获用户授权。详见 [本地运行操作](docs/project/operations.md#local-windows-auto)、[当前状态](docs/project/current-status.md) 与 [TASK-20261022-01](docs/tasks/TASK-20261022-01-本地千元双模型自动模拟交易落地.md)。
 
 容器自动模拟监控（兼容入口）：auto容器按上海交易日历等待开市，盘中自动运行原三ETF模拟循环，午休/休市等待；原行情、模型、资金及预算门禁保留。使用 `.venv/Scripts/python.exe scripts/run_auto.py start` 启动、`status`查看、`stop`停止（Rancher运行且既有宿主代理可用）。自动模式与旧workbench不能同时启用；新代码由独立只读observer提供V2页面，当前运行切换状态见[当前状态](docs/project/current-status.md)。[自动运行说明](docs/project/operations.md#容器自动模拟监控)。
 
@@ -75,7 +75,7 @@ ETF、LOF、可转债、港股和境内期货已接入批量发现、按需分�
 ```bat
 python -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python -m pytest --ignore=tests\test_multi_asset.py   :: 481 项测试全部通过（2026-10-14 基线；multi_asset 因环境缺 pandas 排除）
+.venv\Scripts\python -m pytest --ignore=tests\test_multi_asset.py   :: 本地工作树在 [TASK-20261108-003](docs/tasks/TASK-20261108-003-行情有效性与估值质量快修.md) 记录为 910 passed（收集原文+EXIT）；2026-10-14 基线曾为 481；test_multi_asset.py 因环境缺 pandas 排除。该 910 计入未提交工程，不等于 origin/main 或 150 已加载版本。
 ```
 
 ## 配置密钥（真实能力仍须独立核验）
@@ -135,3 +135,7 @@ T0 模拟盘命令（统一显式配置）：
 ## 边界声明
 
 首版为 A 股主板普通股票的 paper/replay 模拟闭环，T0 阶段为经核验 ETF 的独立 paper 实验账户；均无 Live 执行通道。模拟默认参数见配置文件（实盘前必须人工复核）；未建立任何盈利证据。详见 [当前状态](docs/project/current-status.md)。
+
+## 本地统一驾驶舱（Ops Stream）
+
+在frontend目录运行 `npm ci`、`npm run dev -- --host 127.0.0.1 --port 5173 --strictPort`，打开 http://127.0.0.1:5173/#/ops-stream 。左trader / 右TradeMind；默认样例（显著SAMPLE、可关闭粒子）。本地observer/workbench服务在跑时右窗自动显示同源只读白名单快照（LIVE标签），失败/未配置按窗独立回退样例；左窗trader默认样例，需设置 `localStorage['ops-trader-base']` 后才尝试固定地址的只读端点。无模型/交易/研究调用、无轮询。视觉/性能实测仍待完成，见 [TASK-20261030-05](docs/tasks/TASK-20261030-05-流水线交互视觉原型与性能门禁.md)。Ctrl+C停止本地预览。

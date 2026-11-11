@@ -7,7 +7,8 @@
           <input v-model="day" type="date" :max="today" />
         </label>
         <button @click="downloadJson">下载 JSON</button>
-        <a :href="`/api/workbench/reports/${day}?fmt=md`" target="_blank" rel="noopener">查看 Markdown</a>
+        <span v-if="isCockpitSampleActive()" class="hint">SAMPLE · Markdown 外链已禁用（避免请求后台）</span>
+        <a v-else :href="`/api/workbench/reports/${day}?fmt=md`" target="_blank" rel="noopener">查看 Markdown</a>
         <span class="hint">只读取已有产物，不触发生成、不调用模型</span>
       </div>
     </div>
@@ -39,6 +40,7 @@
 import { computed, ref, watch } from 'vue'
 import DataStatusLine from '../components/DataStatusLine.vue'
 import ErrorState from '../components/ErrorState.vue'
+import { isCockpitSampleActive } from '../services/cockpitSampleGate'
 import { fetchReport } from '../services/workbenchApi'
 import { useResource } from '../composables/useResource'
 import { fmtDash, shanghaiToday, shanghaiTime } from '../utils/format'

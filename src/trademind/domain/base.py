@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, BeforeValidator,field_validator
+from pydantic import BaseModel, ConfigDict, BeforeValidator, field_validator
 
 from .. import SCHEMA_VERSION
 

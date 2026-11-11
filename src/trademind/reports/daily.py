@@ -2,8 +2,7 @@
 import json
 import re
 import sqlite3
-from copy import deepcopy
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from html import escape
 from pathlib import Path
@@ -11,7 +10,8 @@ from uuid import uuid4
 import os
 
 from ..market.base import BEIJING
-from .locale import ACTIONS, STATUS, ROLES, explanation, condition_text, time_text
+from .locale import (ACTIONS, STATUS, ROLES, PRE_DECISION_BUCKETS, BLOCKER_CLASS_TEXT,
+                     EXCLUSION_CLASSES, FIELDS, OPERATORS, explanation, condition_text, time_text)
 
 
 def decimal(value):
@@ -76,6 +76,7 @@ def read_snapshot(database, account, window=None):
                 r[1] for r in conn.execute('PRAGMA table_info(intents)')}:
             intent_w = ('', ())  # legacy v1 file never migrated: read unbounded
         plan_w = bounds('available_at', 2, 2)
+        audit_w = bounds('at', 2, 2)
         return {
             'events': rows('account_events', 'SELECT payload_json FROM account_events WHERE account_id=? ORDER BY seq', (account,)),
             'calls': rows('model_calls', 'SELECT payload_json FROM model_calls WHERE 1=1'+calls_w[0], calls_w[1]),
@@ -88,222 +89,63 @@ def read_snapshot(database, account, window=None):
             'cached': rows('coalesce_state', 'SELECT meta_json FROM coalesce_state WHERE substr(key,1,length(?))=?',
                            ('strategy-plan:'+account+':', 'strategy-plan:'+account+':')),
             'intents': rows('intents', 'SELECT payload_json FROM intents WHERE 1=1'+intent_w[0], intent_w[1]),
+            'audit': rows('control_audit', "SELECT actor,action,target,at,payload_json FROM control_audit WHERE actor='decision'"+audit_w[0], audit_w[1]),
             'account_count': conn.execute('SELECT count(*) FROM account_state').fetchone()[0] if 'account_state' in names else 0,
         }
     finally:
         conn.close()
 
 
-def generate_report(database, account, day=None, now=None):
-    from ..execution.paper_run import sanitize_evidence
-    now = (now or datetime.now(timezone.utc)).astimezone(BEIJING)
-    day = date.fromisoformat(day) if isinstance(day, str) else (day or now.date())
-    if day > now.date():
-        raise ValueError('future report date')
+def generate_report(database, account, day=None, now=None, t0_cfg=None):
+    import re
+    from .daily_sections import (
+        attach_plan_text, collect_decisions, collect_plans, decision_distribution,
+        model_cost, pre_decision_rounds, replay_book, report_clock, value_book,
+    )
+    now, day, start, stop = report_clock(day, now)
     if not re.fullmatch(r'[A-Za-z0-9_-][A-Za-z0-9_.-]{0,99}', account) or account in ('.', '..'):
         raise ValueError('unsafe account ID')
-    start = datetime.combine(day, datetime.min.time(), BEIJING)
-    stop = min(start + timedelta(days=1), now)
     data = read_snapshot(database, account, window=(start, stop))
     events = [json.loads(r['payload_json']) for r in data['events']]
-    events = [e for e in events if timestamp(e['effective_at']) <= stop and
-              (day == now.date() or timestamp(e['effective_at']) < stop)]
-    warnings = []
-    if not events:
-        warnings.append('缺少账户事件历史，不能确认期初及盈亏。')
-    supported = {'deposit', 'withdraw', 'reserve', 'release', 'fill_buy', 'fill_sell', 'rollover', 'fee'}
-    if any(e['kind'] not in supported or e.get('currency', 'CNY') != 'CNY' for e in events):
-        raise ValueError('unsupported account event or currency')
-    opening = {'cash': Decimal(0), 'reserved': Decimal(0), 'positions': {}}
-    state = deepcopy(opening)
-    initial_id = None
-    if events and not any(timestamp(e['effective_at']) < start for e in events) and events[0]['kind'] == 'deposit':
-        initial_id = events[0]['seq']
-    funding = realized = fees = Decimal(0)
-    trades = []
-    for event in events:
-        at = timestamp(event['effective_at'])
-        today = at >= start
-        kind = event['kind']
-        amount = decimal(event.get('amount') or 0)
-        if kind == 'deposit':
-            state['cash'] += amount
-            if today and event['seq'] != initial_id:
-                funding += amount
-        elif kind == 'withdraw':
-            state['cash'] -= amount
-            if today:
-                funding -= amount
-        elif kind == 'reserve':
-            state['reserved'] += amount
-        elif kind == 'release':
-            state['reserved'] -= amount
-        elif kind == 'fee':
-            state['cash'] -= amount
-            if today:
-                realized -= amount
-                fees += amount
-        elif kind in ('fill_buy', 'fill_sell'):
-            parts = dict(p.split('=', 1) for p in event.get('note', '').split(';') if '=' in p)
-            price, fee, qty = decimal(parts['price']), decimal(parts['fee']), decimal(event['quantity'])
-            iid = event['instrument_id']
-            lot = state['positions'].setdefault(iid, {'quantity': Decimal(0), 'avg_cost': Decimal(0)})
-            if kind == 'fill_buy':
-                state['cash'] -= price*qty + fee
-                basis = lot['avg_cost']*lot['quantity'] + price*qty + fee
-                lot['quantity'] += qty
-                lot['avg_cost'] = (basis/lot['quantity']).quantize(Decimal('0.0001'))
-            else:
-                if qty > lot['quantity']:
-                    raise ValueError('sell exceeds reconstructed position')
-                profit = price*qty - fee - lot['avg_cost']*qty
-                state['cash'] += price*qty - fee
-                lot['quantity'] -= qty
-                if today:
-                    realized += profit
-                if not lot['quantity']:
-                    del state['positions'][iid]
-            if today:
-                fees += fee
-                trades.append({'time': at.isoformat(), 'instrument_id': iid,
-                               'side': 'BUY' if kind == 'fill_buy' else 'SELL',
-                               'price': str(price), 'quantity': str(qty), 'notional': str(price*qty),
-                               'fee': str(fee), 'cash_after_fill': str(state['cash']),
-                               'order_id': event.get('order_id')})
-        if at < start or event['seq'] == initial_id:
-            opening = deepcopy(state)
-
+    book = replay_book(events, start, stop, day, now)
+    warnings = book['warnings']
     contexts = [json.loads(r['payload_json']) for r in data['contexts']]
-    def valuation(snapshot, boundary, opening_mark=False):
-        marks, positions = {}, []
-        reference = min(boundary, boundary.replace(hour=15, minute=0, second=0, microsecond=0))
-        for context in contexts:
-            as_of = timestamp(context['as_of'])
-            if as_of > boundary or (opening_mark and as_of >= boundary):
-                continue
-            iid = context['instrument_id']
-            for bar in context.get('aux', {}).get('minute_bars', []):
-                bt = timestamp(bar['time'])
-                visible = timestamp(bar.get('available_at', context['as_of']))
-                if bt > boundary or visible > boundary:
-                    continue
-                if iid not in marks or bt > marks[iid][0]:
-                    marks[iid] = (bt, decimal(bar['close']))
-        value = Decimal(0)
-        complete = True
-        for iid, lot in snapshot['positions'].items():
-            mark = marks.get(iid)
-            # Opening holdings require a verified prior-close snapshot: do not
-            # silently substitute cost or an arbitrary older minute.
-            usable = bool(mark and not opening_mark and mark[0].date() == day
-                          and 0 <= (reference-mark[0]).total_seconds() <= 180)
-            if not usable:
-                complete = False
-            market_value = lot['quantity']*mark[1] if usable else None
-            if market_value is not None:
-                value += market_value
-            positions.append({'instrument_id': iid, 'quantity': str(lot['quantity']),
-                              'avg_cost': str(lot['avg_cost']),
-                              'last_price': str(mark[1]) if usable else None,
-                              'price_time': mark[0].isoformat() if mark else None,
-                              'market_value': str(market_value) if market_value is not None else None,
-                              'unrealized_pnl': str(market_value-lot['avg_cost']*lot['quantity']) if usable else None})
-        return {'cash': str(snapshot['cash']), 'reserved_cash': str(snapshot['reserved']),
-                'available_cash': str(snapshot['cash']-snapshot['reserved']), 'positions': positions,
-                'equity': str(snapshot['cash']+value) if complete and events else None,
-                'valuation_complete': complete and bool(events)}
-    beginning = valuation(opening, start, True)
-    ending = valuation(state, stop)
+    beginning = value_book(book['opening'], start, contexts, day, book['events'], True)
+    ending = value_book(book['state'], stop, contexts, day, book['events'])
     if not beginning['valuation_complete'] or not ending['valuation_complete']:
         warnings.append('缺少期初持仓估值或新鲜期末行情；总资产/当日总盈亏未确认，不能用成本价替代。')
-    profit = decimal(ending['equity'])-decimal(beginning['equity'])-funding if beginning['equity'] is not None and ending['equity'] is not None else None
-
-    calls = [json.loads(r['payload_json']) for r in data['calls']]
-    calls = [c for c in calls if start <= timestamp(c['created_at']) <= stop and
-             (day == now.date() or timestamp(c['created_at']) < stop)]
-    budget = next((json.loads(r['meta_json']) for r in data['budgets']
-                   if json.loads(r['meta_json']).get('day') == day.isoformat()), None)
-    known = sum((decimal(c['cost_amount']) for c in calls if c.get('cost_amount') is not None and c.get('cost_currency') == 'CNY'), Decimal(0))
-    missing = sum(c.get('cost_amount') is None or c.get('cost_currency') != 'CNY' for c in calls)
-    scoped = data['account_count'] == 1
-    settled = decimal(budget.get('cost_settled_cny', 0)) if budget else (known if scoped else None)
-    pending = decimal(budget.get('cost_pending_cny', 0)) if budget else (Decimal(0) if scoped and not missing else None)
-    def _reserved_attempts(c):
-        if c.get('failure_category') == 'budget_exhausted':
-            return 0
-        if c.get('cost_amount') is None and c.get('status') == 'error' and any(
-            k in str(c.get('error') or '') for k in ('budget', 'pricing', 'closing')
-        ):
-            return 0
-        raw_att = c.get('attempts')
-        return int(raw_att) if isinstance(raw_att, int) else 1
-
-    audit_attempts = sum(_reserved_attempts(c) for c in calls)
-    used = budget.get('used') if budget else (audit_attempts if scoped else None)
-    if budget and scoped:
-        if used != audit_attempts:
-            warnings.append('预算请求次数与调用审计尝试总数不一致，费用以账户日预算为主。')
-        elif used != len(calls):
-            warnings.append(f'预算请求数（{used}）按HTTP计费请求累计，审计行数（{len(calls)}）按逻辑调用留档（含JSON修复重试，审计尝试总数 {audit_attempts}）。')
-    if not scoped:
-        warnings.append('数据库包含多个账户；旧调用表无account_id，逐模型明细只能作为数据库级参考。')
-    model = {'currency': 'CNY', 'semantics': 'configured_estimates_not_provider_invoice',
-             'count_semantics': 'requested_count=http_budget_requests;audit_rows=logical_calls;audit_attempts=sum_of_call_attempts',
-             'source': 'account_daily_budget' if budget else 'single_account_call_records' if scoped else 'unattributed',
-             'settled_estimate': str(settled) if settled is not None else None,
-             'pending_reservation': str(pending) if pending is not None else None,
-             'requested_count': used, 'audit_rows': len(calls), 'audit_attempts': audit_attempts,
-             'audit_scope': 'account' if scoped else 'database_unattributed',
-             'calls': [{k: sanitize_evidence(c.get(k), 200) if isinstance(c.get(k), str) else c.get(k) for k in ('created_at', 'role', 'provider', 'model', 'status',
-                                             'attempts', 'failure_category', 'input_tokens', 'output_tokens', 'latency_ms', 'cost_amount', 'cost_currency')}
-                       for c in calls], 'audit_unknown_cost_rows': missing}
-    net = profit-settled if profit is not None and settled is not None else None
+    profit = (decimal(ending['equity']) - decimal(beginning['equity']) - book['funding']
+              if beginning['equity'] is not None and ending['equity'] is not None else None)
+    model, settled, pending, scoped = model_cost(data, data['calls'], start, stop, day, now, warnings)
+    net = profit - settled if profit is not None and settled is not None else None
     if pending is None or pending > 0:
         warnings.append('模型费用仍有未知预留，扣模型费后的净盈亏仅为暂估。')
-    plans = [json.loads(r['payload_json']) for r in data['plans']]
-    history_ids = {p['plan_id'] for p in plans}
-    for row in data['cached']:
-        plan = json.loads(row['meta_json']).get('plan')
-        if plan and plan.get('plan_id') not in history_ids:
-            plans.append(plan)
-    plans = [public_plan(p) for p in plans if start <= timestamp(p['available_at']) <= stop and
-             (day == now.date() or timestamp(p['available_at']) < stop)]
-    latest_intents = {}
-    by_context = {c['context_id']: c for c in contexts if 'context_id' in c}
-    for row in data['intents']:
-        intent = json.loads(row['payload_json'])
-        at = timestamp(intent['created_at'])
-        context = by_context.get(intent.get('context_id'), {})
-        if not scoped and context.get('portfolio', {}).get('account_id') != account:
-            continue
-        if start <= at <= stop and (day == now.date() or at < stop):
-            ident = intent['decision_id']
-            if ident not in latest_intents or intent.get('intent_version', 0) > latest_intents[ident].get('intent_version', 0):
-                latest_intents[ident] = intent
-    decisions = [{k: sanitize_evidence(i.get(k), 3000) if isinstance(i.get(k), str) else i.get(k)
-                  for k in ('decision_id', 'created_at', 'instrument_id', 'action', 'reason', 'prompt_id')}
-                 for i in latest_intents.values()]
+    plans = collect_plans(data, start, stop, day, now)
+    decisions, action_gate_coverage_note = collect_decisions(
+        data, contexts, account, start, stop, day, now, scoped)
     warnings.append('完整策略历史仅从新版接入后保留；旧缓存无法恢复被覆盖的计划。')
-    translation_path = Path(database).parent/'daily-reports'/'translations.zh.json'
-    try:
-        translations=json.loads(translation_path.read_text(encoding='utf-8'))
-    except (OSError,ValueError):
-        translations={}
-    for plan in plans:
-        plan['display_zh']={key:explanation(plan.get(key),translations) for key in ('trend','risk','critic','reason')}
+    attach_plan_text(plans, database)
     from ..execution.paper_run import read_intraday_health
-    intraday_health = read_intraday_health(database, account, now=stop, session_open=(day == now.date() and 9 <= stop.hour < 15))
+    # t0_cfg (review R3): without the effective config the window interval and
+    # remaining seconds stay unknown even when a claim row exists. Callers
+    # without a config (plain generate_report) keep the unknown=None behavior.
+    intraday_health = read_intraday_health(
+        database, account, now=stop, session_open=(day == now.date() and 9 <= stop.hour < 15), t0_cfg=t0_cfg)
     return {'schema_version': 1, 'account_id': account, 'date': day.isoformat(), 'timezone': 'Asia/Shanghai',
             'generated_at': now.isoformat(), 'as_of': stop.isoformat(),
             'period_status': 'intraday' if day == now.date() and now.hour < 15 else 'end_of_day_snapshot',
             'intraday_health': intraday_health,
-            'opening': beginning, 'ending': ending, 'net_external_cash_flow': str(funding),
-            'opening_includes_initial_deposit': initial_id is not None,
+            'opening': beginning, 'ending': ending, 'net_external_cash_flow': str(book['funding']),
+            'opening_includes_initial_deposit': book['initial_id'] is not None,
             'trading_pnl': str(profit) if profit is not None else None,
-            'realized_pnl': str(realized), 'trading_fees': str(fees),
+            'realized_pnl': str(book['realized']), 'trading_fees': str(book['fees']),
             'net_after_settled_model_estimate': str(net) if net is not None else None,
-            'net_after_model_reservation_bound': str(net-pending) if net is not None and pending is not None else None,
-            'model_cost': model, 'trades': trades, 'strategies': plans, 'decisions': decisions, 'warnings': warnings,
+            'net_after_model_reservation_bound': str(net - pending) if net is not None and pending is not None else None,
+            'model_cost': model, 'trades': book['trades'], 'strategies': plans, 'decisions': decisions,
+            'decision_distribution': decision_distribution(decisions, stop),
+            'pre_decision_rounds': pre_decision_rounds(data, account, start, stop, day, now),
+            'action_gate_coverage_note': action_gate_coverage_note,
+            'warnings': warnings,
             'scope': 'CNY_SQLite_paper_account_not_multiasset_inmemory_ledger'}
 
 
@@ -314,8 +156,26 @@ def render_markdown(report):
     ih = report.get('intraday_health') or {}
     lines = [f"# {report['date']} 模拟交易日报", '', f"账户：{value(report['account_id'])}（上海日期）",
              f"统计截至：{value(report['as_of'])}；{'盘中暂报' if report['period_status']=='intraday' else '日终快照'}",
-             f"盘中健康状态：{value(ih.get('health_status', '未评估'))}（{value(ih.get('status_message_zh', '无'))}）", '',
-             '| 项目 | 金额（元） |', '|---|---|']
+             f"盘中健康状态：{value(ih.get('health_status', '未评估'))}（{value(ih.get('status_message_zh', '无'))}）"]
+    # Additive round/window evidence (rereview R2/R3): the last round's
+    # blocker class and reason subtype, plus the persisted global-window
+    # claim facts. All read-only; absent values stay absent.
+    if ih.get('last_decision_reason'):
+        blocker_txt = BLOCKER_CLASS_TEXT.get(ih.get('last_blocker_class'), ih.get('last_blocker_class') or '未知')
+        lines.append(f"最近一轮：{value(blocker_txt)}——{value(explanation(ih.get('last_decision_reason')))}")
+    window_lines = []
+    if ih.get('fast_eval_seconds') is not None:
+        window_lines.append(f"评估窗口间隔：{value(ih['fast_eval_seconds'])} 秒（key：{value(ih.get('global_cooldown_key'))}，scope：{value(ih.get('global_cooldown_scope'))}）")
+    if ih.get('global_cooldown_last_claim_at'):
+        claim = ih.get('global_cooldown_claim') or {}
+        window_lines.append(f"最近认领：{value(time_text(ih['global_cooldown_last_claim_at']))}；角色：{value(ih.get('global_cooldown_claim_role') or '未知')}；"
+                            f"trace：{value(claim.get('trace_id') or '未知')}")
+        window_lines.append(f"下次可请求：{value(time_text(ih.get('global_cooldown_next_eligible_at')))}；剩余：{value(ih.get('global_cooldown_seconds_remaining'))} 秒")
+    if ih.get('last_model_path_claimed') is not None:
+        window_lines.append(f"最近一轮是否认领窗口：{'是' if ih['last_model_path_claimed'] else '否'}")
+    if window_lines:
+        lines += ['', '## 全局模型窗口（只读事实）', ''] + ['- '+l for l in window_lines]
+    lines += ['', '| 项目 | 金额（元） |', '|---|---|']
     rows = [('开始现金', begin['cash']), ('开始总资产', begin['equity']),
             ('交易后现金', end['cash']), ('冻结资金（已包含在现金中）', end['reserved_cash']),
             ('可用现金', end['available_cash']), ('交易后总资产', end['equity']),
@@ -350,6 +210,55 @@ def render_markdown(report):
     lines += ['| '+' | '.join(value(ACTIONS.get(d.get(k),'未确认') if k=='action' else explanation(d.get(k)) if k=='reason' else d.get(k)) for k in ('created_at','instrument_id','action','reason','prompt_id'))+' |' for d in report['decisions']]
     if not report['decisions']:
         lines += ['当天没有已留档的交易意图；预检拒绝或等待中的任务不一定产生意图记录。']
+    gated = [d for d in report['decisions'] if d.get('action_gate')]
+    if gated:
+        lines += ['', '## 无可行动条件逐条件证据（附加，仅限本版本后留档的意图）', '']
+        for d in gated:
+            gate = d['action_gate']
+            allowed_txt = '、'.join(ACTIONS.get(a, a) for a in gate.get('allowed_actions', []))
+            excl = gate.get('exclusion') or {}
+            excl_txt = '、'.join(a + '=' + EXCLUSION_CLASSES.get(c, c) for a, c in sorted(excl.items()))
+            lines += [f"### {value(d.get('created_at'))} {value(d.get('instrument_id'))}（{value(gate.get('plan_id'))}）",
+                      f"允许动作：{value(allowed_txt)}；排除：{value(excl_txt)}"]
+            for key, label in (('entry_conditions', '入场'), ('exit_conditions', '退出')):
+                rows = gate.get(key) or []
+                if not rows:
+                    lines += [f"- {label}条件：无"]
+                    continue
+                rows_txt = '；'.join(FIELDS.get(r['field'], '其他特征') + OPERATORS.get(r['operator'], '满足条件') + str(r['threshold'])
+                                    for r in rows)
+                lines += [f"- {label}条件：{value(rows_txt)}"]
+                lines += ['', '| 特征 | 判断 | 阈值 | 实际值 | 满足 | 缺失 |', '|---|---|---|---|---|---|']
+                lines += ['| '+' | '.join(value(
+                        FIELDS.get(r.get(k), r.get(k)) if k == 'field' else
+                        OPERATORS.get(r.get(k), r.get(k)) if k == 'operator' else
+                        ('是' if r.get(k) else '否') if k in ('matched', 'missing') else r.get(k))
+                    for k in ('field', 'operator', 'threshold', 'actual', 'matched', 'missing'))+' |' for r in rows]
+    if report.get('action_gate_coverage_note'):
+        lines += ['', '- '+value(report['action_gate_coverage_note'])]
+    dist = report.get('decision_distribution') or {}
+    lines += ['', '## 已留档决策原因分布', '']
+    if dist.get('denominator') is not None:
+        lines += [f"统计截至：{value(dist.get('cutoff'))}；分母：{value(dist.get('denominator'))} 条（去重规则：{value(dist.get('dedupe_rule'))}）；前置拒绝与异步等待轮次不在此分母内。"]
+        lines += ['', '| 动作 | 轮数 |', '|---|---|']
+        lines += [f"| {value(ACTIONS.get(k, k))} | {v} |" for k, v in sorted((dist.get('by_action') or {}).items())]
+        lines += ['', '| 原因 | 轮数 |', '|---|---|']
+        lines += [f"| {value(explanation(k))} | {v} |" for k, v in sorted((dist.get('by_reason') or {}).items())]
+    pre = report.get('pre_decision_rounds') or {}
+    lines += ['', '## 前置数据拒绝与异步等待轮次（独立分母，不计入已留档决策）', '']
+    lines += [f"来源：{value(pre.get('source'))}；统计截至：{value(pre.get('cutoff'))}"]
+    buckets = pre.get('buckets') or {}
+    if buckets:
+        lines += ['', '| 类别 | 轮数 | 最常见原因（次数） |', '|---|---|---|']
+        for slug in sorted(buckets):
+            bucket = buckets[slug] or {}
+            reasons = bucket.get('reasons') or {}
+            top = max(reasons.items(), key=lambda kv: kv[1]) if reasons else ('unknown', 0)
+            lines += [f"| {value(PRE_DECISION_BUCKETS.get(slug, slug))} | {value(bucket.get('count'))} | {value(explanation(top[0]))}（{value(top[1])}） |"]
+    else:
+        lines += ['当日没有已留档的前置拒绝或异步等待轮次。']
+    if pre.get('coverage_note'):
+        lines += [f"- {value(pre['coverage_note'])}"]
     lines += ['', '## 持仓', '', '| 标的 | 数量 | 成本 | 最新价 | 市值 | 浮动盈亏 |', '|---|---|---|---|---|---|']
     lines += ['| '+' | '.join(value(p.get(k)) for k in ('instrument_id','quantity','avg_cost','last_price','market_value','unrealized_pnl'))+' |' for p in end['positions']]
     lines += ['', '## 口径与未确认内容', ''] + ['- '+value(w) for w in report['warnings']]
@@ -401,7 +310,7 @@ def generate_for_config(cfg, day=None):
     if not cfg.storage.url.startswith('sqlite:///'):
         raise ValueError('SQLite report only')
     db = Path(cfg.storage.url.removeprefix('sqlite:///'))
-    report = generate_report(db, cfg.account_id, day)
+    report = generate_report(db, cfg.account_id, day, t0_cfg=cfg.t0)
     output = write_report(report, db.parent/'daily-reports')
     return report, output
 

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from datetime import timedelta
 from decimal import Decimal, getcontext
-from typing import Any
 
 from ..market.base import BEIJING, Bar, MinuteBar
 
@@ -103,9 +102,30 @@ def minute_bars_visible_at(bars: list[MinuteBar], as_of) -> list[MinuteBar]:
     )
 
 
+def latest_contiguous_1m_segment(bars: list[MinuteBar]) -> list[MinuteBar]:
+    """Latest uninterrupted same-day 1m segment.
+
+    Lunch, overnight and missing rows reset it — the same rule
+    ``compute_minute_features`` applies, exposed so diagnostics can report
+    the true contiguous bar count instead of a truncated sample count.
+    """
+    if not bars:
+        return []
+    day = bars[-1].bar_time.astimezone(BEIJING).date()
+    day_bars = [b for b in bars if b.bar_time.astimezone(BEIJING).date() == day]
+    if not day_bars or day_bars[-1].period != "1m":
+        return []
+    segment = [day_bars[-1]]
+    for b in reversed(day_bars[:-1]):
+        if b.period != "1m" or segment[0].bar_time - b.bar_time != timedelta(minutes=1):
+            break
+        segment.insert(0, b)
+    return segment
+
+
 def compute_minute_features(bars: list[MinuteBar]) -> tuple[dict[str, Decimal], dict[str, str], str]:
     """Calculate deterministic minute features and descriptive market regime.
-    
+
     Returns (values, missing_reasons, regime).
     Regime is descriptive only: 'TRENDING_UP', 'TRENDING_DOWN', 'RANGING', or 'UNKNOWN'.
     """
@@ -118,11 +138,7 @@ def compute_minute_features(bars: list[MinuteBar]) -> tuple[dict[str, Decimal], 
     # uninterrupted 1-minute segment. Lunch, overnight and missing rows reset it.
     day = bars[-1].bar_time.astimezone(BEIJING).date()
     day_bars = [b for b in bars if b.bar_time.astimezone(BEIJING).date() == day]
-    segment = [day_bars[-1]] if day_bars[-1].period == "1m" else []
-    for b in reversed(day_bars[:-1]):
-        if not segment or b.period != "1m" or segment[0].bar_time - b.bar_time != timedelta(minutes=1):
-            break
-        segment.insert(0, b)
+    segment = latest_contiguous_1m_segment(bars)
     closes = [b.close for b in segment]
     vols = [b.volume for b in segment]
     last = day_bars[-1].close

@@ -15,13 +15,13 @@ import re
 import threading
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 
 from ..domain.base import new_id, utcnow
 from ..domain.enums import ProviderKind
 from ..domain.modelcall import ModelCall
-from ..errors import CircuitOpen, ProviderError, ProviderRefused, ProviderTimeout
+from ..errors import CircuitOpen
 from ..storage import Repository
 
 

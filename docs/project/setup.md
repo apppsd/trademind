@@ -116,3 +116,11 @@ config/t0-paper.local.toml已创建，不含Key并被Git忽略；universe/whitel
 
 
 工作台V2返修环境与打包（2026-10-26）：主Python/Node依赖未升级。主venv没有pip/build，验证使用既有uv的离线缓存：`uv build --wheel --offline --out-dir data/runtime/task26-16-wheel`；独立临时venv安装wheel后在仓库外验证。wheel包含static/workbench与share/trademind/etf_whitelist.json；目录/规则支持源码与安装位置，规则本身不变。构建、安装冒烟和未验视觉边界见[返修报告](../research/20261026-workbench-repair-verification.md)。此前“仍有入口/契约缺陷”描述为修复前记录，当前代码已修复而运行未切换。
+
+## Wang桌面本次离线测试环境（2026-10-30）
+
+本次发现.venv/Scripts/python.exe指向已不存在的Python312，未修改原venv、依赖或项目Python要求。为Task30-02/03在忽略目录.pytest-tmp2/task30/python放置CPython3.12.13，PYTHONPATH=src;.venv/Lib/site-packages复用既有pytest/pydantic依赖；最终命令见两Task。下载仅用于本地测试解释器，无付费API/交易连接、无服务或配置变化。这是本机验证工具，不是150运行环境变更。
+
+## Ops Stream本地预览
+
+使用现有Node/npm依赖，在frontend执行 `npm ci` 后运行 `npm run dev -- --host 127.0.0.1 --port 5173 --strictPort`；打开 http://127.0.0.1:5173/#/ops-stream 。左trader / 右TradeMind。纯样例预览无需后端/凭据；若本地observer/workbench服务在跑，右窗自动尝试同源 `/api/workbench/*` 只读白名单GET（失败仍回退样例）；左窗默认样例，设置 `localStorage['ops-trader-base']='http://127.0.0.1:8080'` 后才尝试trader端点。无模型/交易/研究调用，无轮询。`npm run typecheck`、`npm test`、`npm run build`验证工程；build会重生成现有static/workbench目录，无部署。按Ctrl+C停止。当前设备/浏览器未验边界见[Task30-05](../tasks/TASK-20261030-05-流水线交互视觉原型与性能门禁.md)。

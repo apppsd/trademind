@@ -34,7 +34,7 @@
             </div>
           </div>
           <p class="source-note">实际值来自生成前最近留存快照：{{ fmtDash(shanghaiTime(str(plan.condition_as_of))) }}。阈值来自计划；无快照显示未知，不用最新行情回填过去。
-            <RouterLink to="/activity">查看决策、订单、成交与程序复核时间线</RouterLink>；JEV 置信度为回答置信度，非盈利概率。</p>
+            <RouterLink :to="tmLocation('activity')">查看决策、订单、成交与程序复核时间线</RouterLink>；JEV 置信度为回答置信度，非盈利概率。</p>
         </article>
       </template>
       <EmptyState v-else-if="!plansRes.firstLoad.value" title="暂无策略计划"
@@ -54,10 +54,13 @@ import type { InstrumentInfo } from '../types/instrument'
 import type { PlanRow } from '../types/workbench'
 import { fetchStrategies, fetchInstruments } from '../services/workbenchApi'
 import { useWorkbenchResource } from '../composables/useWorkbench'
+import { useCockpitNavigation } from '../composables/useCockpitNavigation'
 import DataStatusLine from '../components/DataStatusLine.vue'
 import EmptyState from '../components/EmptyState.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { fmtDash, shanghaiTime } from '../utils/format'
+
+const { tmLocation } = useCockpitNavigation()
 
 const plansRes = useWorkbenchResource((opts) => fetchStrategies(20, opts), 30_000)
 const plans = computed(() => (plansRes.snapshot.value?.data?.plans ?? []) as PlanRow[])

@@ -167,6 +167,36 @@ def test_observer_cli_dispatch_and_no_credentials(monkeypatch):
     server.run.assert_called_once()
 
 
+def test_runtime_shows_recorded_wait_reason(facts):
+    _, store = facts
+    gate = {
+        'plan_id': 'plan-1',
+        'allowed_actions': ['WAIT'],
+        'exclusion': {'BUY': 'conditions_unmet', 'SELL': 'no_position_or_qty', 'HOLD': 'no_position_or_qty'},
+        'entry_conditions': [{
+            'field': 'ret_5m', 'operator': 'gt', 'threshold': '0.01',
+            'actual': '0.001', 'matched': False, 'missing': False,
+        }],
+        'exit_conditions': [],
+    }
+    store._intraday_file.write_text(json.dumps({
+        'account_id': store.account_id,
+        'date': '2026-10-26',
+        'last_decision_reason': 'no actionable strategy conditions',
+        'last_blocker_class': 'strategy_wait',
+        'last_instrument_id': IID,
+        'last_action_gate': gate,
+    }), encoding='utf-8')
+    intraday = store.runtime(AT)['data']['intraday_health']
+    assert intraday['health_status']
+    assert intraday['last_blocker_class'] == 'strategy_wait'
+    assert intraday['last_blocker_class_zh'] == '策略观望'
+    assert intraday['last_decision_reason_zh'] == '当前策略未满足可执行条件'
+    assert intraday['last_action_gate']['entry_conditions'][0]['actual'] == '0.001'
+    assert 'blockers' not in intraday
+    assert intraday['open_positions_count'] == 0
+
+
 def test_runtime_uses_heartbeat_not_file_mtime(facts):
     _,store=facts
     old=(AT-timedelta(hours=1)).isoformat()

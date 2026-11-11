@@ -90,6 +90,43 @@ def test_local_sample_three_etfs_match_expected_statuses():
     assert any('单标的上限' in r for r in by_id['518880.SH']['reasons'])
     assert any('总敞口上限' in r for r in by_id['518880.SH']['reasons'])
     assert report['summary'] == {'资金可达': 1, '仅观察': 2, '数据不足': 0, 'total': 3}
+    # Same HISTORICAL prices, hypothetical 5000 tier, empty book. Not live quotes.
+    data.update(cash='5000',limits={'max_single_exposure':'1000',
+                'max_total_exposure':'1500','min_cash_reserve':'500'})
+    larger=run(data)
+    assert larger['summary']=={'资金可达':3,'仅观察':0,'数据不足':0,'total':3}
+    assert [item['max_affordable_lots'] for item in larger['instruments']]==[10,4,1]
+
+
+def test_reason_codes_separate_cash_caps_freezes_and_orders():
+    entry={'instrument_id':'513050.SH','price':'2.00',
+           'price_source':'test','price_time':AS_OF.isoformat()}
+    data=snapshot(cash='300',instruments=[entry])
+    item=run(data)['instruments'][0]
+    assert item['reason_codes']==['fee_inclusive_cash_shortfall']
+    assert item['cash_shortfall']=='0.10'
+    assert item['single_exposure_shortfall']=='0'
+    data['cash']='300.10'  # Cash and exposure equality both pass.
+    assert run(data)['instruments'][0]['new_entry_candidate']
+    data.update(cash='1000',reserved_cash='700')
+    item=run(data)['instruments'][0]
+    assert item['reason_codes']==['fee_inclusive_cash_shortfall','reserved_cash_binding']
+    data.update(reserved_cash='210.10',open_orders=[{
+        'instrument_id':'513100.SH','side':'BUY','quantity':'100','filled_quantity':'0',
+        'limit_price':'2.1','status':'ACKNOWLEDGED'}])
+    item=run(data)['instruments'][0]
+    assert item['reason_codes']==['total_exposure_headroom','open_buy_exposure_binding']
+    assert item['cash_budget']=='689.90'  # Freeze subtracted exactly once.
+    assert item['total_exposure_shortfall']=='110.00'
+    data['open_orders'][0]['instrument_id']='513050.SH'
+    assert 'pending_order' in run(data)['instruments'][0]['reason_codes']
+
+
+def test_unknown_order_commitment_never_enters_new_entry_candidates():
+    data=snapshot(open_orders=[{'instrument_id':'513100.SH','status':'UNKNOWN'}])
+    item=run(data)['instruments'][0]
+    assert item['status']=='数据不足' and not item['new_entry_candidate']
+    assert item['reason_codes']==['incomplete_valuation_or_order_commitments']
 
 
 def test_zero_negative_stale_missing_price_stay_data_insufficient():

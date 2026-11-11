@@ -6,13 +6,12 @@ No permission is ever assumed from quote downloads or code formats.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
 from ..config import MarketAccessConfig
-from .rules import MarketRule, get_rule, to_decimal
+from .rules import MarketRule, to_decimal
 
 # Permission mapping for market kinds and categories
 REQUIRED_PERMISSIONS: dict[str, str] = {

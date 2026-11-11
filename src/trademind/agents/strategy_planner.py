@@ -92,7 +92,7 @@ class StrategyPlanner:
             cat = last_call.failure_category
         else:
             call_dict = last_call.model_dump(mode='json') if call_matches and hasattr(last_call, 'model_dump') else None
-            cat = classify_failure(msg, call_dict)[0]
+            cat = classify_failure(msg, None, 'WAIT', calls=[call_dict] if call_dict else None)[1]
         if call_matches and getattr(last_call, 'failure_category', None) in (None, 'none'):
             last_call.failure_category = cat
             last_call.error = sanitize_evidence(msg, 160)
@@ -148,7 +148,7 @@ class StrategyPlanner:
             return None
         return plan if plan.valid_at(now,context.instrument_id,rule_version) else None
 
-    def get(self, context, profile, trace_id, refresh=False):
+    def get(self, context, profile, trace_id, refresh=False, before_model_call=None):
         now=self.clock()
         plan=self.cached(context,profile.profile_id,now)
         attempt_key=self.key(context.instrument_id)+':attempt'
@@ -166,7 +166,6 @@ class StrategyPlanner:
             raise ProviderError('strategy refresh cooldown')
         if getattr(self.llm,'model','')!='deepseek-flash':
             raise ProviderError('strategy requires deepseek-flash')
-        self.repo.save_coalesce(attempt_key,now)
         close_at=now.astimezone(BEIJING).replace(hour=15,minute=0,second=0,microsecond=0)
         maximum_horizon=min(14400,int((close_at-now).total_seconds()))
         facts={'instrument_id':context.instrument_id,'as_of':context.as_of.isoformat(),
@@ -188,8 +187,11 @@ class StrategyPlanner:
                'fees':{'source':'simulated ETF fee assumptions',
                    **{key:str(getattr(profile.fees,key)) for key in ('commission_rate','commission_min',
                        'stamp_duty_rate_sell','transfer_fee_rate')}}}
+        user=json.dumps(facts,ensure_ascii=False)
+        admission={'admit_request':before_model_call} if before_model_call is not None else {}
+        self.repo.save_coalesce(attempt_key,now)
         try:
-            output=self.llm.complete(role='strategy',system=PROMPT,user=json.dumps(facts,ensure_ascii=False),trace_id=trace_id,timeout_s=15)
+            output=self.llm.complete(role='strategy',system=PROMPT,user=user,trace_id=trace_id,timeout_s=15,**admission)
             parsed=output.parsed
             if not isinstance(parsed,dict) or set(parsed)!=set(STRATEGY_OUTPUT_FIELDS):
                 raise ProviderError('invalid strategy JSON')

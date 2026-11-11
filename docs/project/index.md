@@ -9,6 +9,7 @@
 - [当前状态](current-status.md)
 - [系统概览](system-overview.md)
 - [代码地图](code-map.md)
+- [功能地图](function-map.md) · [可追溯三栏页](feature-code-map/index.html)
 - [环境与依赖](setup.md)
 - [运行操作](operations.md)
 - [运行流程](flows.md)

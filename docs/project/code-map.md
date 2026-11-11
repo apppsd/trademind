@@ -1,10 +1,12 @@
 # 代码地图
 
+功能到代码的对照见 [功能地图](function-map.md)。本文件仍按文件写职责，不重复那张表。
+
 自动监控：execution/auto_paper.py（时段期限、互斥子进程、退避/异常锁定、心跳；跨平台探活 `_pid_alive`、Windows msvcrt 互斥锁与停止标志排空/强制+halt 路径）；scripts/run_auto.py（VM启动/停止/状态与代理继承），run_container.py阻止手动paper与auto并发；compose.yaml auto服务。本地无Docker入口：scripts/run_local.py（start/status/stop，脱终端启动、停止标志、强制结束前pid+映像校验）+ config/t0-local.example.toml（本地实验账户/库）；tests/test_auto_paper.py/test_auto_launcher.py/test_local_lifecycle.py覆盖。[ARCH-013](../architecture/13-auto-paper-supervisor.md)、[ARCH-026](../architecture/26-local-windows-runtime.md)。
 
 A股广域观察池（[ARCH-028](../architecture/28-stock-wide-observation-bounded-decision.md)，implementing）：`market/stock_discovery.py` / `adapters/stock_list_ak.py` 负责名单与筛选，`adapters/stock_minute_sina.py` / `stock_tradability.py` 负责分钟样本与可交易性；`stock_profiles.py` 提供股票板块规则，`stock_selector.py` 提供独立选择器（尚未发现生产调用点）。`agents/stock_fast_pipeline.py` 经 `pipeline.py` 的 stock_chain 分支及 `guard/guard.py` resolver 接入离线决策。脚本入口为 `scan_stock_candidates.py`、`verify_stock_tradability.py`、`init_stock_account.py`；示例为 `config/t0-stock.example.toml`。相关测试为 `test_stock_discovery.py`、`test_stock_tradability_verify.py`、`test_stock_decision_chain.py`。历史验证数字留在 Task27-03～05，当前未验项见 [current-status](current-status.md) 与 [Task27-06](../tasks/TASK-20261027-06-盘中验收与对照.md)。
 
-每日交易报告：reports/daily.py（只读快照、上海日资金重建、成交/盈亏/模型费用、策略/决策、JSON/MD/HTML；read_snapshot自2026-10-14支持window参数——调用/意图/计划按上海日±2天、context 7天回看走迁移2索引，账户事件保持全量重放），reports/locale.py（中文动作/状态/原因/条件及历史译文）；runner daily-report CLI；api/app.py lifespan每分钟生成今日/昨日及报告页面，static首页链接；paper_run.finish自动生成，paper_run.read_intraday_health同按日窗口读取。schema.sql追加strategy_plan_history，strategy_planner写有效脱敏计划并校验中文说明；fast_prompts注册strategy-4，models/deepseek统一中文要求与实际审计指纹，runner探针预算计入最终指令。[证据](../research/20261012-daily-report-verification.md)。
+每日交易报告：reports/daily.py 负责编排、`render_markdown` 和只读快照；2026-11-11 起取数在 reports/daily_sections.py，报告字段不变（只读快照、上海日资金重建、成交/盈亏/模型费用、策略/决策、JSON/MD/HTML；read_snapshot自2026-10-14支持window参数——调用/意图/计划按上海日±2天、context 7天回看走迁移2索引，账户事件保持全量重放），reports/locale.py（中文动作/状态/原因/条件及历史译文）；runner daily-report CLI；api/app.py lifespan每分钟生成今日/昨日及报告页面，static首页链接；paper_run.finish自动生成，paper_run.read_intraday_health同按日窗口读取。schema.sql追加strategy_plan_history，strategy_planner写有效脱敏计划并校验中文说明；fast_prompts注册strategy-4，models/deepseek统一中文要求与实际审计指纹，runner探针预算计入最终指令。[证据](../research/20261012-daily-report-verification.md)。
 
 提示评测：evaluation/prompt_eval.py（案例/响应指纹、生产草稿校验、四题语义及独立程序结果统计、同输入比较）；scripts/evaluate_prompt_cases.py（保存响应CLI，零联网）；tests/fixtures/prompt_eval/cases.json（24例/12类，prompt-cases-1）。fast_prompts.strategy_examples是配对示例资源，当前策略版本strategy-5（2026-10-25起，BUY计划须同时允许SELL并有非空退出条件）、即时题版本fast-2；strategy-3/4注册及历史hash保留。旧评测证据见[报告](../research/20261011-prompt-eval-verification.md)，中文变更见本页日报证据。
 
@@ -12,7 +14,7 @@ A股广域观察池（[ARCH-028](../architecture/28-stock-wide-observation-bound
 
 工作台V2（[ARCH-027](../architecture/27-chinese-large-screen-workbench.md) implementing，2026-10-26，Task26-03→26-14）：api/workbench_routes.py（/api/workbench/* 只读路由，app.py与observer_app共用）、api/read_models.py（WorkbenchReadStore 只读快照：mode=ro+query_only、Path.resolve后as_uri、统一信封、不透明游标分页、activity_detail归属校验）、api/workbench_charts.py（bars 时点可见修订/会话对齐聚合/gap_notes/5000上限、events分型、account/series 日报产物+当日现金重放）、api/instrument_catalog.py（白名单中文目录+搜索+分钟能力声明）、api/observer_app.py（observer 只读应用：静态包+daily-reports挂载+observer-state.json生命周期，HTML路由先于mount防遮蔽）、runner observer/serve 子命令、execution/auto_paper.py（Supervisor等待期phase=None+ensure_observer：崩溃60s退避、跨重启收养、shutdown停observer不解halt）；frontend/（Vite7+Vue3.5+TS5.9+ECharts6按需注册：7页hash路由、services/client.ts+workbenchApi.ts 唯一请求层、composables/useResource+usePolling+usePreferences、构建产物 src/trademind/api/static/workbench/、pyproject package-data 已含）。测试：test_auto_paper.py 21 / test_local_lifecycle.py 32 / test_observer_app.py 6 + frontend vitest 30。截图证据 docs/research/20261026-workbench-screens/。
 
-离线评估工具（Task25-04/05，2026-10-26经Task26-01补足）：evaluation/tradability.py（snapshot v1/tool v2，新鲜持仓估值、BUY挂单敞口承诺、含费现金、规则/输入指纹；不完整时数据不足）与scripts/check_t0_tradability.py；evaluation/cost_stress.py（bundle/tool v2，as_of/available_at、提交/mark/成交事件、现金/可卖量冻结、T0整手/tick/限额、共享bar参与率、权益/回撤/unknown）与scripts/evaluate_t0_cost_stress.py。均只读输入、不联网/不读.env、不修改生产撮合。退出契约：domain/strategy.py::exit_contract_violation/open_without_close_violation，strategy_planner与prompt_eval共用；Mock闭环独立通过。证据：[可达性样本](../research/20261025-tradability-local-sample.md)、[修订成本报告](../research/20261025-cost-stress-verification.md)、[独立复验](../tasks/TASK-20261026-01-独立复验并补足审查批次.md)；测试test_tradability/test_cost_stress及固定时钟test_t0_runtime_repairs，实际计数集中Task。
+离线评估工具（Task25-04/05，2026-10-26经Task26-01补足）：evaluation/tradability.py（snapshot v1/tool v3，新鲜持仓估值、BUY挂单敞口承诺、含费现金、规则/输入指纹；不完整时数据不足）与scripts/check_t0_tradability.py；evaluation/cost_stress.py（bundle/tool v2，as_of/available_at、提交/mark/成交事件、现金/可卖量冻结、T0整手/tick/限额、共享bar参与率、权益/回撤/unknown）与scripts/evaluate_t0_cost_stress.py。均只读输入、不联网/不读.env、不修改生产撮合。退出契约：domain/strategy.py::exit_contract_violation/open_without_close_violation，strategy_planner与prompt_eval共用；Mock闭环独立通过。证据：[可达性样本](../research/20261025-tradability-local-sample.md)、[修订成本报告](../research/20261025-cost-stress-verification.md)、[独立复验](../tasks/TASK-20261026-01-独立复验并补足审查批次.md)；测试test_tradability/test_cost_stress及固定时钟test_t0_runtime_repairs，实际计数集中Task。
 
 快速链提示资源：agents/fast_prompts.py（strategy-3/fast-2、派生Schema与四题）；strategy_planner.py绑定输入与草稿校验/缓存版本，fast_decider.py与fast_pipeline.py记录新决策/意图版本；models/jev.py允许每次调用单独传审计版本。验证见[本轮提示报告](../research/20261011-prompt-verification.md)。
 
@@ -101,7 +103,7 @@ Task16分钟特征已修复：连续1m窗口遇缺口/午休/隔夜重置，当�
 | src/trademind/agents/ | prompts.py、research.py、trader.py、risk.py、fast_prompts/fast_decider/strategy_planner |
 | src/trademind/guard/ | guard.py（九步检查+原子预留） |
 | src/trademind/portfolio/ | ledger.py（单写者账本） |
-| src/trademind/execution/ | oms.py、paper.py、paper_run.py、auto_paper.py、multi_asset_paper.py、writer_lock.py（跨进程单写租约） |
+| src/trademind/execution/ | oms.py、paper.py、paper_run.py、auto_paper.py、multi_asset_paper.py、writer_lock.py（跨进程单写租约）、price_quant.py（两撮合器共享 tick 格点量化，TASK-20261108-002） |
 | src/trademind/memory/ | memory.py（MemoryStore/OutcomeService/Reflector） |
 
 记忆可见性时点查询（2026-10-19，Task18-03/Issue18-01）：`storage/db.py::memories_visible` 对TEXT混合偏移`available_at`只做加宽2天的SQL粗预筛，精确可见性在Python按解析的带时区datetime瞬间比较（与`MemoryRecord.visible_at`同语义），存量混合偏移行免迁移正确查询，naive as_of拒绝；回归`tests/test_memory_visibility.py`（7项，含Issue18-01两行反例、跨偏移同瞬间等价、微秒/跨日/+14时区边界、混合偏移排序、撤销/valid_until/标的过滤）。
@@ -155,3 +157,25 @@ runner.cmd_t0_data：无模型/凭据免费数据检查；runner._t0_instruments
 2026-10-17：oms.py生命周期操作与guard.py恢复/同标的扫描账户隔离、ledger.apply_fill外账户防御（17-08）；测试：test_t0_oms_execution.py多账户隔离2项。
 
 2026-10-17：oms._poll_fill成交费用预填与权威回填（17-09，费用唯一入口ledger.compute_fees）；测试：test_t0_oms_execution.py费用一致性2项。
+
+## 模型窗口与纸面候选入口（ARCH-029）
+
+- agents/fast_pipeline.py：_check_model_window与预算准入原子预约；strategy_planner.get / fast_decider.decide将可选before_model_call回调传到models/deepseek.py、models/jev.py的admit_request预算预留处。T+1保留旧窗口。
+- pipeline.py：仅paper-t0-local-1k、paper、非stock_chain启用新仓筛选；context/builder.py为该账户提供持仓可见价格时点，不造新鲜度。
+- evaluation/tradability.py：paper_entry_report适配既有context至同一诊断算法；tool v3保留snapshot v1，reason_codes/new_entry_candidate及各约束金额。scripts/check_t0_tradability.py复用同一报告，不新增工具。
+- tests/test_fast_decision.py与test_tradability.py：新增冷却/并发/恢复及纸面候选反例；其余定向回归命令和结果集中Task30-02/03。见[ARCH-029](../architecture/29-model-charge-window-paper-candidates.md)。
+
+## Ops Stream本地原型与只读适配
+
+`frontend/src/pages/OpsStreamPage.vue`管理双窗、挂载/手动刷新加载与动效偏好；`components/OpsStreamPane.vue`管理各窗展示/状态/证据（LIVE/SAMPLE标签、演示选择器仅样例窗）；`demo/opsStreamSample.ts`提供ops.v1固定样例；`adapters/opsReadonly.ts`为只读适配层——右窗同源 `/api/workbench/*` 白名单GET→ops.v1信封（sample:false），左窗仅配置 `ops-trader-base` 后尝试trader三端点，失败返回null由页面按窗回退样例，trader ok=false零占位丢弃。`tests/opsStream.spec.ts`、`tests/opsReadonly.spec.ts`验证只读/回退/动效边界。路由 `/#/ops-stream`；无服务端变更。验证与限制见[Task30-05](../tasks/TASK-20261030-05-流水线交互视觉原型与性能门禁.md)。
+
+## 分钟数据拒绝与前置轮次观测（TASK-20261103-001）
+
+- context/features.py：抽出`latest_contiguous_1m_segment`（与compute_minute_features同一连续段语义）；context/builder.py在aux写`data_window`（continuous_1m_bars + ret_15m=16/atr_14=15所需根数，完整可见集计算，无1m数据时缺键=未知）。
+- pipeline.py：T0诊断加`age_threshold_seconds`/`data_window`；数据门禁拒绝与WAIT_MODEL_PENDING逐轮写`control_audit`的`decision/data_reject`（reason_class=NotFresh/WAIT_DATA_QUALITY+细分reason）与`decision/model_pending`；NotFresh统一在异常出口记录，V1链不写。agents/fast_pipeline.py诊断加`data_window`与`global_cooldown_seconds_remaining`。
+- runner.py：`_fast_paper_preflight`每标的输出as_of（上海）/age_threshold_seconds/data_window/reject_reason_class（可选clock参数便于离线测试）；`_public_decision`白名单放行新诊断键。
+- execution/intraday_health.py：`read_intraday_health` 与 `blocker_class` 的实现。paper_run.py 只保留写入进度和同名转出，7档中文状态与附加桶不变。record_progress 仍发布 `last_blocker_class` 与最近决策分钟事实。
+- 2026-11-11 结构拆分（[TASK-20261111-05](../tasks/TASK-20261111-05-拆开日报决策与风控长函数.md)）：`generate_report` 的取数在 reports/daily_sections.py；pipeline.py 的 `_run_decision` 分成 `_open_decision_snapshot`、`_choose_decision_intent`、`_authorize_decision`，模型轮换过的快照仍传给授权；guard/guard.py 的 `check` 分成 `_screen_order`、`_screen_risk`、`_approve_order`。查询、否决顺序和返回字段不变。
+- reports/daily.py + locale.py：日报`decision_distribution`（已存意图，decision_id去重）与`pre_decision_rounds`（audit轮次，独立分母+coverage_note）；新增NotFresh细分、feature缺口、blocker类的中文呈现。
+- tests/test_minute_observability.py：9项离线样本（106s+14根/超龄/缺bars/pending/三桶/预检/白名单/双分母）；定向回归265项通过。诊断流见[flows](flows.md)；分母口径见[operations](operations.md)。
+- 2026-11-03 FAIL返工（R1–R4）：pipeline.py缺bars/超龄分抛`missing visible minute bars`/`stale visible minute context`并在NotFresh异常出口补`diagnostics.data_reject`（含可得missing_fields，审计行同步）；构造fast链传`quote_max_age_seconds`。agents/fast_pipeline.py构造收`quote_max_age_seconds=180`（诊断`age_threshold_seconds`=min(180,配置)，意图有效期另报`intent_max_age_seconds`=180），`model_window`加`claim_trace_id`。runner.py白名单加`intent_max_age_seconds`。execution/paper_run.py：record_progress在error只剩NotFresh类名时取`data_reject.reason`作last_decision_reason；health行情不足关键词补两个新子因。reports/daily.py：前置轮次按`payload.account_id`过滤（外账户排除、缺归属/坏payload单列`unknown_account:*`桶）、`generate_for_config`向health传`t0_cfg`、逐决策关联`model_window`、Markdown/HTML新增"全局模型窗口（只读事实）"节与"最近一轮"子因行；locale.py新子因与unknown桶中文对照。tests/test_minute_observability.py更新至18项，定向回归16套件274项通过。

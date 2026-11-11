@@ -6,7 +6,7 @@ Never amplifies model call budget; daily model quota is strictly preserved.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
@@ -14,7 +14,7 @@ from typing import Any
 from ..config import MarketAccessConfig
 from .access import evaluate_eligibility
 from .multi_asset import AssetQuote
-from .rules import CANONICAL_RULES, MarketRule, get_rule, to_decimal
+from .rules import get_rule, to_decimal
 
 
 @dataclass

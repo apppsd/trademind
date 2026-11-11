@@ -10,10 +10,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from ..context.builder import ContextBuilder
 from ..domain.base import new_id, utcnow
 from ..domain.context import ContextSnapshot
-from ..domain.enums import ConfidenceSemantics, Direction, ProviderKind
+from ..domain.enums import ConfidenceSemantics, ProviderKind
 from ..domain.research import AnalystReport, DebateTurn, Fact, TradeThesis
 from ..errors import ProviderError
 from ..models import LLMProvider

@@ -19,7 +19,7 @@ TradeIntent (normalized WAIT/HOLD, validated weights, exit conditions)
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 

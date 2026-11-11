@@ -7,7 +7,7 @@ these rows are NOT point-in-time for replay and are flagged accordingly.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from ..base import BEIJING, Bar, MinuteBar, bar_close_time

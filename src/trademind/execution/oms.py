@@ -16,8 +16,7 @@ from ..domain.enums import OrderSide, OrderStatus, RunMode, GuardVerdict, TradeA
 from ..storage.db import dumps
 from ..domain.intents import GuardResult, PortfolioIntent
 from ..domain.orders import Fill, Order
-from ..errors import DuplicateKey, RecoveryRequired
-from ..market.profiles import get_profile
+from ..errors import RecoveryRequired
 from ..portfolio import Ledger
 from ..portfolio.ledger import compute_fees
 from ..storage import AuditSink, Repository

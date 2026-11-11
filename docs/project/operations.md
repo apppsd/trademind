@@ -1,5 +1,11 @@
 # 运行操作手册
 
+## 150 重启后恢复注意事项（2026-11-10）
+
+先检查 7897 代理、8321 工作台和监督器状态，已有进程不重复启动。代理未启动时先恢复 Clash Verge；通过 SSH 启动的代理也必须脱离 Windows SSH Job，否则 SSH 断开后会退出。本次使用 Python `subprocess.Popen`，配合隐藏窗口、重定向标准流和 `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB` 启动既有 `C:/Program Files/Clash Verge/clash-verge.exe`，再通过新 SSH 会话确认代理持续可达。未设置开机自启或新增计划任务。
+
+随后按下文导出 7897 代理环境变量，以 `D:/trademind/.venv/Scripts/python.exe scripts/run_local.py start` 启动既有监督器。保留重启保护逻辑，不手工清 halted；重连检查心跳、工作台 `/workbench/` 和 `/api/workbench/overview` 的账户身份，最后执行 `scripts/check_morning_readiness.py`。本次恢复证据见 [Task11-10-01](../tasks/TASK-20261110-01-恢复150重启后服务.md)。
+
 ## 150主机夜间切换与勘误（2026-10-26，Task26-20）
 
 千元实验链已切换为 run_local 监督（supervisor 311984，账户 paper-t0-local-1k，代码 1f4cd06）。勘误与要点：①**150 宿主代理实际端口为 127.0.0.1:7897**（Clash Verge mixed port；本节上方"D:\trademind 副本实测代理 127.0.0.1:7890"为旧值）——启动 run_local 前必须在 shell 显式 `set HTTPS_PROXY=http://127.0.0.1:7897`（NO_PROXY 含 localhost,127.0.0.1,.deepseek.com,.sinajs.cn,.sina.com.cn），否则 JEV 直连 451；实测经代理 404（可达）、直连 451。②新监督链的 serve 为 observer_app（ARCH-027），旧 `/api/status` 已 404；运行身份验证改用 `GET /api/workbench/overview`（信封 `account_alias`）与 `scripts/run_local.py status`。③run_local 脱终端持久：SSH 启动后断开会话监督器继续运行（心跳实测脱离 SSH 存活）。④switch 前单 writer 检查点：确认无存活进程访问 local-1k 库、8321 端口先停旧 serve。切换细节与次日就绪检查单见 [Task26-20](../tasks/TASK-20261026-20-夜间批次部署推送GitHub并在150执行安全切换.md)。
@@ -26,13 +32,21 @@ restart unless-stopped使Rancher恢复后可恢复已启用服务；手动stop�
 
 ## 本地 Windows 自动模拟监控（2026-10-22，ARCH-026）
 
-无 Docker 的本地入口，与容器入口二选一（同端口 8321，不可同跑）。启动前：`config/t0-local.local.toml`（由 example 复制，绝对 sqlite 路径、账户 `paper-t0-local-1k`、1000 CNY）、根目录 `.env` 含真实双模型 Key、shell 已导出宿主代理（`HTTPS_PROXY` 必需，JEV 直连 451；NO_PROXY 含 `localhost,127.0.0.1`）。D:\trademind 副本实测代理 `http://127.0.0.1:7890`。
+无 Docker 的本地入口，与容器入口二选一（同端口 8321，不可同跑）。启动前：`config/t0-local.local.toml`（由 example 复制，绝对 sqlite 路径、账户 `paper-t0-local-1k`、当前 5000 元档，参数见 [T0 需求](../requirements-t0-shadow.md)；该 local 配置在 150，本机通常仅有 example）、根目录 `.env` 含真实双模型 Key、shell 已导出宿主代理（`HTTPS_PROXY` 必需，JEV 直连 451；NO_PROXY 含 `localhost,127.0.0.1`）。D:\trademind 副本实测代理 `http://127.0.0.1:7890`。
 
 ```bat
 .venv\Scripts\python scripts\run_local.py start     :: 脱终端启动 supervisor
 .venv\Scripts\python scripts\run_local.py status    :: 心跳/phase/预算/代码版本/日志位置
 .venv\Scripts\python scripts\run_local.py stop      :: 写停止标志，排空最长150s
 ```
+
+**150 上查状态的路径陷阱（2026-11-11 核验）**：在 Wang 的 PowerShell 里须用 `ssh 150 --%` 加上绝对路径，并显式传入配置，例如：
+
+```bat
+ssh 150 --% D:\trademind\.venv\Scripts\python.exe D:\trademind\scripts\run_local.py --config D:\trademind\config\t0-local.local.toml status
+```
+
+不要在 `ssh` 与后续命令之间用 `&&`——PowerShell 会把右侧放到本机执行，报「系统找不到指定的路径」。也不要从任意工作目录跑相对路径 `scripts\run_local.py status` 且省略 `--config`：默认会落到错误库/账户（曾出现 `running=false`、账户 `paper-001`、库 `D:\trademind\data\runtime\trademind.db`），把正在运行的 `paper-t0-local-1k` 监督器误判为未启动。从新 SSH 会话跑 `scripts/check_morning_readiness.py` 常见 `[XX] HTTPS_PROXY unset`，这只说明当前会话未导出代理，不是已经在跑的监督器（例如 pid 6004）应当被 start/restart 的理由。
 
 监督行为与容器 auto 相同（日历时段、单 writer、预算、halted 语义）。差异：状态/日志在配置的运行根目录（如 `data/runtime/local-1k/`：auto-paper-state.json、auto-paper.log、auto-paper.pid、auto-paper.stop）；重复 start 有存活心跳即拒绝；端口被占或无代理拒绝启动；**停止期间监督器不启动任何新 writer**（serve/paper 均先排空）；停止超时仅在进程映像确认 python 后强制结束该 pid，监督器自身与 run_local 双层原子持久化 halted 及原因，重启保持人工核对暂停（人工核对账本、确认后编辑 state 文件清除 halted 才能再启动，不自动解锁）；监督器收尾持久化失败会显式报错退出，此时重启可能丢失暂停门禁，须人工核对账本后再启动。**外部硬终止后重启的恢复语义**：恢复分类只在人工 `start` 重启时执行，**进程死亡后不会自行恢复**；start 会核验上一轮状态（phase=paper 且未终态时），按 `result_policy` 分类旧排空报告并对存活旧子进程探活——缺失/损坏/未知/失败原子保留 halted 待人工核对（编辑 state 文件清除后才恢复），报告合法完成或 serve 阶段被杀则正常恢复；不存在"任意被杀直接 start 即安全恢复"的无条件保证，halted 出现时先核对账本与报告。改代码后先 stop → 核对 → 再 start（venv 可编辑安装，无需重装依赖）。电脑关机/睡眠期间不运行。真实双模型运行验收见 [TASK-20261022-01](../tasks/TASK-20261022-01-本地千元双模型自动模拟交易落地.md)、停止边界修复见 [TASK-20261022-03](../tasks/TASK-20261022-03-修复本地停止误启动与强停锁定丢失.md) 与 [Issue22-02](../issues/ISSUE-20261022-02-异常终止重启未核验上一轮paper结果.md)。
 
@@ -63,6 +77,17 @@ restart unless-stopped使Rancher恢复后可恢复已启用服务；手动stop�
 模型日预算费用与未知预留分别列出，扣模型估值后的经济结果不修改账本现金；费用按配置估算，不代表供应商账单。多账户库旧调用表无account_id时明细标库级；预算/审计数量不一致保留提醒。
 
 完整有效策略历史只从新版接入后追加保存；以前缓存被覆盖的策略不能恢复。自动生成失败只记录报告错误，不改变原paper状态。[验证](../research/20261012-daily-report-verification.md)。
+
+### 决策原因分布与前置轮次分母（TASK-20261103-001，2026-11-03）
+
+日报JSON/Markdown在“已留档决策”之外新增两个独立分母，均只读本地库，不新增行情/模型调用：
+
+- **已留档决策原因分布**（`decision_distribution`）：分母=按 `decision_id` 去重（取最高 `intent_version`）后的已存意图，含动作分布与原因分布；截止时间为报告 `as_of`。冷却、无可行动条件、JEV不确定等 WAIT 意图都在此分母内；619 之类的旧统计只属于这个分母，不等于全部检查轮次。
+- **前置数据拒绝/异步等待轮次**（`pre_decision_rounds`）：来源为 `control_audit` 表 `decision/data_reject` 与 `decision/model_pending` 行（TASK-20261103-001 起逐轮写入；data_reject 带 reason_class=NotFresh/WAIT_DATA_QUALITY、细分 reason、instrument 与 account）。该分母与已存意图分母互不重叠、不可相加；该版本之前的历史轮次无逐轮留档，分母不可恢复（报告 `coverage_note` 明示）。**账户归属（2026-11-03 返工 R1）**：逐行解析 payload 并校验 `account_id` 后才计数——其他账户的行直接排除；缺归属或记录无法解析的行单列 `unknown_account:*` 桶，绝不冒充本账户分母，`coverage_note` 注明两类排除条数。
+
+盘中健康（`read_intraday_health`，paper-run 与日报共用）在原7档中文状态及优先级不变的前提下新增附加字段：`last_blocker_class`（data_reject / async_pending / global_cooldown / strategy_wait / unknown，中文对照 `last_blocker_class_zh`）、最近决策的 `last_data_age_seconds` / `last_age_threshold_seconds` / `last_missing_fields` / `last_continuous_1m_bars` / `last_instrument_id`，以及全局窗口事实 `fast_eval_seconds` / `global_cooldown_last_claim_at` / `global_cooldown_seconds_remaining` / `global_cooldown_claim`（只读 `fast-eval:<account>` 认领行，剩余秒数按上海时钟计算，未知为 null 不伪造）。T0 决策诊断与 paper-run 预检新增 `age_threshold_seconds`（min(180, quote_max_age)）、`data_window`（真实连续1m根数及 ret_15m=16 / atr_14=15 所需根数，从完整可见集计算，缺数据时缺键即未知，不从最后10根样本反推）、`data_reject`（reason_class+细分 reason）与 `global_cooldown_seconds_remaining`；`runner` 的 `_public_decision` 白名单同步放行这些键（脱敏规则不变）。**2026-11-03 返工（R2/R4）**：fast 链诊断的 `age_threshold_seconds` 改为构造时传入的 `min(180, quote_max_age_seconds)` 有效行情门禁（不再硬编码 180；意图 180 秒有效期单列为 `intent_max_age_seconds`，不混用）；缺 bars 与超龄分别抛 `missing visible minute bars` / `stale visible minute context` 并随可得的 `missing_fields` 写入 `data_reject`；NotFresh 的其余子因（参考报价、异步过期/账户变化、条件变化等）统一在出口补 `diagnostics.data_reject`（公共摘要只留异常类名，子因靠该字段保留），progress/health 的 `last_decision_reason` 取子因，日报前置分母按 reason 分别聚合；合并旧原因串仅为历史数据保留。上述诊断字段已在 150 运行中的 dirty 代码上生效，并在 2026-11-11 盘中写入 health 与 `control_audit`（见 [当前状态](current-status.md) 当日时间线与 [TASK-20261103-001](../tasks/TASK-20261103-001-收盘后核验冷却修复与分钟行情可观测性.md)）；不要再把本节当作「150 未加载 11-03」。11-08 P0 等其余未部署工程仍未加载，收盘后同步须另授权，盘中不重启。**2026-11-03 round3 R2 收口**：NotFresh/数据拒绝 reason 改走封闭白名单（`trademind.errors` 的 `NOT_FRESH_PUBLIC_REASONS` + `classify_not_fresh_reason`）——raise 点不再拼接 instrument_id 或包装底层异常文本（`no fresh visible minute quote` / `no reference price` / `trading calendar coverage insufficient` 为固定常量）；pipeline 出口 catch 与审计行、`_public_decision` 对 `data_reject` 块的重建、progress/health 读写两端、日报前置分母的 reason 聚合均只接受白名单常量与既有稳定前缀映射，任意异常正文一律归 `unknown`（`valuation_failures` 同步只带分类值）；历史合并串与 `incomplete minute features` 保留为白名单常量以兼容历史分桶。
+
+**no-actionable 逐条件证据与冷却认领完整性（2026-11-03 追加轮，全部附加字段）**：fast 链返回 `no actionable strategy conditions`（未调 JEV）时，从已构建状态派生 `action_gate`（plan_id、allowed_actions、`exclusion`=BUY/SELL/HOLD 排除类别 plan_disallowed/conditions_unmet/pending_order/cash_reserve/no_position_or_qty/unknown，判定顺序与 build_fast_state 门禁一致；`entry_conditions`/`exit_conditions` 逐条 field/operator/threshold/actual/matched/missing，特征缺失 actual=unknown 不伪造），随决策诊断进入 audit/`_public_decision`（白名单放行 `action_gate`、`model_window`）/paper-run。诊断另附只读 `model_window` 块：key、scope=account、effective_interval_seconds（=当前配置值，只读不改）、last_claim_at、next_eligible_at、remaining_seconds、claim_this_tick（本轮是否认领）、claim_role。health 附加 `global_cooldown_key` / `global_cooldown_scope` / `global_cooldown_next_eligible_at` / `global_cooldown_claim_role` / `last_action_gate` / `last_model_path_claimed`（间隔即既有 `fast_eval_seconds`，不造别名）。日报 `decisions[]` 按 decision_id 从 t0_chain 审计行取 `action_gate`，Markdown/HTML 新增"无可行动条件逐条件证据"节；旧历史无 gate 不补造，由 `action_gate_coverage_note` 明示。全链零新增行情/模型调用，PnL/费用计算不变，间隔与阈值只读。**2026-11-03 返工（R3）补齐**：`generate_for_config` 向日报内嵌 `read_intraday_health` 传 `t0_cfg`——health 的 `fast_eval_seconds` / `global_cooldown_next_eligible_at` / `global_cooldown_seconds_remaining` 不再恒为 unknown（无配置入口仍为 unknown）；`model_window` 增加 `claim_trace_id`（持久认领行的 trace 关联，无则为 null）；日报 `decisions[]` 同法关联每轮 `model_window`（含 claim_this_tick/角色/trace）；Markdown/HTML 新增"全局模型窗口（只读事实）"节（间隔/key/scope、最近认领时间/角色/trace、下次可请求、剩余秒、最近一轮是否认领）及"最近一轮"阻断类别与子因行。
 
 ## 离线提示评测
 
@@ -234,7 +259,7 @@ purchase_conditions_met仅配置筛选；paper_candidate还需时效和现有引
 
 ## 服务器与部署目标
 
-无部署目标；本地单进程运行（V1 范围）。
+当前运行主机是 150（`D:/trademind`），本机（Wang 桌面 `F:/Project/TradeMind`）只开发；未同步不等于已加载。尚无成文的本机→150 同步手册，也尚无用户批准的开机自启（2026-11-10 恢复时有意未创建）。版本与未部署工程以 [当前状态](current-status.md) 为准；收盘后同步须另获用户授权。V1 所述「本地单进程、无部署目标」已过时，不再作为当前运行事实。
 
 ## 部署与进程
 
@@ -330,3 +355,13 @@ ReplayRunner 默认新内存库，重复运行互不污染；显式 db_url 仅�
 验证脚本默认选择最新候选文件，可用 `--pool` 显式指定。输出位于 `data/candidates/stock_pool_<日期>.json` 与 `stock_tradability_<日期>.json`；核对文件内时点、missing_checks、样本范围及失败项，不能把观察名单全部视为可交易名单。抽样脚本的历史资金参数不代表当前 ETF 账户参数。
 
 `config/t0-stock.example.toml` 是离线股票链示例，不能仅复制后视为可运行交付；模型费率、标的、股票行情路由、跨账户预算和退出接线须先按 [Task27-06](../tasks/TASK-20261027-06-盘中验收与对照.md) 核验。部署记录与当前开关状态统一看 [current-status](current-status.md)。
+
+## 调用窗口与观察候选诊断（Task30-02/03）
+
+本地新代码未部署。加载后的预期：账户级窗口仅在进入flash/JEV接口前推进；同窗可包含flash+JEV，不能将窗口数当HTTP计费次数。检查diagnostics.tradability.instruments的status、reason_codes、new_entry_candidate、price_time、cash_budget与single/total_exposure_room；只有指定paper账户的空仓启用，unknown也只观察。
+
+继续用原scripts/check_t0_tradability.py与显式脱敏快照核验，不读.env或运行库、不调用模型。tool v3区分含费现金、单/总限额、冻结与挂单；资金可达仍非授权，历史快照不是实时行情。不删观察池、不用重启清冷却/预算。Trade Ops后续先独立审阅，再按另行授权固定版本观察自然条件/JEV/订单与费用；本次没有运行操作。设计与证据见[ARCH-029](../architecture/29-model-charge-window-paper-candidates.md)及关联Task。
+
+## Ops Stream只读样例预览
+
+本地前端命令见[setup](setup.md#ops-stream本地预览)。该页默认样例：右窗在本地observer/workbench服务可达时显示同源 `/api/workbench/*` 只读白名单快照（LIVE标签），左窗仅在配置固定 `ops-trader-base` 后尝试trader三端点，任一失败/未配置该窗独立回退样例（SAMPLE标签），两窗互不拖垮；不因其他页面API在线而切换真实账户。无模型/交易/研究调用、无 `/api/control/*`、无轮询（挂载与"刷新只读源"按钮各触发一次GET）。动效开关可持久保存，系统减少动效和隐藏页暂停优先。此入口不重启生产、不需要150或observer服务；未接真实监控，验收见[Task30-05](../tasks/TASK-20261030-05-流水线交互视觉原型与性能门禁.md)。

@@ -33,14 +33,6 @@ def _whitelist_path() -> Path:
     return source if source.exists() else Path(sys.prefix) / 'share' / 'trademind' / 'etf_whitelist.json'
 
 
-def _market_label(market: str | None) -> str | None:
-    return {'XSHG': '上交所', 'XSHE': '深交所'}.get(market or '', market)
-
-
-def _kind_label(kind: str | None) -> str | None:
-    return {'etf': 'ETF'}.get(kind or '', kind)
-
-
 def load_catalog(db_path: Path | None = None) -> dict[str, Any]:
     """Build the instrument directory DTO. Never touches providers or accounts."""
     now = datetime.now(timezone.utc).isoformat()

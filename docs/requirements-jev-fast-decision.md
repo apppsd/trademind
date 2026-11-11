@@ -6,7 +6,7 @@
 
 先让 deepseek-flash 低频生成策略计划，外部 TypeSafe JEV 根据该计划及当前真实行情、账户事实，快速输出 BUY/SELL/HOLD/WAIT 意图，再由程序计算数量、硬风控和模拟执行。JEV 不再仅审核 flash 的候选。正常决策后不固定再调用 flash；JEV 无法确定时可申请刷新策略。
 
-第一轮使用已核验 T0 ETF 白名单；独立 paper 账户资金以 [T0 需求](requirements-t0-shadow.md)冻结表为准（历史 500 CNY；2026-10-22 起新增本地 1000 CNY 实验 `paper-t0-local-1k`/独立库，限额不放宽）。可转债、LOF、港股和期货保留多市场观察及已有独立适配队列，不接入旧 ETF 订单引擎。不接实盘、不做空、不加杠杆。免费分钟数据限制了反应粒度，“快速”指决策链减少串行大模型调用，实际延迟需测量，不能称高频交易。
+第一轮使用已核验 T0 ETF 白名单；独立 paper 账户资金以 [T0 需求](requirements-t0-shadow.md) 参数表为准（历史 500 / 1000 元档；**当前为 2026-10-29 起的 5000 元档**，账户仍为 `paper-t0-local-1k`/独立库；限额随档位版本化，见该表，本文件不复制）。可转债、LOF、港股和期货保留多市场观察及已有独立适配队列，不接入旧 ETF 订单引擎。不接实盘、不做空、不加杠杆。免费分钟数据限制了反应粒度，“快速”指决策链减少串行大模型调用，实际延迟需测量，不能称高频交易。
 
 ## 三方职责
 
@@ -91,3 +91,7 @@ DecisionOutcome 字段：decision_id、raw_action/action、reason、plan_id、co
 2026-10-11提示契约已对齐实际解释器：entry全部满足、exit/invalidation任一满足，字段只和有限数值常数比较；比率为小数，ATR/VWAP/close为CNY。模型只返回九字段草稿，程序生成所有身份/时间/证据/版本；strategy-2缓存和fast-2动作审计已接线。JEV entry_suitable只对BUY生效，不因其no阻止合法SELL；可选L1缺失不直接否定分钟事实，正常critic不等价于触发失效条件。真实提示理解与完整交易仍待验证，见[提示报告](research/20261011-prompt-verification.md)。
 
 费用对照只把已核验token价格及真实usage结算记录视为可核算实际金额；request_upper_bound/reservation仅为预留估计，不冒充账单，缺实际费用时净结果保留unknown。
+
+## 2026-10-30 冷却语义修订（TASK-20261030-02）
+
+用户授权Design A：ETF快速链账户级300秒值不变，纯缓存且无JEV的WAIT不推进窗口；flash或官方JEV成功预算准入与窗口认领在同一事务提交后才发送HTTP。准入前角色额度/费用拒绝不推进窗口；准入后失败保留，旧时间戳兼容。共享100请求/5 CNY及角色/探针/修复/未知费用门禁不变，独立程序退出不受此预约限制。股票T+1保留旧窗口行为。并发、崩溃保守预约、公平性及纸面候选边界详见 [ARCH-029](architecture/29-model-charge-window-paper-candidates.md)。这是工程变更，150加载与真实paper未验证。

@@ -21,11 +21,10 @@
           <li><span>健康状态</span><strong>{{ str(intraday?.health_status) ?? '—' }}</strong></li>
           <li><span>数据日期</span><strong class="num">{{ str(intraday?.date) ?? '—' }}</strong></li>
           <li><span>持仓 / 未成交订单</span><strong class="num">{{ fmtDash(int(intraday?.open_positions_count)) }} / {{ fmtDash(int(intraday?.open_orders_count)) }}</strong></li>
+          <li><span>最近原因</span><strong>{{ lastReason }}</strong></li>
         </ul>
-        <ul v-if="blockers.length" class="blocker-list">
-          <li v-for="b in blockers" :key="b">{{ b }}</li>
-        </ul>
-        <p v-else class="hint">无阻断项记录</p>
+        <p v-if="statusMessage" class="hint">{{ statusMessage }}</p>
+        <p v-else class="hint">最近一轮没有留下原因记录</p>
       </div>
 
       <div class="panel">
@@ -48,6 +47,29 @@
         </ul>
         <p class="hint">模型费为估算、另计，不直接从模拟现金扣除；预算上限以配置为准，此处不把上限写成已花。</p>
       </div>
+    </div>
+
+    <div v-if="gate" class="panel alerts-panel">
+      <h3 class="panel-title">最近一轮策略条件（只读，不改变下单）</h3>
+      <p class="hint">标的 {{ str(intraday?.last_instrument_id) ?? '—' }} · 计划 {{ str(gate.plan_id) ?? '—' }} · 允许动作 {{ allowedText }}</p>
+      <p class="hint">排除：{{ exclusionText }}</p>
+      <table v-if="conditionRows.length" class="cond-table">
+        <thead>
+          <tr><th>方向</th><th>特征</th><th>判断</th><th>阈值</th><th>实际值</th><th>满足</th><th>缺失</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="(row, i) in conditionRows" :key="i">
+            <td>{{ row.side }}</td>
+            <td>{{ row.field }}</td>
+            <td>{{ row.operator }}</td>
+            <td class="num">{{ row.threshold }}</td>
+            <td class="num">{{ row.actual }}</td>
+            <td>{{ row.matched }}</td>
+            <td>{{ row.missing }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="hint">这一轮没有逐条条件记录</p>
     </div>
 
     <div class="panel alerts-panel">
@@ -96,10 +118,62 @@ const data = computed(() => runtime.snapshot.value?.data ?? null)
 const sup = computed(() => data.value?.supervisor as Record<string, unknown> | null)
 const supAge = computed(() => int(sup.value?.state_age_seconds))
 const intraday = computed(() => data.value?.intraday_health as Record<string, unknown> | null)
-const blockers = computed(() => {
-  const raw = intraday.value?.blockers
-  return Array.isArray(raw) ? raw.map((b) => (typeof b === 'string' ? b : JSON.stringify(b))) : []
+const statusMessage = computed(() => str(intraday.value?.status_message_zh))
+const lastReason = computed(() => {
+  const klass = str(intraday.value?.last_blocker_class_zh) ?? str(intraday.value?.last_blocker_class)
+  const reason = str(intraday.value?.last_decision_reason_zh) ?? str(intraday.value?.last_decision_reason)
+  if (klass && reason) return `${klass}：${reason}`
+  return klass ?? reason ?? '—'
 })
+const FIELD_ZH: Record<string, string> = {
+  close: '收盘价', vwap: '成交量加权均价', atr_14: '十四期平均真实波幅',
+  ret_1m: '一分钟收益率', ret_5m: '五分钟收益率', ret_15m: '十五分钟收益率', volume_ratio: '量比',
+}
+const OP_ZH: Record<string, string> = { gt: '大于', gte: '大于或等于', lt: '小于', lte: '小于或等于', eq: '等于' }
+const ACTION_ZH: Record<string, string> = { BUY: '买入', SELL: '卖出', HOLD: '持有', WAIT: '观望' }
+const EXCLUSION_ZH: Record<string, string> = {
+  plan_disallowed: '计划未允许', conditions_unmet: '条件未满足', pending_order: '存在未成交订单',
+  cash_reserve: '现金储备不足', no_position_or_qty: '无持仓或可卖数量', unknown: '未知',
+}
+const gate = computed(() => {
+  const raw = intraday.value?.last_action_gate
+  return raw !== null && typeof raw === 'object' ? raw as Record<string, unknown> : null
+})
+const allowedText = computed(() => {
+  const raw = gate.value?.allowed_actions
+  if (!Array.isArray(raw) || raw.length === 0) return '—'
+  return raw.map((a) => ACTION_ZH[String(a)] ?? String(a)).join('、')
+})
+const exclusionText = computed(() => {
+  const raw = gate.value?.exclusion
+  if (!raw || typeof raw !== 'object') return '—'
+  return Object.entries(raw as Record<string, unknown>)
+    .map(([action, reason]) => `${ACTION_ZH[action] ?? action}=${reason == null ? '未排除' : (EXCLUSION_ZH[String(reason)] ?? String(reason))}`)
+    .join('、') || '—'
+})
+
+function conditionList(side: string, key: string) {
+  const raw = gate.value?.[key]
+  if (!Array.isArray(raw)) return []
+  return raw.filter((row) => row && typeof row === 'object').map((row) => {
+    const item = row as Record<string, unknown>
+    const field = str(item.field)
+    const operator = str(item.operator)
+    return {
+      side,
+      field: field ? (FIELD_ZH[field] ?? field) : '—',
+      operator: operator ? (OP_ZH[operator] ?? operator) : '—',
+      threshold: str(item.threshold) ?? '—',
+      actual: str(item.actual) ?? '—',
+      matched: item.matched === true ? '是' : '否',
+      missing: item.missing === true ? '是' : '否',
+    }
+  })
+}
+const conditionRows = computed(() => [
+  ...conditionList('入场', 'entry_conditions'),
+  ...conditionList('退出', 'exit_conditions'),
+])
 const obs = computed(() => data.value?.observer ?? null)
 const kill = computed(() => data.value?.kill_switch ?? null)
 const budget = computed(() => data.value?.model_budget_today ?? null)
@@ -168,9 +242,10 @@ const aggregated = computed(() => {
 .kv-list li { display: flex; justify-content: space-between; gap: 10px; }
 .kv-list span { color: var(--text-tertiary); }
 .kv-list strong { font-weight: 500; color: var(--text-primary); text-align: right; word-break: break-all; }
-.blocker-list { list-style: none; margin: 10px 0 0; padding: 0; font-size: var(--fs-caption); color: var(--warn); }
-.blocker-list li::before { content: '· '; }
 .hint { font-size: var(--fs-caption); color: var(--text-faint); margin: 10px 0 0; }
+.cond-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: var(--fs-caption); }
+.cond-table th, .cond-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border-weak); }
+.cond-table th { color: var(--text-tertiary); font-weight: 500; }
 .alerts-panel { font-size: var(--fs-caption); }
 .alert-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .alert-list li { display: flex; gap: 12px; align-items: baseline; border: 1px solid var(--border-weak); border-radius: var(--radius-small); padding: 7px 12px; }

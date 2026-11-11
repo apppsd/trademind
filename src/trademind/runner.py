@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from .config import load_config
-from .errors import SchemaVersionError
+from .errors import SchemaVersionError, classify_not_fresh_reason
 from .execution.writer_lock import WriterLockHeld
 from .market.base import BEIJING
 from .market.calendar import TradingCalendar
@@ -202,6 +202,23 @@ def cmd_t0_data(instrument=None):
     return 0 if ok else 1
 
 
+def _public_data_reject(block):
+    """Closed passthrough for the data_reject block (review R2 round 3): only
+    the known reason classes and whitelist subtype constants survive, and
+    missing_fields passes solely as a flat string mapping. A raw exception
+    body can never reach public summaries through this channel."""
+    if not isinstance(block, dict):
+        return None
+    out = {'reason_class': block.get('reason_class')
+           if block.get('reason_class') in ('NotFresh', 'WAIT_DATA_QUALITY') else 'NotFresh',
+           'reason': classify_not_fresh_reason(block.get('reason'))}
+    missing = block.get('missing_fields')
+    if isinstance(missing, dict) and all(
+            isinstance(k, str) and isinstance(v, str) for k, v in missing.items()):
+        out['missing_fields'] = missing
+    return out
+
+
 def _public_decision(result):
     summary = result.summary()
     summary['context_id'] = result.context_id
@@ -209,7 +226,15 @@ def _public_decision(result):
         summary['error'] = summary['error'].split(':', 1)[0]
     diagnostics = summary.get('diagnostics', {})
     summary['diagnostics'] = {k: diagnostics[k] for k in
-        ('data_age_seconds', 'context_expires_at', 'missing_fields', 'budget', 'reason', 'strategy_health') if k in diagnostics}
+        ('data_age_seconds', 'age_threshold_seconds', 'intent_max_age_seconds', 'data_window',
+         'context_expires_at', 'missing_fields', 'budget', 'reason', 'strategy_health', 'data_reject',
+         'valuation_failures', 'global_cooldown_seconds_remaining', 'model_window',
+         'action_gate') if k in diagnostics}
+    if 'data_reject' in summary['diagnostics']:
+        # Never forwarded wholesale: the block is rebuilt from the closed
+        # whitelist before publication.
+        summary['diagnostics']['data_reject'] = _public_data_reject(
+            summary['diagnostics']['data_reject'])
     return summary
 
 
@@ -340,11 +365,12 @@ def _check_fast_probe_budget(pipe):
     return pipe.model_budget.check_probe_pair(flash_bound, jev_bound)
 
 
-def _fast_paper_preflight(pipe, selected, probe_models):
+def _fast_paper_preflight(pipe, selected, probe_models, clock=None):
     """Free readiness checks. Historical HTTP200 never grants capabilities."""
     from .context.builder import ContextBuilder
     from .models.jev import TypeSafeJEVProvider
     from .models.deepseek import DeepSeekProvider
+    now_utc = clock or (lambda: datetime.now(timezone.utc))
     report = {'ok': False, 'blockers': [], 'data': [], 'model_calls': 0}
     rates = (pipe.cfg.t0.model_input_cny_per_million, pipe.cfg.t0.model_output_cny_per_million,
              pipe.cfg.t0.jev_input_cny_per_million, pipe.cfg.t0.jev_output_cny_per_million)
@@ -352,7 +378,7 @@ def _fast_paper_preflight(pipe, selected, probe_models):
         or any(Decimal(str(v)) <= 0 for v in rates[:3])
         or Decimal(str(rates[3])) < 0):
         report['blockers'].append('configured_prices_invalid')
-    if not pipe.calendar.is_session_open(datetime.now(timezone.utc)):
+    if not pipe.calendar.is_session_open(now_utc()):
         report['blockers'].append('not_continuous_session')
     if probe_models:
         if (not isinstance(pipe.jev, TypeSafeJEVProvider) or not isinstance(pipe.llm, DeepSeekProvider)
@@ -380,26 +406,38 @@ def _fast_paper_preflight(pipe, selected, probe_models):
                     report['blockers'].append('probe_pair_unavailable:' + type(exc).__name__)
     if report['blockers']:
         return report
+    age_threshold = min(180, pipe.cfg.risk.quote_max_age_seconds)
     builder = ContextBuilder(router=pipe.router, calendar=pipe.calendar)
     for iid in selected:
         try:
-            fetch_at = datetime.now(timezone.utc)
+            fetch_at = now_utc()
             pipe.router.get_minute_bars(iid, fetch_at-timedelta(days=2), fetch_at, period='1m')
-            observed_at = datetime.now(timezone.utc)
+            observed_at = now_utc()
             snap = builder.build_minute(iid, observed_at,
-                max_stale_seconds=min(180, pipe.cfg.risk.quote_max_age_seconds))
+                max_stale_seconds=age_threshold)
             latest = (snap.aux.get('minute_bars') or [{}])[-1].get('time')
-            report['data'].append({'instrument': iid, 'ok': not snap.missing_fields,
-                'observed_at': observed_at.isoformat(), 'latest_bar': latest,
+            age = (observed_at-datetime.fromisoformat(latest)).total_seconds() if latest else None
+            missing = snap.missing_fields
+            report['data'].append({'instrument': iid, 'ok': not missing,
+                'observed_at': observed_at.isoformat(),
+                'as_of': observed_at.astimezone(BEIJING).isoformat(),
+                'age_threshold_seconds': age_threshold,
+                'data_age_seconds': age, 'age_seconds': age, 'latest_bar': latest,
                 'provider': (snap.aux.get('minute_bars') or [{}])[-1].get('provider'),
-                'age_seconds': (observed_at-datetime.fromisoformat(latest)).total_seconds() if latest else None,
-                'missing_fields': snap.missing_fields, 'feature_version': snap.features.feature_version})
+                'missing_fields': missing,
+                'data_window': snap.aux.get('data_window'),
+                # Freshness and feature-completeness are distinct gates
+                # (pipeline.py): bars/freshness → NotFresh, other missing
+                # fields → WAIT_DATA_QUALITY. None when the sample passed.
+                'reject_reason_class': None if not missing else
+                    ('NotFresh' if ('bars' in missing or 'freshness' in missing) else 'WAIT_DATA_QUALITY'),
+                'feature_version': snap.features.feature_version})
         except Exception as exc:
             report['data'].append({'instrument': iid, 'ok': False, 'error': type(exc).__name__})
     if not any(item['ok'] for item in report['data']):
         report['blockers'].append('fresh_complete_minute_data_unverified')
     # A slow fetch may cross the closing boundary. Check again before paid HTTP.
-    if not pipe.calendar.is_session_open(datetime.now(timezone.utc)):
+    if not pipe.calendar.is_session_open(now_utc()):
         report['blockers'].append('not_continuous_session')
     report['ok'] = not report['blockers']
     return report

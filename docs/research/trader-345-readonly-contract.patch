@@ -1,0 +1,76 @@
+--- a/docs/tasks/TASK-20261030-345-pipeline-readonly-contract-alignment.md
++++ b/docs/tasks/TASK-20261030-345-pipeline-readonly-contract-alignment.md
+@@ -1,16 +1,16 @@
+ ---
+ id: TASK-20261030-345
+ title: 统一驾驶舱trader窗格只读字段映射与Owner交接
+-status: draft
+-owner: unassigned
++status: in_progress
++owner: Codex / Wang desktop（只读合同交接）
+ priority: medium
+ created: 2026-10-30
+ updated: 2026-10-30T15:51:49+08:00
+ dependencies: []
+ related_issues: [ISSUE-20261030-156]
+ architecture: ARCH-030
+-delivery_type: 研究
+-branch_worktree: 草案；实施分支及Owner待认领
++delivery_type: 工程交付 / 只读合同
++branch_worktree: main / F:/Project/trader（仅文档；无提交）
+ modify_scope: 仅文档规划；不修改apps/quant/运行逻辑，不部署或触碰资金风控
+ ---
+ 
+@@ -58,3 +58,19 @@
+ 
+ - [x] 已实现与提案区分；无架构状态推进。
+ - [ ] 映射评审和冻结未完成，不标completed；下一步核对本卡依据并按Owner交接规则处理。
++
++
++## 2026-10-30 本地授权合同交接（优先于历史草案）
++
++用户授权345只读GET合同与文档，不授权交易/OMS/风控/券商代码或第二产品UI。Codex认领文档范围为本卡、tasks/index.md、Issue156及issues/index.md；保留其他Owner修改。工程交付为左窗候选GET与ops.v1字段映射，不含运行接线。夜间链未派发/未指挥；本次为用户日常明确授权的文档工作。
++唯一冻结合同在[TradeMind ops.v1](../../../TradeMind/docs/research/ops-cockpit-readonly-contract-v1.md)，包括10公共字段、左窗Owner、GET清单、原字段、时间/单位、未知成本及脱敏规则。源码核对apps/trader/web.py和quant/dashboard/service.py，不改它们，不启动服务或连接150。
++
++- [x] GET /healthz仅web可读性；/api/status及/api/stock/status的worker/database/calendar/data分别映射，HEAD静态200不当GET成功或readiness。
++- [x] account的account_id/updated_at、现金权益字符串、valuation_status与open_positions_count保留原语义；ok=false时源零占位全部丢弃，金额unknown，禁止假装零账户。
++- [x] plan.has_plan=false为empty；generated_at与decision_date分开；plan_id不是run，actionable不是当前可执行；lifecycle保留。run-ledger历史集合不冒充paper-runs，未核实条目上限不产生事件脉冲。
++- [x] data-verification、next-session、risk-rejections、orders/trades/reconciliation只作候选GET，未验证成本/限条时不接高频；因子或日志缺证据标missing。
++- [x] 源系统Owner保留，263/289/291/293/308不改；345只交左窗合同，346不建第二UI，统一壳实现归TradeMind05、真实适配归06。
++- [ ] Wang本机固定主机/账户身份与在线返回、最大窗口/精确历史条目、耗时/分页、双源断连及实际运行验收待06；故本卡in_progress，不声称completed。
++
++验证：只读AST/文本审阅返回分支及GET/HEAD/POST路由；无在线HTTP/真实库/凭据/模型或provider调用。完整trader文档检查未执行。交接补丁由TradeMind只写沙箱生成，应用前以git apply --check核对；未应用时源卡仍draft，不把此补丁当目标事实。ARCH-030仍proposed，Issue156仍open，无资金风险参数、运行代码、部署或提交变化。
++Documentation Sync Check：合同唯一在TradeMind研究；本卡与两索引、Issue156对应行同步；无运行/环境/使用实现变化，README/project事实/ARCH-030无需标已实现。
+--- a/docs/tasks/index.md
++++ b/docs/tasks/index.md
+@@ -14,7 +14,7 @@
+ 
+ | Task | 状态 | 范围 |
+ |---|---|---|
+-| [TASK345](TASK-20261030-345-pipeline-readonly-contract-alignment.md) | draft / unassigned | 向统一驾驶舱04交接左窗只读字段与Owner；未实现 |
++| [TASK345](TASK-20261030-345-pipeline-readonly-contract-alignment.md) | in_progress / Codex | 左窗ops.v1及GET合同已审阅冻结；运行身份/成本/在线验收待06 |
+ | [TASK346](TASK-20261030-346-pipeline-interaction-prototype-alignment.md) | draft / unassigned | 向统一驾驶舱05/06交接左窗样例与验收；依赖345，不建第二UI |
+ 
+ 跨项目调研见 `F:/Project/TradeMind/docs/research/RESEARCH-20261030-cool-dataflow-frontend.md`；ARCH-030 仍 proposed；不做实盘下单按钮，不部署 150。
+--- a/docs/issues/ISSUE-20261030-156-pipeline-observation-contract-gap.md
++++ b/docs/issues/ISSUE-20261030-156-pipeline-observation-contract-gap.md
+@@ -30,3 +30,8 @@
+ 验收必须明确来源、数据时间/观察时间、账户、缺失/错误/陈旧；没有trace不推断因果。日志无接口可明确禁用，不伪造流量。新监控只读、不触发研究作业/策略/行情/模型。实际契约验证完成后才评估关闭；本轮open。
+ 
+ 2026-10-30本次仅规划修订，Issue保持open，ARCH-030保持proposed。无实盘按钮、现金/风控改动、150 SSH/部署、重启或commit/push；编码等待后续确认。本次修订受写权限限制，仅在TradeMind定向补丁中，待可写会话应用。
++
++
++## 2026-10-30 合同交接进度
++
++345已完成源码级GET候选与字段审阅，见[冻结合同](../../../TradeMind/docs/research/ops-cockpit-readonly-contract-v1.md)；TradeMind05为纯SAMPLE统一双窗，无第二UI或真实连接。account的ok=false零占位不得作为真实金额，status/healthz/HEAD不当交易readiness。主机/账户身份、查询成本/条数、双源异常与真实接线未验，Issue保持open、ARCH-030保持proposed。未改apps/quant、资金风控或部署；本增补仅随文档补丁交付，须实际应用后才是源卡状态。
+--- a/docs/issues/index.md
++++ b/docs/issues/index.md
+@@ -6,7 +6,7 @@
+ 
+ | Issue | 问题 | 优先级 | 关联 Task | 备注 |
+ |---|---|---|---|---|
+-| [ISSUE-20261030-156](ISSUE-20261030-156-pipeline-observation-contract-gap.md) | 统一驾驶舱双窗的trader只读映射与来源语义缺口 | medium | [TASK345](../tasks/TASK-20261030-345-pipeline-readonly-contract-alignment.md) / [TASK346](../tasks/TASK-20261030-346-pipeline-interaction-prototype-alignment.md) | 2026-10-30 单壳同时展示trader与TradeMind，不是双独立网站；open，ARCH-030仍proposed |
++| [ISSUE-20261030-156](ISSUE-20261030-156-pipeline-observation-contract-gap.md) | 统一驾驶舱双窗的trader只读映射与来源语义缺口 | medium | [TASK345](../tasks/TASK-20261030-345-pipeline-readonly-contract-alignment.md) / [TASK346](../tasks/TASK-20261030-346-pipeline-interaction-prototype-alignment.md) | 2026-10-30 ops.v1与GET候选源码审阅完成；运行身份/成本/双源接线待验；open，ARCH-030仍proposed |
+ | [ISSUE-20261029-154](ISSUE-20261029-154-document-policy-scope-drift.md) | 当前操作与历史规则混用 | medium | [TASK336](../tasks/TASK-20261029-336-document-policy-cleanup.md) | Docker当前操作、fe1架构记录与规则作用域待整理 |
+ 
+ | Issue | 问题 | 优先级 | 关联 Task | 备注 |

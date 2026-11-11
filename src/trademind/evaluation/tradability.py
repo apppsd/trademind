@@ -26,7 +26,7 @@ from ..domain.enums import OrderSide
 from ..portfolio.ledger import compute_fees
 
 SNAPSHOT_VERSION = 1
-TOOL_VERSION = 2
+TOOL_VERSION = 3
 
 _STATUS_ORDER = ('资金可达', '仅观察', '数据不足')
 
@@ -150,7 +150,12 @@ def evaluate_instrument(entry, snapshot, profile, max_price_age_seconds, price_m
               'price_age_seconds': None, 'status': '数据不足', 'reasons': [],
               'lot_size': None, 'settlement_rule': None,
               'one_lot_notional': None, 'one_lot_fees': None, 'one_lot_cost': None,
-              'max_affordable_lots': None}
+              'max_affordable_lots': None, 'cash_budget': None,
+              'single_exposure_room': None, 'total_exposure_room': None,
+              'pending_buy_notional': None, 'own_market_value': None,
+              'total_market_value': None}
+    report.update(cash=str(snapshot['cash']), reserved_cash=str(snapshot['reserved_cash']),
+                  **{key:str(value) for key,value in limits.items()})
     if profile is None:
         report['reasons'].append('无核验规则（规则库未覆盖该标的）')
         return report
@@ -196,14 +201,28 @@ def evaluate_instrument(entry, snapshot, profile, max_price_age_seconds, price_m
     single_room = limits['max_single_exposure'] - own_value - commitments.get(iid, Decimal(0))
     total_room = limits['max_total_exposure'] - total_value - sum(commitments.values(), Decimal(0))
     report.update(cash_budget=str(budget), single_exposure_room=str(single_room),
-                  total_exposure_room=str(total_room), pending_buy_notional=str(sum(commitments.values(), Decimal(0))))
+                  total_exposure_room=str(total_room), own_market_value=str(own_value),
+                  total_market_value=str(total_value),
+                  pending_single_buy_notional=str(commitments.get(iid, Decimal(0))),
+                  pending_buy_notional=str(sum(commitments.values(), Decimal(0))))
+    report.update(cash_shortfall=str(max(Decimal(0), cost-budget)),
+                  single_exposure_shortfall=str(max(Decimal(0),notional-single_room)),
+                  total_exposure_shortfall=str(max(Decimal(0),notional-total_room)))
     if cost > budget:
         report['reasons'].append('现金不足（本金+费用超出 可用现金-预留最低现金）')
     if notional > single_room:
         report['reasons'].append('单标的上限（一手名义价值超出 max_single_exposure 余量）')
     if notional > total_room:
         report['reasons'].append('总敞口上限（一手名义价值超出 max_total_exposure 余量）')
+    if cost > budget and cost <= budget + snapshot['reserved_cash']:
+        report['reasons'].append('冻结现金占用（不重复扣除挂单冻结）')
+    if (notional > single_room and notional <= single_room + commitments.get(iid, Decimal(0))
+            or notional > total_room and notional <= total_room + sum(commitments.values(), Decimal(0))):
+        report['reasons'].append('挂单买入占用敞口（一手在未计挂单时可达）')
+    if iid in snapshot.get('pending_instruments', set()):
+        report['reasons'].append('同标的已有挂单（保留观察，等待订单终态）')
     report['status'] = '仅观察' if report['reasons'] else '资金可达'
+    report['max_affordable_lots'] = 0
     if not report['reasons']:
         report['max_affordable_lots'] = _max_lots(notional, price, lot, profile.fees,
                                                   budget, single_room, total_room)
@@ -218,13 +237,14 @@ def evaluate(snapshot, profiles, max_price_age_seconds=300):
                  if entry['price'] is not None and entry['price'] > 0 and entry['price_time'] is not None
                  and 0 <= (snapshot['as_of'] - entry['price_time']).total_seconds() <= max_price_age_seconds}
     unpriced_positions = sorted(key for key, qty in snapshot['positions'].items() if qty > 0 and key not in price_map)
-    commitments, order_gaps = {}, []
+    commitments, order_gaps, pending_instruments = {}, [], set()
     for order in snapshot['open_orders']:
         if order.get('status') == 'UNKNOWN':
             order_gaps.append(order['instrument_id'])
             continue
         if order.get('status') in ('FILLED', 'CANCELLED', 'REJECTED', 'EXPIRED'):
             continue
+        pending_instruments.add(order['instrument_id'])
         if order.get('side') not in ('BUY', 'SELL'):
             order_gaps.append(order['instrument_id'])
             continue
@@ -241,11 +261,14 @@ def evaluate(snapshot, profiles, max_price_age_seconds=300):
             continue
         iid = order['instrument_id']
         commitments[iid] = commitments.get(iid, Decimal(0)) + remaining * price
-    snapshot = {**snapshot, 'buy_commitments': commitments}
+    snapshot = {**snapshot, 'buy_commitments': commitments, 'pending_instruments':pending_instruments}
     instruments = [evaluate_instrument(entry, snapshot, profiles.get(entry['instrument_id']),
                                        max_price_age_seconds, price_map,
                                        valuation_complete=not unpriced_positions and not order_gaps)
                    for entry in snapshot['instruments']]
+    for item in instruments:
+        item['reason_codes'] = [_reason_code(reason) for reason in item['reasons']]
+        item['new_entry_candidate'] = item['status'] == '资金可达'
     counts = {status: sum(1 for item in instruments if item['status'] == status)
               for status in _STATUS_ORDER}
     return {'tool': 'check_t0_tradability', 'tool_version': TOOL_VERSION,
@@ -280,6 +303,52 @@ def evaluate_from_raw(raw_data, profile_resolver, max_price_age_seconds=300):
     report = evaluate(snapshot, profiles, max_price_age_seconds)
     report['input_sha256'] = input_fingerprint(raw_data)
     return report
+
+
+def paper_entry_report(context, cfg, open_orders, now, profile_resolver):
+    """Adapt visible paper context to the existing diagnostic, without new math.
+
+    Caller limits this hook to paper-t0-local-1k NEW entries. Price provenance
+    is carried by ContextBuilder; absent/stale marks remain unknown.
+    """
+    portfolio = context.portfolio
+    if portfolio is None:
+        raise ValueError('paper entry requires portfolio')
+    marks = dict(context.aux.get('valuation_prices', {}))
+    bars = context.aux.get('minute_bars') or []
+    if bars:
+        marks[context.instrument_id] = {
+            'price':(str(context.features.values['close']) if 'close' in context.features.values else None),
+            'price_time':bars[-1].get('time'), 'price_source':'visible minute context'}
+    # Every positive position needs its own fresh mark; do not use avg-cost
+    # fallbacks as current quotes or manufacture a fresh visibility timestamp.
+    ids = list(dict.fromkeys([context.instrument_id, *portfolio.positions]))
+    instruments = [{'instrument_id':iid, **marks.get(iid, {'price':None})} for iid in ids]
+    raw = {'snapshot_version':SNAPSHOT_VERSION, 'account_id':portfolio.account_id,
+           'as_of':now.isoformat(), 'cash':str(portfolio.cash),
+           'reserved_cash':str(portfolio.reserved_cash),
+           'positions':[{'instrument_id':iid,'quantity':p['qty']} for iid,p in portfolio.positions.items()],
+           'open_orders':[dict(o) for o in open_orders if o['account_id']==portfolio.account_id],
+           'limits':{k:str(getattr(cfg,k)) for k in
+                     ('max_single_exposure','max_total_exposure','min_cash_reserve')},
+           'instruments':instruments}
+    return evaluate_from_raw(raw, profile_resolver, max_price_age_seconds=180)
+
+
+def _reason_code(reason):
+    for prefix, code in (
+        ('现金不足','fee_inclusive_cash_shortfall'),
+        ('单标的上限','single_exposure_headroom'),
+        ('总敞口上限','total_exposure_headroom'),
+        ('冻结现金','reserved_cash_binding'),
+        ('挂单买入','open_buy_exposure_binding'),
+        ('同标的已有挂单','pending_order'),
+        ('非T0','non_t0'), ('无核验规则','unknown_rules'),
+        ('持仓估值','incomplete_valuation_or_order_commitments'),
+    ):
+        if reason.startswith(prefix):
+            return code
+    return 'price_data_unknown'
 
 
 _REASON_NOTE = {
@@ -340,4 +409,11 @@ def render_markdown(report):
     summary = report['summary']
     lines.append(f"汇总：资金可达 {summary['资金可达']}，仅观察 {summary['仅观察']}，"
                  f"数据不足 {summary['数据不足']}，共 {summary['total']} 项。")
+    lines += ['', '| 标的 | 合法单位 | 含费现金预算 | 单标的余量 | 总敞口余量 | 挂单买入名义 | 原因分类 |',
+              '|---|---|---|---|---|---|---|']
+    for item in report['instruments']:
+        lines.append('| ' + ' | '.join(str(value) if value is not None else 'unknown' for value in (
+            item['instrument_id'], item['lot_size'], item.get('cash_budget'),
+            item.get('single_exposure_room'), item.get('total_exposure_room'),
+            item.get('pending_buy_notional'), ', '.join(item['reason_codes']) or '—')) + ' |')
     return '\n'.join(lines)

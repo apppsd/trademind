@@ -22,6 +22,73 @@ def conditions_allow(action, plan, features):
     return False
 
 
+def condition_truth_rows(conditions, features):
+    """Per-condition evidence rows (t279u item A). A missing or non-finite
+    feature stays unknown — actual is never invented, matched stays false,
+    mirroring ``Condition.matches`` semantics exactly."""
+    rows = []
+    for c in conditions:
+        actual = features.get(c.field)
+        try:
+            usable = actual is not None and Decimal(str(actual)).is_finite()
+        except (ValueError, ArithmeticError):
+            usable = False
+        rows.append({'field': c.field, 'operator': c.operator, 'threshold': str(c.value),
+                     'actual': str(actual) if usable else 'unknown',
+                     'matched': bool(c.matches(features)) if usable else False,
+                     'missing': not usable})
+    return rows
+
+
+def action_gate(state):
+    """Structured why-only-WAIT evidence for the no-actionable reason.
+
+    Exclusion classes follow the exact gate order in ``build_fast_state`` so
+    the reported cause always names the first check that collapsed the
+    action: BUY pending→plan→conditions→cash; SELL pending→position→plan→
+    conditions; HOLD position→plan. Purely derived from the already-built
+    ``FastDecisionState`` — no model call, no new facts.
+    """
+    plan = state.plan
+    features = state.features
+    account = state.account
+    pos = next((p for p in account['positions'] if p['instrument_id'] == state.instrument_id), None)
+    pending = any(o['instrument_id'] == state.instrument_id for o in account['open_orders'])
+    allowed = set(state.allowed_actions)
+    cash = Decimal(str(account['cash'])) - Decimal(str(account['reserved_cash']))
+    reserve = Decimal(str(state.risk_limits.get('reserve', '0')))
+    def exclusion(action):
+        if action in allowed:
+            return None
+        if action == TradeAction.HOLD:
+            return 'no_position_or_qty' if not pos else 'plan_disallowed'
+        if action == TradeAction.BUY:
+            if pending:
+                return 'pending_order'
+            if action not in plan.allowed_actions:
+                return 'plan_disallowed'
+            if not conditions_allow(action, plan, features):
+                return 'conditions_unmet'
+            if not cash > reserve:
+                return 'cash_reserve'
+        elif action == TradeAction.SELL:
+            if pending:
+                return 'pending_order'
+            if not pos or Decimal(str(pos['available_quantity'])) <= 0:
+                return 'no_position_or_qty'
+            if action not in plan.allowed_actions:
+                return 'plan_disallowed'
+            if not conditions_allow(action, plan, features):
+                return 'conditions_unmet'
+        return 'unknown'
+    return {'plan_id': plan.plan_id,
+            'allowed_actions': [a.value for a in state.allowed_actions],
+            'plan_allowed_actions': [a.value for a in plan.allowed_actions],
+            'exclusion': {a.value: exclusion(a) for a in (TradeAction.BUY, TradeAction.SELL, TradeAction.HOLD)},
+            'entry_conditions': condition_truth_rows(plan.entry_conditions, features),
+            'exit_conditions': condition_truth_rows(plan.exit_conditions, features)}
+
+
 def build_fast_state(context, plan, profile, account, open_orders, cfg, budget, now, risk_state=None):
     bars=context.aux.get('minute_bars',[])
     if not bars or 'freshness' in context.missing_fields or 'bars' in context.missing_fields:

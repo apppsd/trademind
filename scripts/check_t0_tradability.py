@@ -2,7 +2,8 @@
 
 输入：显式 JSON 快照（账户现金/预留、持仓、在途订单、逐标的最近价格及可见时间、冻结限额）。
 行为：不读 .env、不联网、不写生产数据；逐标的给出 资金可达 / 仅观察 / 数据不足
-与具体被哪条冻结限额挡住。资金可达不等于下单授权。
+与具体被哪条冻结限额挡住。JSON含 reason_codes、新仓候选标志与逐项余量；
+冻结现金和挂单敞口分开归因，不重复扣现金。资金可达不等于下单授权。
 
 用法：
   python scripts/check_t0_tradability.py --snapshot data/runtime/tradability-sample.json \

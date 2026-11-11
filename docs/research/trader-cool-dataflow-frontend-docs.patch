@@ -1,0 +1,173 @@
+--- a/docs/tasks/TASK-20261030-345-pipeline-readonly-contract-alignment.md
++++ b/docs/tasks/TASK-20261030-345-pipeline-readonly-contract-alignment.md
+@@ -1,11 +1,11 @@
+ ---
+ id: TASK-20261030-345
+-title: 流水线只读契约与TradeMind对齐草案
++title: 统一驾驶舱trader窗格只读字段映射与Owner交接
+ status: draft
+ owner: unassigned
+ priority: medium
+ created: 2026-10-30
+-updated: 2026-10-30
++updated: 2026-10-30T15:51:49+08:00
+ dependencies: []
+ related_issues: [ISSUE-20261030-156]
+ architecture: ARCH-030
+@@ -14,18 +14,18 @@
+ modify_scope: 仅文档规划；不修改apps/quant/运行逻辑，不部署或触碰资金风控
+ ---
+ 
+-# 流水线只读契约与TradeMind对齐草案
++# 统一驾驶舱trader窗格只读字段映射与Owner交接
+ 
+ ## 人话说明与范围
+ 
+-先把现有监控数据能显示什么、从哪里来写清楚，再设计可点开的管线图。本卡只做研究合同，不改web.py/service.py，不抢263或289范围。
++2026-10-30用户经Trade Ops决定：单一统一运维驾驶舱 Unified Ops Cockpit，左trader / 右TradeMind同时可见，共享管线/粒子视觉，不是两个独立网站。本卡向TradeMind04提供左窗字段映射和Owner交接，不建设第二产品UI；本轮只更新规划，编码等待后续确认。默认扩展TradeMind Vue工作台作为唯一壳，完整取舍只维护在跨项目调研决策段。不改web.py/service.py，不抢263或289范围。
+ 工程交付层级：文档草案；部署：未部署；运行验收：未进行。启用条件：后续用户授权、认领时复核依赖与Owner。
+ 
+ ## 需求与非目标
+ 
+ 对齐[跨项目调研](../../../TradeMind/docs/research/RESEARCH-20261030-cool-dataflow-frontend.md)和TradeMind Task30-04：项目/主机/账户/run/source/schema_version、数据时间/观察时间、质量与证据ID；run-ledger不冒充paper-runs，股票与ETF账本不合并。
+-保留ARCH-030 proposed。289仍优先原生ES模块，不能因本建议静默迁Vue/React；先共享tokens/字段/状态语义。
+-不改apps/quant/交易/运行代码、依赖、资金/风控、批准；不SSH150、不部署/重启、不commit/push，不做实盘下单/撤单/解锁按钮或研究POST调用。用户乱码条款待还原，不推断授权。
++保留ARCH-030 proposed。289仍优先原生ES模块，不迁移trader技术栈；345只交付给统一Vue壳的字段/状态语义、脱敏样例与接入Owner。左窗显示数据刷新/质量/因子/计划/风险/OMS/paper、账户与run-ledger，源系统仍拥有账本与查询事实。
++不改apps/quant/交易/运行代码、依赖、资金/风控、批准；不SSH150、不部署/重启、不commit/push，不做实盘下单/撤单/解锁按钮或研究POST调用。禁止双独立网站；不以本次规划授予编码或部署授权。
+ 
+ ## 依据与Owner交接
+ 
+@@ -38,7 +38,9 @@
+ - [ ] 现有status/stock/status/healthz及run-ledger与readiness区分，不把Wang/150路径、库身份混用。
+ - [ ] 统一缺失/错误/旧数据/真实空/0值；未知费用和关联保持unknown，缺trace不造因果。
+ - [ ] 无新增数据库直连、任意路径/SQL或原始未脱敏日志；不触发免费/收费provider或研究作业。
+-- [ ] 跨项目字段样例明确设计样例，交接TradeMind04，双方评审后冻结。
++- [ ] 跨项目字段样例明确标记“样例 / SAMPLE”，交接TradeMind04，双方评审后冻结。
++- [ ] 明确左窗来源/账户/时点与映射Owner，统一壳和适配器Owner待交接；一侧断连不掩盖另一侧，不合并预算/账本或编造跨项目因果。
++- [ ] 346只交接同一壳的左窗样例和验收，不派生第二站点或替代289产品UI。
+ 
+ ## 计划与文档同步契约
+ 
+@@ -50,7 +52,7 @@
+ 
+ ## 记录与验证
+ 
+-本卡由Codex在Wang编写为待应用补丁；目标trader树未写入，ID未占用，应用前复核编号及工作树。仅源码和文档盘点，无UI/HTTP/150运行验证。draft不代表已认领编码；本轮检查结果见TradeMind Task30-04。
++历史：本卡最初由Codex在Wang编写为补丁，随后已进入trader树，ID已占用。2026-10-30本次统一驾驶舱修订由Codex规划，文档范围仅本卡、346、Issue156及两索引对应行；main / F:/Project/trader，保留其他Owner修改。当前会话写权限仅TradeMind，因此本次修订仅交付于TradeMind定向补丁，待可写会话应用；不得将补丁生成视为目标树已更新。无UI/HTTP/150运行验证，draft不代表已认领编码；文档检查见TradeMind Task30-04。
+ 
+ ## Documentation Sync Check / 交接
+ 
+--- a/docs/tasks/TASK-20261030-346-pipeline-interaction-prototype-alignment.md
++++ b/docs/tasks/TASK-20261030-346-pipeline-interaction-prototype-alignment.md
+@@ -1,11 +1,11 @@
+ ---
+ id: TASK-20261030-346
+-title: 流水线交互原型与现有前端计划对齐
++title: 统一驾驶舱trader窗格样例与验收Owner交接
+ status: draft
+ owner: unassigned
+ priority: medium
+ created: 2026-10-30
+-updated: 2026-10-30
++updated: 2026-10-30T15:51:49+08:00
+ dependencies: [TASK-20261030-345]
+ related_issues: [ISSUE-20261030-156]
+ architecture: ARCH-030
+@@ -14,22 +14,23 @@
+ modify_scope: 仅文档规划；不修改apps/quant/运行逻辑，不部署或触碰资金风控
+ ---
+ 
+-# 流水线交互原型与现有前端计划对齐
++# 统一驾驶舱trader窗格样例与验收Owner交接
+ 
+ ## 人话说明与范围
+ 
+-给现有深色原型补“运行流/系统图/账户玻璃舱/日志爬行器”的可交互设计，并和TradeMind保持相同的状态含义。先用显著标记的样例，真实只读接线另授权。
+-工程交付层级：设计与验收方案；本轮仅文档，部署/运行均未验。修改范围在认领时精确到prototype/frontend-20261026或隔离后继目录，本轮不改HTML/JS/CSS。
++2026-10-30用户决定一个统一运维驾驶舱 Unified Ops Cockpit，单壳左trader / 右TradeMind同时可见，默认扩展TradeMind Vue工作台。346只向TradeMind05交接trader左窗的脱敏样例、管线/粒子交互语义及验收Owner，不建设第二产品UI或独立站点。完整承载决策见[跨项目调研](../../../TradeMind/docs/research/RESEARCH-20261030-cool-dataflow-frontend.md)。本轮只更新规划；编码等待后续确认。
++工程交付层级：左窗设计样例与验收交接方案；本轮仅文档，部署/运行均未验。后续仅交付字段样例、视觉tokens/证据语义和验收材料给统一壳Owner；原型实现由TradeMind05负责，双源适配由06负责。确切文件与Owner须在认领时冻结，本轮不改HTML/JS/CSS或package.json。
+ 
+ ## 前置与非目标
+ 
+ 345合同评审后才能认领；与287原型、288tokens、289页面壳、294图表、305适配、306状态、308性能、309验收逐项交接，避免重复交付。正式接线另须满足263/289/291/293等适用依赖；不把本卡完成替代原任务验收。
+-trader先沿用原生模块，对齐Vue/ECharts视觉语义；若改构建栈需先修改289合同。Three.js空间效果可选，Canvas/ECharts二维优先；本轮不加包。
++trader现有原生模块及289合同保留；不迁Vue、不另起前端工程。统一壳复用TradeMind Vue/ECharts，Canvas二维优先，可关闭粒子；本轮不加包。共享时间刷选器可选，时间覆盖不一致须独立标时，缺trace不画跨项目因果。
+ 不改apps/quant或任何交易/运行代码，不动资金/风控/批准、不SSH、不部署/重启、不commit/push。无实盘按钮、撤单、解锁、调参、在线模型或研究作业触发。
+ 
+ ## 需求与可验证验收
+ 
+-- [ ] 四层能点击节点/证据、缩放/时间刷选、暂停跟随和返回；可从现有系统导航进入，证券/账户不丢上下文。
++- [ ] 左窗在同一split壳内与TradeMind右窗同时可见，身份/证券/账户不丢上下文；向05交接四层节点/证据、缩放/时间刷选、暂停跟随和返回的样例验收，不以打开两个网站代替。
++- [ ] 所有样例显著标记“样例 / SAMPLE”；统一tokens/管线/粒子语义，分别保留账本与状态Owner。单侧断连与双侧断连由06分别验证。
+ - [ ] 静态拓扑标“配置依赖”，装饰粒子标“示意”；只有真实事件可画事件脉冲，缺关联只并列不连因果。
+ - [ ] 加载/空/缺失/错误/陈旧/未知可演示，中文名和源时点可读；账户资金流与收益不混算。
+ - [ ] 桌面1440/1920、390视口、200%缩放、键盘/低动效/无WebGL回退；浏览器实际交互证据，不以DOM.click或截图单独代验收。
+@@ -38,12 +39,12 @@
+ 
+ ## 计划与文档同步契约
+ 
+-先原型草图→样例交互→异常/可访问性/性能门禁→评审，所有数字均标设计样例。实际实施前填写Owner、分支及确切代码范围。
+-同步本卡、Issue156、docs/tasks/index.md、docs/issues/index.md；原型改变时同步prototype/frontend-20261026/README.md（如采用后继目录则更新其说明和原型链接），视觉合同改变时与原Owner同步docs/roadmap/frontend-experience-spec-20261026.md。ARCH-030仍proposed，未接线不改项目事实/README/setup为已实现；运行接线和部署另列任务。
++先左窗字段样例/草图→交接TradeMind05统一split原型→双方核对异常/可访问性/性能门禁→交接06双源接线验收；所有数字均标设计样例。实际实施前填写Owner、分支及确切文件，不另开第二UI实现范围。
++同步本卡、345、Issue156、docs/tasks/index.md、docs/issues/index.md对应行；跨项目完整决定只维护于TradeMind调研，05/06记录统一壳原型和双源验收。现有prototype/frontend-20261026不改作第二产品UI；若其引用/视觉合同确需变化，由原Owner同步README和docs/roadmap/frontend-experience-spec-20261026.md。ARCH-030仍proposed，未接线不改项目事实/README/setup为已实现；部署须单独授权。
+ 
+ ## 记录、验证与交接
+ 
+-2026-10-30仅草案补丁，未写目标树，ID未占用。前置未满足、未编码、未启动浏览器/服务或调用API，所有验收待执行。
++历史草案已进入trader树，ID已占用。2026-10-30本次统一驾驶舱修订仅由Codex更新规划，main / F:/Project/trader；文档Owner及范围同345。写权限仅TradeMind，本次修订以定向补丁交接，待可写会话应用。前置未满足、未编码、未启动浏览器/服务或调用API，所有验收待执行，status保持draft。
+ - [x] 只读边界与未来权限明确。
+ - [ ] 原型/视觉/接口/真实运行验收未进行，不标completed。
+ 下一步先评审345及TradeMind建议，再与现有前端Owner协调范围。
+--- a/docs/issues/ISSUE-20261030-156-pipeline-observation-contract-gap.md
++++ b/docs/issues/ISSUE-20261030-156-pipeline-observation-contract-gap.md
+@@ -4,7 +4,7 @@
+ status: open
+ priority: medium
+ created: 2026-10-30
+-updated: 2026-10-30
++updated: 2026-10-30T15:51:49+08:00
+ related_tasks: [TASK-20261030-345, TASK-20261030-346]
+ architecture: ARCH-030
+ ---
+@@ -24,5 +24,9 @@
+ 
+ ## 处置与关闭标准
+ 
+-345冻结白名单和时间/身份/事件映射；346定义独立原型及后续接线门禁，复用263/289/291/293/308原Owner成果，不创建第二账本或查询状态所有者。
++2026-10-30用户经Trade Ops决定：统一运维驾驶舱 Unified Ops Cockpit，单壳左trader / 右TradeMind同时可见，酷炫管线/粒子共享视觉；禁止双独立网站。默认扩展TradeMind Vue工作台；完整取舍见跨项目调研决策段，未实现。
++
++345向TradeMind04交接左窗白名单、时间/身份/事件映射与Owner；346向05交接左窗样例/视觉语义/验收，06负责两系统只读适配接入同一壳。复用263/289/291/293/308原Owner成果，不建设第二产品UI、账本或查询状态所有者。
+ 验收必须明确来源、数据时间/观察时间、账户、缺失/错误/陈旧；没有trace不推断因果。日志无接口可明确禁用，不伪造流量。新监控只读、不触发研究作业/策略/行情/模型。实际契约验证完成后才评估关闭；本轮open。
++
++2026-10-30本次仅规划修订，Issue保持open，ARCH-030保持proposed。无实盘按钮、现金/风控改动、150 SSH/部署、重启或commit/push；编码等待后续确认。本次修订受写权限限制，仅在TradeMind定向补丁中，待可写会话应用。
+--- a/docs/tasks/index.md
++++ b/docs/tasks/index.md
+@@ -8,12 +8,14 @@
+ - 部署、重启、批准变更仍按项目授权边界执行，不因本约定放宽。
+ 
+ 
+-## 2026-10-30 流水线观测前端草案（仅文档）
++## 2026-10-30 统一运维驾驶舱交接草案（单壳双窗，仅文档）
++
++2026-10-30用户决定：一个壳同时展示trader | TradeMind，不是两个独立网站；默认扩展TradeMind Vue工作台，编码待后续确认。ARCH-030保持proposed；本次修订仅在TradeMind补丁中，待可写会话应用。
+ 
+ | Task | 状态 | 范围 |
+ |---|---|---|
+-| [TASK345](TASK-20261030-345-pipeline-readonly-contract-alignment.md) | draft / unassigned | 只读契约与 TradeMind 对齐；未实现 |
+-| [TASK346](TASK-20261030-346-pipeline-interaction-prototype-alignment.md) | draft / unassigned | 交互原型与 ARCH-030 对齐；依赖 345 |
++| [TASK345](TASK-20261030-345-pipeline-readonly-contract-alignment.md) | draft / unassigned | 向统一驾驶舱04交接左窗只读字段与Owner；未实现 |
++| [TASK346](TASK-20261030-346-pipeline-interaction-prototype-alignment.md) | draft / unassigned | 向统一驾驶舱05/06交接左窗样例与验收；依赖345，不建第二UI |
+ 
+ 跨项目调研见 `F:/Project/TradeMind/docs/research/RESEARCH-20261030-cool-dataflow-frontend.md`；ARCH-030 仍 proposed；不做实盘下单按钮，不部署 150。
+ 
+--- a/docs/issues/index.md
++++ b/docs/issues/index.md
+@@ -6,7 +6,7 @@
+ 
+ | Issue | 问题 | 优先级 | 关联 Task | 备注 |
+ |---|---|---|---|---|
+-| [ISSUE-20261030-156](ISSUE-20261030-156-pipeline-observation-contract-gap.md) | 跨项目流水线展示的事件与来源语义未统一 | medium | [TASK345](../tasks/TASK-20261030-345-pipeline-readonly-contract-alignment.md) / [TASK346](../tasks/TASK-20261030-346-pipeline-interaction-prototype-alignment.md) | 2026-10-30 文档草案；ARCH-030 仍 proposed |
++| [ISSUE-20261030-156](ISSUE-20261030-156-pipeline-observation-contract-gap.md) | 统一驾驶舱双窗的trader只读映射与来源语义缺口 | medium | [TASK345](../tasks/TASK-20261030-345-pipeline-readonly-contract-alignment.md) / [TASK346](../tasks/TASK-20261030-346-pipeline-interaction-prototype-alignment.md) | 2026-10-30 单壳同时展示trader与TradeMind，不是双独立网站；open，ARCH-030仍proposed |
+ | [ISSUE-20261029-154](ISSUE-20261029-154-document-policy-scope-drift.md) | 当前操作与历史规则混用 | medium | [TASK336](../tasks/TASK-20261029-336-document-policy-cleanup.md) | Docker当前操作、fe1架构记录与规则作用域待整理 |
+ 
+ | Issue | 问题 | 优先级 | 关联 Task | 备注 |

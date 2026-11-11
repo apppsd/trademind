@@ -35,12 +35,12 @@ def minute(at,price='1.50'):
         open=price,high=price,low=price,close=price,volume='1000',amount='1500',
         provider='test',source_time=at,available_at=at,fetched_at=at)
 
-def make_pipe(tmp_path,mode='paper'):
+def make_pipe(tmp_path,mode='paper',account_id='fast-test'):
     tick=[NOW]
     cfg=AppConfig()
     cfg.t0.enabled=True
     cfg.t0.profile='jev_fast_decision'
-    cfg.account_id='fast-test'
+    cfg.account_id=account_id
     cfg.universe=[I]
     cfg.mode=mode
     cfg.storage.url=f'sqlite:///{tmp_path}/fast.db'
@@ -58,7 +58,11 @@ def make_pipe(tmp_path,mode='paper'):
     pipe.llm.capability_verified=pipe.jev.capability_verified=True
     pipe.llm_is_stub=pipe.jev_is_stub=False
     def complete(**kw):
-        pipe.model_budget.reserve_request(1000,1024,role=kw['role'])
+        reserve=lambda:pipe.model_budget.reserve_request(1000,1024,role=kw['role'])
+        if kw.get('admit_request'):
+            kw['admit_request'](kw['role'],reserve)
+        else:
+            reserve()
         call=build_call(role=kw['role'],provider=ProviderKind.DEEPSEEK,model='deepseek-flash',system=kw['system'],user=kw['user'],trace_id=kw['trace_id'])
         return ModelOutput(text='',parsed=strategy(),call=call)
     pipe.llm.complete=Mock(side_effect=complete)
@@ -151,6 +155,373 @@ def test_global_cadence_persists(tmp_path):
     tick[0]+=timedelta(minutes=1)
     pipe.run_decision(I,tick[0])
     assert pipe.jev.session.post.call_count==1
+
+
+def _cached_fast_context(pipe, tick, iid=I, actionable=True):
+    """Seed a valid cached plan through the real planner, outside scheduling."""
+    from trademind.agents.strategy_planner import StrategyPlanner
+    context=pipe.context_builder.build_minute(I,tick[0]).model_copy(
+        update={'instrument_id':iid})
+    planner=StrategyPlanner(pipe.llm,pipe.repo,pipe.cfg.t0,pipe.cfg.account_id,lambda:tick[0])
+    planner.get(context,get_profile(iid),'seed-'+iid)
+    if not actionable:
+        row=pipe.repo.get_coalesce(planner.key(iid))
+        row['meta']['plan']['entry_conditions']=[dict(field='close',operator='gt',value='9')]
+        pipe.repo.save_coalesce(planner.key(iid),tick[0],row['meta'])
+    return context
+
+
+def _fast_runner(pipe, tick, paper_new_entry_filter=False):
+    from trademind.agents.fast_pipeline import FastDecisionPipeline
+    return FastDecisionPipeline(pipe.llm,pipe.jev,pipe.repo,pipe.cfg.t0,
+        pipe.cfg.account_id,pipe.ledger,pipe.calendar,pipe.model_budget,
+        lambda:tick[0],lambda:{},paper_new_entry_filter=paper_new_entry_filter)
+
+
+def test_wait_only_ticks_leave_window_for_short_lived_other_instrument(tmp_path):
+    pipe,tick=make_pipe(tmp_path,'shadow')
+    a=_cached_fast_context(pipe,tick,actionable=False)
+    b=_cached_fast_context(pipe,tick,'513100.SH')
+    fast=_fast_runner(pipe,tick)
+    before=pipe.llm.complete.call_count
+    for seconds in (0,1,2):
+        tick[0]=NOW+timedelta(seconds=seconds)
+        intent,meta=fast.run(a,'wait-'+str(seconds))
+        assert intent.reason=='no actionable strategy conditions'
+        assert not meta['model_path_claimed'] and not meta['jev_called']
+        assert pipe.repo.get_coalesce('fast-eval:'+pipe.cfg.account_id) is None
+    tick[0]+=timedelta(seconds=1)
+    intent,meta=fast.run(b,'short-window')
+    assert intent.action.value=='BUY' and meta['jev_called']
+    assert pipe.llm.complete.call_count==before
+    assert pipe.jev.session.post.call_count==1
+    charged_at=pipe.repo.get_coalesce('fast-eval:'+pipe.cfg.account_id)['last_run_at']
+    # New instance reads persisted cadence; refused ticks do not slide it.
+    tick[0]+=timedelta(seconds=1)
+    intent,_=_fast_runner(pipe,tick).run(b,'restart')
+    assert intent.reason=='global model evaluation cooldown'
+    assert pipe.repo.get_coalesce('fast-eval:'+pipe.cfg.account_id)['last_run_at']==charged_at
+
+
+def test_flash_only_wait_claims_and_old_timestamp_still_blocks(tmp_path):
+    pipe,tick=make_pipe(tmp_path,'shadow')
+    original=pipe.llm.complete.side_effect
+    def wait_plan(**kw):
+        output=original(**kw)
+        output.parsed['entry_conditions']=[dict(field='close',operator='gt',value='9')]
+        return output
+    pipe.llm.complete.side_effect=wait_plan
+    result=pipe.run_decision(I,tick[0])
+    assert result.intent.reason=='no actionable strategy conditions'
+    key='fast-eval:'+pipe.cfg.account_id
+    assert pipe.repo.get_coalesce(key)['last_run_at']==NOW
+    pipe.jev.session.post.assert_not_called()
+    # Legacy rows have only instrument metadata, and must still be honored.
+    pipe.repo.save_coalesce(key,NOW,{'instrument':I})
+    tick[0]+=timedelta(seconds=299)
+    assert pipe.run_decision(I,tick[0]).intent.reason=='global model evaluation cooldown'
+    tick[0]+=timedelta(seconds=1)
+    assert pipe.run_decision(I,tick[0]).intent.reason=='no actionable strategy conditions'
+    assert pipe.repo.get_coalesce(key)['last_run_at']==NOW
+
+
+def test_refresh_rejected_before_provider_does_not_claim(tmp_path):
+    pipe,tick=make_pipe(tmp_path,'shadow')
+    context=_cached_fast_context(pipe,tick,actionable=False)
+    fast=_fast_runner(pipe,tick)
+    pipe.repo.save_coalesce('fast-refresh:'+pipe.cfg.account_id+':'+I,tick[0],{'requested':True})
+    intent,_=fast.run(context,'too-soon-refresh')
+    assert intent.reason=='strategy refresh cooldown'
+    assert pipe.repo.get_coalesce('fast-eval:'+pipe.cfg.account_id) is None
+    assert pipe.llm.complete.call_count==1
+
+
+def test_charge_claim_rechecks_after_concurrent_cached_preflight(tmp_path):
+    """Two separate DB connections pass preflight; only one reaches JEV."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from trademind.storage import Database, Repository
+    pipe,tick=make_pipe(tmp_path,'shadow')
+    context=_cached_fast_context(pipe,tick)
+    first,second=_fast_runner(pipe,tick),_fast_runner(pipe,tick)
+    other_db=Database(pipe.cfg.storage.url)
+    second.repo=Repository(other_db)
+    second.planner.repo=second.repo
+    second.budget=DailyModelBudget(second.repo,pipe.cfg.t0,pipe.cfg.account_id,lambda:tick[0])
+    second.jev=TypeSafeJEVProvider(api_key='test-only',budget=second.budget)
+    second.jev.capability_verified=True
+    second.jev.session.post=pipe.jev.session.post
+    second.decider.jev=second.jev
+    barrier=Barrier(2)
+    for fast in (first,second):
+        original=fast.planner.get
+        def get(*args,_get=original,**kwargs):
+            plan=_get(*args,**kwargs)
+            barrier.wait(timeout=5)
+            return plan
+        fast.planner.get=get
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results=list(pool.map(lambda fast:fast.run(context,'race'),(first,second)))
+        assert sorted(intent.reason for intent,_ in results)==[
+            'global model evaluation cooldown','typed JEV action with valid strategy and evidence']
+        assert pipe.jev.session.post.call_count==1
+        assert pipe.model_budget.snapshot()['jev']==1
+    finally:
+        other_db.close()
+
+
+def test_exhausted_budget_does_not_claim_cached_action(tmp_path):
+    pipe,tick=make_pipe(tmp_path,'shadow')
+    context=_cached_fast_context(pipe,tick)
+    pipe.model_budget.limit=pipe.model_budget.used
+    intent,meta=_fast_runner(pipe,tick).run(context,'exhausted')
+    assert intent.reason=='shared model budget exhausted'
+    assert not meta['model_path_claimed']
+    assert pipe.repo.get_coalesce('fast-eval:'+pipe.cfg.account_id) is None
+    pipe.jev.session.post.assert_not_called()
+
+
+@pytest.mark.parametrize('reject',['role_quota','unknown_price','fee_limit'])
+@pytest.mark.parametrize('previous',[False,True])
+def test_jev_pre_send_reject_preserves_window_and_other_flash(tmp_path,reject,previous):
+    pipe,tick=make_pipe(tmp_path,'shadow')
+    context=_cached_fast_context(pipe,tick)
+    fast=_fast_runner(pipe,tick)
+    key='fast-eval:'+pipe.cfg.account_id
+    if previous:
+        pipe.repo.save_coalesce(key,NOW-timedelta(seconds=301),{'old':'metadata'})
+    old=pipe.repo.get_coalesce(key)
+    budget=pipe.model_budget
+    if reject=='role_quota':
+        # Exhaust the role while shared and flash quota remain available.
+        budget.reserve_jev(100)
+        pipe.cfg.t0.jev_request_limit=budget.snapshot()['jev']
+    elif reject=='unknown_price':
+        # Pass the cheap global preflight; block at the provider's reservation.
+        original_price=budget.jev_cost
+        def price(inputs,outputs):
+            if inputs>1:
+                raise ProviderError('JEV pricing unconfigured; paid request blocked')
+            return original_price(inputs,outputs)
+        budget.jev_cost=price
+    else:
+        pipe.cfg.t0.daily_model_cost_limit_cny=D(budget.snapshot()['cost_reserved_cny'])+D('0.01')
+        # Real JEV upper bound is too expensive; a small flash request still fits.
+        pipe.cfg.t0.jev_input_cny_per_million=D('1000')
+    before=budget.snapshot()
+    intent,meta=fast.run(context,'pre-send-reject')
+    assert intent.action.value=='WAIT'
+    assert not meta['model_path_claimed'] and not meta['jev_called']
+    assert pipe.repo.get_coalesce(key)==old
+    assert budget.snapshot()==before
+    pipe.jev.session.post.assert_not_called()
+
+    tick[0]+=timedelta(seconds=1)
+    other=pipe.context_builder.build_minute(I,tick[0]).model_copy(update={'instrument_id':'513100.SH'})
+    original=pipe.llm.complete.side_effect
+    def wait_plan(**kw):
+        output=original(**kw)
+        output.parsed['entry_conditions']=[dict(field='close',operator='gt',value='9')]
+        return output
+    pipe.llm.complete.side_effect=wait_plan
+    intent,meta=_fast_runner(pipe,tick).run(other,'other-flash')
+    assert intent.reason=='no actionable strategy conditions'
+    assert meta['model_path_claimed'] and not meta['jev_called']
+    assert pipe.repo.get_coalesce(key)['last_run_at']==tick[0]
+    assert budget.used==before['used']+1
+
+
+@pytest.mark.parametrize('reject',['role_quota','unknown_price','fee_limit'])
+def test_real_flash_pre_send_reject_does_not_claim(tmp_path,reject):
+    pipe,tick=make_pipe(tmp_path,'shadow')
+    pipe.llm.complete=DeepSeekProvider.complete.__get__(pipe.llm)
+    pipe.llm.session.post=Mock(side_effect=AssertionError('HTTP forbidden'))
+    if reject=='role_quota':
+        pipe.model_budget.reserve_request(100,100)
+        pipe.cfg.t0.strategy_request_limit=pipe.model_budget.snapshot()['strategy']
+    elif reject=='unknown_price':
+        pipe.cfg.t0.model_input_cny_per_million=D('0')
+    else:
+        pipe.cfg.t0.daily_model_cost_limit_cny=D('0.000001')
+    before=pipe.model_budget.snapshot()
+    intent,meta=_fast_runner(pipe,tick).run(pipe.context_builder.build_minute(I,tick[0]),'flash-rejected')
+    assert intent.action.value=='WAIT' and not meta['model_path_claimed']
+    assert pipe.repo.get_coalesce('fast-eval:'+pipe.cfg.account_id) is None
+    assert pipe.model_budget.snapshot()==before
+    pipe.llm.session.post.assert_not_called()
+    pipe.jev.session.post.assert_not_called()
+
+
+@pytest.mark.parametrize('actionable',[False,True])
+def test_real_flash_admission_claims_even_if_later_jev_rejected(tmp_path,actionable):
+    import json
+    pipe,tick=make_pipe(tmp_path,'shadow')
+    pipe.llm.complete=DeepSeekProvider.complete.__get__(pipe.llm)
+    draft=strategy()
+    if not actionable:
+        draft['entry_conditions']=[dict(field='close',operator='gt',value='9')]
+    # Exhaust JEV only; an admitted flash must still retain its window.
+    pipe.model_budget.reserve_jev(100)
+    pipe.cfg.t0.jev_request_limit=pipe.model_budget.snapshot()['jev']
+    before=pipe.model_budget.used
+    def post(*args,**kwargs):
+        assert pipe.repo.get_coalesce('fast-eval:'+pipe.cfg.account_id)['last_run_at']==NOW
+        return Mock(status_code=200,json=Mock(return_value={
+            'choices':[{'message':{'content':json.dumps(draft,ensure_ascii=False)},'finish_reason':'stop'}],
+            'usage':{'prompt_tokens':100,'completion_tokens':100}}))
+    pipe.llm.session.post=Mock(side_effect=post)
+    context=pipe.context_builder.build_minute(I,tick[0])
+    intent,meta=_fast_runner(pipe,tick).run(context,'admitted-flash')
+    assert intent.action.value=='WAIT' and meta['model_path_claimed']
+    assert not meta['jev_called']
+    assert pipe.model_budget.used==before+1
+    assert pipe.llm.session.post.call_count==1
+    pipe.jev.session.post.assert_not_called()
+    tick[0]+=timedelta(seconds=1)
+    intent,_=_fast_runner(pipe,tick).run(context,'restart-cooldown')
+    assert intent.reason=='global model evaluation cooldown'
+    assert pipe.repo.get_coalesce('fast-eval:'+pipe.cfg.account_id)['last_run_at']==NOW
+
+
+def test_failed_flash_invocation_keeps_claim_and_backoff(tmp_path):
+    pipe,tick=make_pipe(tmp_path,'shadow')
+    # Exercise real admission followed by a transport failure, not a mock
+    # that throws before the provider can reserve a chargeable request.
+    pipe.llm.complete=DeepSeekProvider.complete.__get__(pipe.llm)
+    pipe.llm.session.post=Mock(side_effect=__import__('requests').exceptions.ConnectionError())
+    context=pipe.context_builder.build_minute(I,tick[0])
+    fast=_fast_runner(pipe,tick)
+    intent,_=fast.run(context,'failed-flash')
+    assert intent.action.value=='WAIT'
+    assert pipe.repo.get_coalesce('fast-eval:'+pipe.cfg.account_id)['last_run_at']==NOW
+    tick[0]+=timedelta(seconds=1)
+    fast.run(context,'backoff')
+    assert pipe.llm.session.post.call_count==1
+    assert fast.planner.in_failure_backoff(tick[0])
+
+
+def test_t_plus_one_keeps_legacy_wait_window(tmp_path):
+    pipe,tick=make_pipe(tmp_path,'shadow')
+    context=_cached_fast_context(pipe,tick,actionable=False)
+    fast=_fast_runner(pipe,tick)
+    fast._allow_t_plus_one=True
+    intent,_=fast.run(context,'legacy-stock-window')
+    assert intent.reason=='no actionable strategy conditions'
+    assert pipe.repo.get_coalesce('fast-eval:'+pipe.cfg.account_id)['last_run_at']==NOW
+    pipe.jev.session.post.assert_not_called()
+
+
+def test_paper_unreachable_is_observed_and_price_drop_restores_candidate(tmp_path):
+    pipe,tick=make_pipe(tmp_path,account_id='paper-t0-local-1k')
+    price=['2.01']
+    pipe.router.get_minute_bars.side_effect=lambda *a,**kw:(
+        [minute(tick[0]-timedelta(minutes=i),price[0]) for i in reversed(range(20))],None)
+    result=pipe.run_decision(I,tick[0])
+    assert result.intent.reason=='paper new-entry observation only'
+    report=result.diagnostics['tradability']['instruments'][0]
+    assert report['reason_codes']==['single_exposure_headroom']
+    assert report['cash_budget']=='400' and report['max_affordable_lots']==0
+    assert pipe.cfg.universe==[I]
+    assert pipe.repo.get_coalesce('fast-eval:'+pipe.cfg.account_id) is None
+    pipe.llm.complete.assert_not_called()
+    pipe.jev.session.post.assert_not_called()
+    price[0]='1.50'
+    tick[0]+=timedelta(seconds=1)
+    restored=pipe.run_decision(I,tick[0])
+    assert restored.intent.action.value=='BUY' and restored.guard_verdict=='ALLOW'
+    assert restored.order_id and restored.qty==100
+    assert restored.diagnostics['tradability']['instruments'][0]['new_entry_candidate']
+
+
+def test_paper_existing_position_exit_bypasses_new_entry_affordability(tmp_path):
+    pipe,tick=make_pipe(tmp_path,account_id='paper-t0-local-1k')
+    _apply_fill(pipe,tick[0]-timedelta(minutes=15))
+    pipe.ledger.reserve('other-order',D('240'),tick[0])
+    original=pipe.llm.complete.side_effect
+    def exit_plan(**kw):
+        output=original(**kw)
+        output.parsed['allowed_actions']=['SELL','HOLD','WAIT']
+        return output
+    pipe.llm.complete.side_effect=exit_plan
+    result=pipe.run_decision(I,tick[0])
+    assert result.intent.action.value=='SELL'
+    assert result.guard_verdict=='ALLOW' and result.order_id
+    assert 'tradability' not in result.diagnostics
+
+
+@pytest.mark.parametrize('mode,account',[('shadow','paper-t0-local-1k'),('paper','fast-test')])
+def test_paper_filter_scope_does_not_change_other_accounts_or_modes(tmp_path,mode,account):
+    pipe,tick=make_pipe(tmp_path,mode,account_id=account)
+    pipe.router.get_minute_bars.side_effect=lambda *a,**kw:(
+        [minute(tick[0]-timedelta(minutes=i),'2.01') for i in reversed(range(20))],None)
+    result=pipe.run_decision(I,tick[0])
+    assert result.intent.reason=='minimum lawful lot unaffordable'
+    assert 'tradability' not in result.diagnostics
+
+
+def test_paper_filter_stale_price_is_unknown_and_not_charged(tmp_path):
+    pipe,tick=make_pipe(tmp_path,account_id='paper-t0-local-1k')
+    context=pipe.context_builder.build_minute(I,tick[0])
+    context.aux['minute_bars'][-1]['time']=(tick[0]-timedelta(seconds=181)).isoformat()
+    intent,meta=_fast_runner(pipe,tick,True).run(context,'stale-entry')
+    assert intent.reason=='paper new-entry observation only'
+    item=meta['diagnostics']['tradability']['instruments'][0]
+    assert item['status']=='数据不足' and item['reason_codes']==['price_data_unknown']
+    pipe.llm.complete.assert_not_called()
+
+
+def test_paper_filter_accounts_for_other_holdings_with_original_mark_time(tmp_path):
+    from test_fast_architecture_repairs import _apply_buy, _bar_for
+    pipe,tick=make_pipe(tmp_path,account_id='paper-t0-local-1k')
+    _apply_buy(pipe,'513100.SH',tick[0]-timedelta(minutes=15),price='2')
+    def bars(iid,*args,**kwargs):
+        at=tick[0]-timedelta(seconds=10 if iid=='513100.SH' else 0)
+        return ([_bar_for(iid,at-timedelta(minutes=i),'2' if iid=='513100.SH' else '1.5')
+                 for i in reversed(range(20))],None)
+    pipe.router.get_minute_bars.side_effect=bars
+    result=pipe.run_decision(I,tick[0])
+    item=result.diagnostics['tradability']['instruments'][0]
+    assert item['reason_codes']==['total_exposure_headroom']
+    assert item['total_exposure_room']=='100' and item['total_market_value']=='200'
+    other=result.diagnostics['tradability']['instruments'][1]
+    assert other['price_time']==(tick[0]-timedelta(seconds=10)).isoformat()
+    pipe.llm.complete.assert_not_called()
+
+
+@pytest.mark.parametrize('case,expected',[
+    ('fee_near_miss',['fee_inclusive_cash_shortfall']),
+    ('reserved',['fee_inclusive_cash_shortfall','reserved_cash_binding']),
+    ('other_buy',['total_exposure_headroom','open_buy_exposure_binding']),
+    ('own_sell',['pending_order']),
+    ('unknown',['incomplete_valuation_or_order_commitments']),
+    ('equality',[]),
+])
+def test_paper_candidate_filter_constraint_counterexamples(tmp_path,case,expected):
+    pipe,tick=make_pipe(tmp_path,account_id='paper-t0-local-1k')
+    if case in ('fee_near_miss','equality'):
+        pipe.ledger.withdraw(D('250') if case=='fee_near_miss' else D('249.90'),tick[0])
+    if case=='reserved':
+        pipe.ledger.reserve('cash-freeze',D('250'),tick[0])
+    if case in ('other_buy','own_sell','unknown'):
+        order={'account_id':pipe.cfg.account_id,'instrument_id':'513100.SH',
+               'side':'BUY','quantity':'100','filled_quantity':'0',
+               'limit_price':'2.1','status':'ACKNOWLEDGED'}
+        if case=='own_sell':
+            order.update(instrument_id=I,side='SELL')
+        if case=='unknown':
+            order['status']='UNKNOWN'
+        pipe.repo.open_orders=Mock(return_value=[order])
+    result=pipe.run_decision(I,tick[0])
+    item=result.diagnostics['tradability']['instruments'][0]
+    assert item['reason_codes']==expected
+    if expected:
+        assert result.intent.reason=='paper new-entry observation only'
+        pipe.llm.complete.assert_not_called()
+        pipe.jev.session.post.assert_not_called()
+    else:
+        assert result.intent.action.value=='BUY' and result.guard_verdict=='ALLOW'
+        assert result.order_id and result.qty==100
 
 def test_plan_account_version_change_no_order(tmp_path):
     pipe,tick=make_pipe(tmp_path)

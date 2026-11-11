@@ -92,7 +92,7 @@ class MultiProtocolLLMProvider(LLMProvider):
 
     # -- completion ----------------------------------------------------------
     def complete(self, *, role: str, system: str, user: str, trace_id: str,
-                 timeout_s: float = 60.0) -> ModelOutput:
+                 timeout_s: float = 60.0, admit_request=None) -> ModelOutput:
         system = chinese_output_system(system)
         self.breaker.check()
         call = build_call(role=role, provider=self.kind, model=self.model,
@@ -122,7 +122,8 @@ class MultiProtocolLLMProvider(LLMProvider):
                 # UTF-8 byte count overbounds text token count; add framing margin.
                 bound = len(json.dumps(payload, ensure_ascii=False).encode('utf-8')) + 1024
                 try:
-                    reserved = self.budget.reserve_request(bound, cap, role=role)
+                    reserve = lambda: self.budget.reserve_request(bound, cap, role=role)
+                    reserved = admit_request(role, reserve) if admit_request else reserve()
                     reserved_attempts += 1
                     call.attempts = reserved_attempts
                     call.cost_amount = str(Decimal(call.cost_amount or '0') + reserved)

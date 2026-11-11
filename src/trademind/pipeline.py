@@ -24,16 +24,15 @@ from .domain.enums import TradeAction, RunMode
 from .domain.intents import PortfolioIntent, RiskReview, TradeIntent, create_exit_portfolio_intent
 from .domain.judgments import JudgmentBatch
 from .domain.research import TradeThesis
-from .errors import CalendarCoverageError, GuardVeto, NotFresh, ProviderError
+from .errors import (CalendarCoverageError, GuardVeto, NotFresh, ProviderError,
+                     classify_not_fresh_reason)
 from .execution import OMS, PaperBroker, PaperConfig
 from .guard import Guard
 from .guard.guard import check_stop_loss_exit, check_session_close_exit
-from .market.base import BEIJING
-from .market.adapters.fixture import FixtureAdapter
 from .market.calendar import TradingCalendar
 from .market.profiles import get_profile
 from .market.router import DatasetRouter, MinuteRoutingPolicy
-from .memory import MemoryStore, OutcomeService, Reflector
+from .memory import MemoryStore, OutcomeService
 from .models import build_jev, build_llm
 from .portfolio import Ledger
 from .storage import AuditSink, Database, Repository
@@ -113,8 +112,9 @@ class Pipeline:
         if getattr(cfg.t0, "stock_chain", False) and cfg.universe:
             from .market.stock_profiles import stock_profile_for_instrument
             stock_resolver = stock_profile_for_instrument
-        fees = (stock_resolver(cfg.universe[0]) if stock_resolver
-                else get_profile(cfg.universe[0])).fees if cfg.universe else None
+        profile = ((stock_resolver(cfg.universe[0]) if stock_resolver
+                    else get_profile(cfg.universe[0])) if cfg.universe else None)
+        fees = profile.fees if profile else None
         self.ledger = Ledger(self.db, cfg.account_id, fees)
         self.memory = MemoryStore(self.repo)
         self.outcomes = OutcomeService(self.repo, self.router, self.calendar)
@@ -153,7 +153,8 @@ class Pipeline:
         self.broker = PaperBroker(self.router, self.calendar, fees,
                                   PaperConfig(slippage_bps=cfg.paper.slippage_bps,
                                               fill_lag_bars=cfg.paper.fill_lag_bars,
-                                              minute_only=cfg.t0.enabled))
+                                              minute_only=cfg.t0.enabled,
+                                              price_tick=profile.price_tick if profile else None))
         self.oms = OMS(self.repo, self.ledger, self.broker, self.audit, mode=self.mode)
         self.oms.recover()
         if cfg.t0.enabled and cfg.t0.profile == 'jev_fast_decision':
@@ -208,30 +209,74 @@ class Pipeline:
 
     # -- the decision chain ------------------------------------------------------
     def reference_price(self, instrument_id: str, as_of: datetime) -> Decimal:
+        price, _bar_time = self._reference_quote(instrument_id, as_of)
+        return price
+
+    def _reference_quote(self, instrument_id: str, as_of: datetime) -> tuple[Decimal, datetime | None]:
+        price, bar_time, reject = self._reference_quote_state(instrument_id, as_of)
+        if reject:
+            raise NotFresh(reject)
+        return price, bar_time
+
+    def _reference_quote_state(self, instrument_id: str,
+                               as_of: datetime) -> tuple[Decimal | None, datetime | None, str | None]:
+        """Reference quote plus its gate state (price, bar_time, reject_reason).
+        price/bar_time carry the quote the gate actually judged — on a
+        rejection they hold the rejected window's quote (None only when no
+        bar existed at all) so the execution-side recheck audit can
+        reconstruct what was refused instead of nulling it (R1 rework)."""
         if self.cfg.t0.enabled:
             from .context.features import minute_bars_visible_at
             bars, report = self.router.get_minute_bars(
                 instrument_id, as_of - timedelta(days=2), as_of, period="1m",
                 as_of=as_of, quote_max_age_seconds=min(180, self.cfg.risk.quote_max_age_seconds))
             if getattr(report, 'limit_violations', None):
-                raise NotFresh('minute reference quote quality validation failed')
+                vis = minute_bars_visible_at(bars, as_of)
+                rejected = ((vis[-1].close, vis[-1].bar_time) if vis else (None, None))
+                return rejected[0], rejected[1], 'minute reference quote quality validation failed'
             bars = minute_bars_visible_at(bars, as_of)
             max_age = min(180, self.cfg.risk.quote_max_age_seconds)
             if not bars or (as_of - bars[-1].bar_time).total_seconds() > max_age:
-                raise NotFresh(f"no fresh visible minute quote for {instrument_id}")
-            return bars[-1].close
+                # Closed public subtype (review R2 round 3): the reason never
+                # embeds the instrument id — it lives in the audit payload.
+                rejected = ((bars[-1].close, bars[-1].bar_time) if bars else (None, None))
+                return rejected[0], rejected[1], 'no fresh visible minute quote'
+            return bars[-1].close, bars[-1].bar_time, None
         try:
             end = self.calendar.last_on_or_before(as_of)
             start = self.calendar.prev(end, 5)
-        except CalendarCoverageError as exc:
+        except CalendarCoverageError:
             # Outside verified calendar coverage no reference price can be
-            # proven current; treat like any other freshness failure.
-            raise NotFresh(f"trading calendar coverage insufficient: {exc}") from exc
-        bars, _ = self.router.get_daily_bars(instrument_id, start, end)
+            # proven current; treat like any other freshness failure. The
+            # wrapped underlying text never enters the public reason.
+            return None, None, 'trading calendar coverage insufficient'
+        # as_of carries replay visibility into the router's revision merge
+        # (B04): a correction not yet visible at as_of must not win the
+        # merge and then be dropped by the filter below — the historically
+        # visible row stays the reference price.
+        bars, _ = self.router.get_daily_bars(instrument_id, start, end, as_of=as_of)
         bars = [b for b in bars if b.available_at <= as_of and b.source_time <= as_of]
         if not bars:
-            raise NotFresh(f"no reference price for {instrument_id}")
-        return bars[-1].close
+            return None, None, 'no reference price'
+        return bars[-1].close, None, None
+
+    @staticmethod
+    def _frozen_decision_quote(snap: ContextSnapshot) -> tuple[Decimal | None, datetime | None]:
+        """The quote the model actually consumed, read straight out of the
+        decision context/state — never re-queried. Re-querying the router
+        after the model returned could re-select a source and serve a window
+        the model never saw (R1 MAJOR); the audit's decision snapshot must
+        equal the model's input on every path, including the async consume
+        round whose snap is the model-round source. (None, None) when the
+        snap carries no bars — the recheck still gates the round."""
+        aux = getattr(snap, "aux", None) or {}
+        last = (aux.get("minute_bars") or [None])[-1]
+        if last and last.get("time") and last.get("close"):
+            return Decimal(str(last["close"])), datetime.fromisoformat(last["time"])
+        daily = (aux.get("last_bars") or [None])[-1]
+        if daily and daily.get("close"):
+            return Decimal(str(daily["close"])), None
+        return None, None
 
     def latest_valid_thesis(self, instrument_id: str, as_of: datetime) -> TradeThesis | None:
         rows = self.repo.db.query(
@@ -377,194 +422,307 @@ class Pipeline:
                                 as_of=as_of, context_id="")
         result.is_stub_chain = self.llm_is_stub or self.jev_is_stub
         try:
-            if self.repo.get_kill_switch()["engaged"]:
-                result.guard_verdict = "VETO"
-                result.guard_reasons = ["kill_switch"]
+            opened = self._open_decision_snapshot(result, instrument_id, as_of)
+            if opened is None:
                 return result
-            if self._now(as_of) < as_of:
-                raise NotFresh("context as_of is in the future")
-            if any(datetime.fromisoformat(e['effective_at']) > as_of for e in self.repo.account_events(self.cfg.account_id)):
-                raise NotFresh("account contains future events; historical decisions require a fresh ReplayRunner")
-            self.oms.expire_approvals(self._now(as_of))
-            # Value each position independently: one symbol's stale or failed
-            # quote must not block deterministic risk exits for the healthy
-            # symbols (ISSUE-20261013-05). New risk (BUY) is vetoed by the
-            # Guard while any position lacks a fresh legal price.
-            valuation: dict[str, Decimal] = {}
-            valuation_failures: list[str] = []
-            for p in self.ledger.snapshot(as_of).positions:
-                try:
-                    valuation[p.instrument_id] = self.reference_price(p.instrument_id, as_of)
-                except (NotFresh, ProviderError) as exc:
-                    valuation_failures.append(f"{p.instrument_id} ({type(exc).__name__}: {exc})")
-            self._valuation_failures = valuation_failures
-            if valuation_failures:
-                # Attach before the context build so the record survives any
-                # later failure in this decision (ISSUE-20261013-05).
-                result.diagnostics['valuation_failures'] = valuation_failures
-            self.on_new_trading_day(as_of.astimezone(__import__('datetime').timezone(timedelta(hours=8))).date(),
-                                    valuation, prices_complete=not valuation_failures)
-            if self.cfg.t0.enabled:
-                snap = self.context_builder.build_minute(
-                    instrument_id, as_of,
-                    max_stale_seconds=min(180, self.cfg.risk.quote_max_age_seconds))
-                last = (snap.aux.get('minute_bars') or [{}])[-1]
-                result.diagnostics = {'data_age_seconds': (self._now(as_of)-datetime.fromisoformat(last['time'])).total_seconds() if last.get('time') else None,
-                                      'context_expires_at':snap.expires_at.isoformat(), 'missing_fields':snap.missing_fields,
-                                      'budget':self.model_budget.snapshot()}
-                if "bars" in snap.missing_fields or "freshness" in snap.missing_fields:
-                    raise NotFresh("missing or stale visible minute context")
-                # The context builder may have fallen back to avg cost for a
-                # holding the valuation loop priced successfully moments
-                # earlier; union both views so the Guard BUY veto and the
-                # baseline rule always see the worst case (ISSUE-20261013-05).
-                for iid in snap.aux.get("valuation_incomplete", []):
-                    if not any(f.startswith(iid + " ") for f in valuation_failures):
-                        valuation_failures.append(f"{iid} (context cost fallback)")
-                self._valuation_failures = valuation_failures
-            else:
-                snap = self.context_builder.build(instrument_id, as_of)
-            result.context_id = snap.context_id
-            self.repo.save_context(snap)
-            prices = {instrument_id: Decimal(str(snap.features.values.get("close", 0)))}
-            if prices[instrument_id] == 0:
-                prices = None
-            if valuation_failures:
-                result.diagnostics['valuation_failures'] = valuation_failures
-
-            if getattr(self.cfg, "t0", None) and self.cfg.t0.enabled:
-                ref = self.reference_price(instrument_id, as_of)
-                exited = self._risk_exit(snap, ref, as_of, result)
-                if exited:
-                    return result
-                if self.cfg.t0.profile == 'jev_fast_decision':
-                    # Deterministic risk exits above remain available. Incomplete
-                    # rolling facts must not launch a paid strategy/action worker.
-                    if snap.features.missing_fields:
-                        result.guard_verdict = 'WAIT_DATA_QUALITY'
-                        result.guard_reasons = ['incomplete minute features']
-                        return result
-                    from .agents.fast_pipeline import FastDecisionPipeline
-                    if not hasattr(self, '_fast_pipeline'):
-                        # Stock chain (Task27-05/ARCH-028): board profiles + T+1
-                        # tolerance; default path constructs the plain pipeline.
-                        if getattr(self.cfg.t0, 'stock_chain', False):
-                            from .agents.stock_fast_pipeline import StockFastPipeline
-                            pipeline_cls = StockFastPipeline
-                        else:
-                            pipeline_cls = FastDecisionPipeline
-                        self._fast_pipeline = pipeline_cls(
-                            self.llm, self.jev, self.repo, self.cfg.t0, self.cfg.account_id,
-                            self.ledger, self.calendar, self.model_budget,
-                            lambda: self._now(as_of) if self.clock else utcnow(),
-                            lambda: {'daily_buy_orders': self.guard.daily_buy_orders_count,
-                                     'consecutive_losses': self.guard.consecutive_losses,
-                                     'day_start_equity': str(self._adjusted_day_start()),
-                                     'slippage_bps': self.cfg.paper.slippage_bps})
-                    prepared, snap = self._fast_model_result(snap, trace_id)
-                    if prepared is None:
-                        result.guard_verdict = 'WAIT_MODEL_PENDING'
-                        result.diagnostics.update(reason='model worker pending', budget=self.model_budget.snapshot())
-                        return result
-                    intent, meta = prepared
-                    trace_id = intent.trace_id
-                    result.trace_id = trace_id
-                    result.context_id = snap.context_id
-                    result.diagnostics = meta.get('diagnostics', {})
-                    if valuation_failures:
-                        # The fast pipeline replaces diagnostics wholesale; keep
-                        # the incomplete-valuation record visible (ISSUE-20261013-05).
-                        result.diagnostics['valuation_failures'] = valuation_failures
-                else:
-                    cooldown = self.repo.get_coalesce('t0-candidate:' + self.cfg.account_id + ':' + instrument_id)
-                    if cooldown and (as_of - cooldown['last_run_at']).total_seconds() < self.cfg.t0.candidate_cooldown_seconds:
-                        result.guard_verdict = 'WAIT_COOLDOWN'
-                        self.audit.record('decision', 'cooldown', trace_id, {'account_id': self.cfg.account_id})
-                        return result
-                    self.repo.save_coalesce('t0-candidate:' + self.cfg.account_id + ':' + instrument_id, as_of)
-                    from .agents.pipeline import DualModelPipeline
-                    from .models.jev import TypeSafeJEVProvider
-                    if not hasattr(self, "_dual_model_pipeline"):
-                        self._dual_model_pipeline = DualModelPipeline(
-                            llm_provider=self.llm,
-                            jev_provider=self.jev if isinstance(self.jev, TypeSafeJEVProvider) else None,
-                            t0_config=self.cfg.t0,
-                            account_id=self.cfg.account_id,
-                        )
-                    intent, meta = self._dual_model_pipeline.run(snap, trace_id=trace_id)
-                result.intent = intent
-                self.repo.save_intent(intent, 'generated')
-                self.audit.record_critical('decision', 't0_chain', trace_id,
-                                          {'account_id': self.cfg.account_id, 'decision_id': intent.decision_id, 'meta': meta})
-                if intent.action in (TradeAction.HOLD, TradeAction.WAIT):
-                    result.guard_verdict = f"{intent.action.value}_NO_TRADE"
-                    return result
-            else:
-                thesis = None if force_research else self.latest_valid_thesis(instrument_id, as_of)
-                fast_path = thesis is not None
-                if thesis is None:
-                    thesis = self.research.run(snap, trace_id, now=self._now(as_of))
-                    thesis.available_at = self._now(as_of)
-                    from .storage.db import dumps
-                    self.db.execute('UPDATE theses SET payload_json=? WHERE thesis_id=?', (dumps(thesis), thesis.thesis_id))
-                result.thesis = thesis
-
-                holding = bool(snap.portfolio and snap.portfolio.positions.get(instrument_id))
-                if self.ablation == "no_jev":
-                    result.judgments = None
-                else:
-                    result.judgments = self.jev_gate.ask(snap, thesis, holding, trace_id, now=self._now(as_of))
-
-                intent = self.trader.decide(snap, thesis, result.judgments, trace_id,
-                                            now=self._now(as_of)) if result.judgments else self._no_jev_fallback(
-                    snap, thesis, trace_id, as_of)
-                result.intent = intent
-                if intent.action.value == "HOLD":
-                    result.guard_verdict = "HOLD_NO_TRADE"
-                    return result
-
-            if self.cfg.t0.enabled:
-                # Final dual-model intent already contains risk/critic analysis.
-                # Convert without additional AI calls or rewriting its target.
-                pi = PortfolioIntent(
-                    id=new_id('pi'), trace_id=trace_id, created_at=utcnow(),
-                    intent_id=intent.id, decision_id=intent.decision_id,
-                    account_id=self.cfg.account_id, portfolio_version=intent.portfolio_version,
-                    instrument_id=instrument_id, action=intent.action,
-                    target_weight=intent.target_weight, current_weight=intent.current_weight,
-                    valid_until=intent.valid_until, mode=RunMode(self.mode), limit_price=intent.limit_price)
-            else:
-                review = self.risk_reviewer.review(intent, snap, trace_id)
-                result.review = review
-                pi, revised = self.portfolio_ai.finalize(intent, review, snap, trace_id)
-                if revised is not None:
-                    result.intent = revised
-                if pi is None:
-                    result.guard_verdict = review.verdict.value
-                    result.guard_reasons = [review.reason[:100]]
-                    return result
-            result.portfolio_intent = pi
-
-            ref_price = self.reference_price(instrument_id, as_of)
-            guard_result, qty = self.guard.check(pi, snap, ref_price, now=self._now(as_of))
-            result.guard_verdict = guard_result.verdict.value
-            result.guard_reasons = guard_result.reason_codes
-            if guard_result.verdict.value == "VETO":
+            snap, valuation_failures = opened
+            chosen = self._choose_decision_intent(
+                result, snap, instrument_id, as_of, trace_id, force_research, valuation_failures)
+            if chosen is None:
                 return result
-
-            limit = pi.limit_price or ref_price
-            order = self.oms.submit(pi, guard_result, qty, limit, now=self._now(as_of))
-            result.order_id = order.order_id
-            result.qty = qty
-            self.outcomes.register(intent.decision_id, instrument_id, as_of)
-            return result
+            intent, snap = chosen
+            return self._authorize_decision(result, intent, snap, instrument_id, as_of, result.trace_id)
         except (ProviderError, NotFresh, GuardVeto) as exc:
             result.error = f"{type(exc).__name__}: {exc}"[:300]
+            if self.cfg.t0.enabled and isinstance(exc, NotFresh):
+                # Single recording point for NotFresh round exits (context gate,
+                # reference quote, drained async result). The subtype reason is
+                # closed (review R2 round 3): only whitelist constants are
+                # written — a raise site outside the gate collapses to
+                # 'unknown' instead of copying the exception body. The same
+                # safe subtype is mirrored into diagnostics because the
+                # public summary truncates error to the bare class name;
+                # missing_fields is never invented here. Non-critical audit
+                # must never mask the original failure.
+                reject = result.diagnostics.get('data_reject')
+                if not isinstance(reject, dict):
+                    reject = {}
+                reject.setdefault('reason_class', 'NotFresh')
+                # Always classify into the dict (review R2 round 3): a pre-set
+                # untrusted reason must not survive setdefault; unknown seeds
+                # come from the exception text but only the whitelist constant
+                # is stored.
+                seed = reject.get('reason') if reject.get('reason') not in (None, '') else str(exc)
+                reject['reason'] = classify_not_fresh_reason(seed)
+                result.diagnostics['data_reject'] = reject
+                payload = {'account_id': self.cfg.account_id, 'instrument_id': instrument_id,
+                           'reason_class': 'NotFresh',
+                           'reason': reject['reason']}
+                if isinstance(reject.get('missing_fields'), dict):
+                    payload['missing_fields'] = reject['missing_fields']
+                try:
+                    self.audit.record('decision', 'data_reject', result.trace_id, payload)
+                except Exception:  # noqa: BLE001
+                    pass
             return result
         except Exception as exc:  # noqa: BLE001
             result.error = f"{type(exc).__name__}: {exc}"[:300]
             return result
 
+
+    def _open_decision_snapshot(self, result, instrument_id, as_of):
+        if self.repo.get_kill_switch()["engaged"]:
+            result.guard_verdict = "VETO"
+            result.guard_reasons = ["kill_switch"]
+            return None
+        if self._now(as_of) < as_of:
+            raise NotFresh("context as_of is in the future")
+        if any(datetime.fromisoformat(e['effective_at']) > as_of for e in self.repo.account_events(self.cfg.account_id)):
+            raise NotFresh("account contains future events; historical decisions require a fresh ReplayRunner")
+        self.oms.expire_approvals(self._now(as_of))
+        # Value each position independently: one symbol's stale or failed
+        # quote must not block deterministic risk exits for the healthy
+        # symbols (ISSUE-20261013-05). New risk (BUY) is vetoed by the
+        # Guard while any position lacks a fresh legal price.
+        valuation: dict[str, Decimal] = {}
+        valuation_failures: list[str] = []
+        for p in self.ledger.snapshot(as_of).positions:
+            try:
+                valuation[p.instrument_id] = self.reference_price(p.instrument_id, as_of)
+            except (NotFresh, ProviderError) as exc:
+                # Closed subtype only (review R2 round 3): the raw
+                # exception body never enters this public diagnostic.
+                valuation_failures.append(
+                    f"{p.instrument_id} ({type(exc).__name__}: {classify_not_fresh_reason(str(exc))})")
+        self._valuation_failures = valuation_failures
+        if valuation_failures:
+            # Attach before the context build so the record survives any
+            # later failure in this decision (ISSUE-20261013-05).
+            result.diagnostics['valuation_failures'] = valuation_failures
+        self.on_new_trading_day(as_of.astimezone(__import__('datetime').timezone(timedelta(hours=8))).date(),
+                                valuation, prices_complete=not valuation_failures)
+        if self.cfg.t0.enabled:
+            snap = self.context_builder.build_minute(
+                instrument_id, as_of,
+                max_stale_seconds=min(180, self.cfg.risk.quote_max_age_seconds))
+            last = (snap.aux.get('minute_bars') or [{}])[-1]
+            result.diagnostics = {'data_age_seconds': (self._now(as_of)-datetime.fromisoformat(last['time'])).total_seconds() if last.get('time') else None,
+                                  'context_expires_at':snap.expires_at.isoformat(), 'missing_fields':snap.missing_fields,
+                                  'budget':self.model_budget.snapshot(),
+                                  'age_threshold_seconds':min(180, self.cfg.risk.quote_max_age_seconds),
+                                  'data_window':snap.aux.get('data_window')}
+            if "bars" in snap.missing_fields or "freshness" in snap.missing_fields:
+                # Distinct safe subtypes (review R2): missing bars and an
+                # over-age last bar are different failures — the merged
+                # message made daily reports unable to split them. The
+                # reject block is mirrored into the diagnostics the public
+                # summary keeps before the raise.
+                reject_reason = ('missing visible minute bars' if "bars" in snap.missing_fields
+                                 else 'stale visible minute context')
+                result.diagnostics['data_reject'] = {
+                    'reason_class': 'NotFresh', 'reason': reject_reason,
+                    'missing_fields': dict(snap.missing_fields)}
+                raise NotFresh(reject_reason)
+            # The context builder may have fallen back to avg cost for a
+            # holding the valuation loop priced successfully moments
+            # earlier; union both views so the Guard BUY veto and the
+            # baseline rule always see the worst case (ISSUE-20261013-05).
+            for iid in snap.aux.get("valuation_incomplete", []):
+                if not any(f.startswith(iid + " ") for f in valuation_failures):
+                    valuation_failures.append(f"{iid} (context cost fallback)")
+            self._valuation_failures = valuation_failures
+        else:
+            snap = self.context_builder.build(instrument_id, as_of)
+        result.context_id = snap.context_id
+        self.repo.save_context(snap)
+        prices = {instrument_id: Decimal(str(snap.features.values.get("close", 0)))}
+        if prices[instrument_id] == 0:
+            prices = None
+        if valuation_failures:
+            result.diagnostics['valuation_failures'] = valuation_failures
+
+        return snap, valuation_failures
+
+    def _choose_decision_intent(self, result, snap, instrument_id, as_of, trace_id,
+                                force_research, valuation_failures):
+        if getattr(self.cfg, "t0", None) and self.cfg.t0.enabled:
+            ref = self.reference_price(instrument_id, as_of)
+            exited = self._risk_exit(snap, ref, as_of, result)
+            if exited:
+                return None
+            if self.cfg.t0.profile == 'jev_fast_decision':
+                # Deterministic risk exits above remain available. Incomplete
+                # rolling facts must not launch a paid strategy/action worker.
+                if snap.features.missing_fields:
+                    result.guard_verdict = 'WAIT_DATA_QUALITY'
+                    result.guard_reasons = ['incomplete minute features']
+                    result.diagnostics['data_reject'] = {
+                        'reason_class': 'WAIT_DATA_QUALITY',
+                        'reason': 'incomplete minute features'}
+                    # Pre-decision round bookkeeping (Issue30-01): one audit
+                    # row per data-rejected round so daily reports can
+                    # separate this denominator from saved intents.
+                    self.audit.record('decision', 'data_reject', trace_id,
+                                      {'account_id': self.cfg.account_id, 'instrument_id': instrument_id,
+                                       'reason_class': 'WAIT_DATA_QUALITY', 'reason': 'incomplete minute features',
+                                       'missing_fields': snap.features.missing_fields})
+                    return None
+                from .agents.fast_pipeline import FastDecisionPipeline
+                if not hasattr(self, '_fast_pipeline'):
+                    # Stock chain (Task27-05/ARCH-028): board profiles + T+1
+                    # tolerance; default path constructs the plain pipeline.
+                    if getattr(self.cfg.t0, 'stock_chain', False):
+                        from .agents.stock_fast_pipeline import StockFastPipeline
+                        pipeline_cls = StockFastPipeline
+                    else:
+                        pipeline_cls = FastDecisionPipeline
+                    self._fast_pipeline = pipeline_cls(
+                        self.llm, self.jev, self.repo, self.cfg.t0, self.cfg.account_id,
+                        self.ledger, self.calendar, self.model_budget,
+                        lambda: self._now(as_of) if self.clock else utcnow(),
+                        lambda: {'daily_buy_orders': self.guard.daily_buy_orders_count,
+                                 'consecutive_losses': self.guard.consecutive_losses,
+                                 'day_start_equity': str(self._adjusted_day_start()),
+                                 'slippage_bps': self.cfg.paper.slippage_bps},
+                        paper_new_entry_filter=(self.mode=='paper' and
+                            self.cfg.account_id=='paper-t0-local-1k' and
+                            not getattr(self.cfg.t0,'stock_chain',False)),
+                        # Effective quote freshness gate (review R4): the
+                        # fast diagnostics must report min(180, configured
+                        # cap), not a hardcoded 180.
+                        quote_max_age_seconds=self.cfg.risk.quote_max_age_seconds)
+                prepared, snap = self._fast_model_result(snap, trace_id)
+                if prepared is None:
+                    result.guard_verdict = 'WAIT_MODEL_PENDING'
+                    result.diagnostics.update(reason='model worker pending', budget=self.model_budget.snapshot())
+                    self.audit.record('decision', 'model_pending', trace_id,
+                                      {'account_id': self.cfg.account_id, 'instrument_id': instrument_id})
+                    return None
+                intent, meta = prepared
+                trace_id = intent.trace_id
+                result.trace_id = trace_id
+                result.context_id = snap.context_id
+                result.diagnostics = meta.get('diagnostics', {})
+                if valuation_failures:
+                    # The fast pipeline replaces diagnostics wholesale; keep
+                    # the incomplete-valuation record visible (ISSUE-20261013-05).
+                    result.diagnostics['valuation_failures'] = valuation_failures
+            else:
+                cooldown = self.repo.get_coalesce('t0-candidate:' + self.cfg.account_id + ':' + instrument_id)
+                if cooldown and (as_of - cooldown['last_run_at']).total_seconds() < self.cfg.t0.candidate_cooldown_seconds:
+                    result.guard_verdict = 'WAIT_COOLDOWN'
+                    self.audit.record('decision', 'cooldown', trace_id, {'account_id': self.cfg.account_id})
+                    return None
+                self.repo.save_coalesce('t0-candidate:' + self.cfg.account_id + ':' + instrument_id, as_of)
+                from .agents.pipeline import DualModelPipeline
+                from .models.jev import TypeSafeJEVProvider
+                if not hasattr(self, "_dual_model_pipeline"):
+                    self._dual_model_pipeline = DualModelPipeline(
+                        llm_provider=self.llm,
+                        jev_provider=self.jev if isinstance(self.jev, TypeSafeJEVProvider) else None,
+                        t0_config=self.cfg.t0,
+                        account_id=self.cfg.account_id,
+                    )
+                intent, meta = self._dual_model_pipeline.run(snap, trace_id=trace_id)
+            result.intent = intent
+            self.repo.save_intent(intent, 'generated')
+            self.audit.record_critical('decision', 't0_chain', trace_id,
+                                      {'account_id': self.cfg.account_id, 'decision_id': intent.decision_id, 'meta': meta})
+            if intent.action in (TradeAction.HOLD, TradeAction.WAIT):
+                result.guard_verdict = f"{intent.action.value}_NO_TRADE"
+                return None
+        else:
+            thesis = None if force_research else self.latest_valid_thesis(instrument_id, as_of)
+            fast_path = thesis is not None
+            if thesis is None:
+                thesis = self.research.run(snap, trace_id, now=self._now(as_of))
+                thesis.available_at = self._now(as_of)
+                from .storage.db import dumps
+                self.db.execute('UPDATE theses SET payload_json=? WHERE thesis_id=?', (dumps(thesis), thesis.thesis_id))
+            result.thesis = thesis
+
+            holding = bool(snap.portfolio and snap.portfolio.positions.get(instrument_id))
+            if self.ablation == "no_jev":
+                result.judgments = None
+            else:
+                result.judgments = self.jev_gate.ask(snap, thesis, holding, trace_id, now=self._now(as_of))
+
+            intent = self.trader.decide(snap, thesis, result.judgments, trace_id,
+                                        now=self._now(as_of)) if result.judgments else self._no_jev_fallback(
+                snap, thesis, trace_id, as_of)
+            result.intent = intent
+            if intent.action.value == "HOLD":
+                result.guard_verdict = "HOLD_NO_TRADE"
+                return None
+
+        return intent, snap
+
+    def _authorize_decision(self, result, intent, snap, instrument_id, as_of, trace_id):
+        if self.cfg.t0.enabled:
+            # Final dual-model intent already contains risk/critic analysis.
+            # Convert without additional AI calls or rewriting its target.
+            pi = PortfolioIntent(
+                id=new_id('pi'), trace_id=trace_id, created_at=utcnow(),
+                intent_id=intent.id, decision_id=intent.decision_id,
+                account_id=self.cfg.account_id, portfolio_version=intent.portfolio_version,
+                instrument_id=instrument_id, action=intent.action,
+                target_weight=intent.target_weight, current_weight=intent.current_weight,
+                valid_until=intent.valid_until, mode=RunMode(self.mode), limit_price=intent.limit_price)
+        else:
+            review = self.risk_reviewer.review(intent, snap, trace_id)
+            result.review = review
+            pi, revised = self.portfolio_ai.finalize(intent, review, snap, trace_id)
+            if revised is not None:
+                result.intent = revised
+            if pi is None:
+                result.guard_verdict = review.verdict.value
+                result.guard_reasons = [review.reason[:100]]
+                return result
+        result.portfolio_intent = pi
+
+        # B01: the decision-time gates judged quote age against the
+        # snapshot as_of, which a long model wait can outlive — recheck
+        # against the current clock right before execution. The decision
+        # snapshot is frozen from the snap the model actually consumed
+        # (the async consume round rebinds it to the model-round source),
+        # never re-queried — a post-model re-query could re-select a
+        # source and audit a quote the model never saw (R1 MAJOR). The
+        # recheck state carries the rejected window's quote on a refusal
+        # so the audit reconstructs what was rejected instead of nulling
+        # it. Replay resolves _now to as_of, so the recheck degenerates
+        # to decision-snapshot semantics there; risk exits above keep
+        # as_of pricing on purpose (a stale quote must not block them).
+        decision_price, decision_bar = self._frozen_decision_quote(snap)
+        recheck_at = self._now(as_of)
+        recheck_price, recheck_bar, reject_reason = self._reference_quote_state(instrument_id, recheck_at)
+        try:
+            self.audit.record('decision', 'reference_price_recheck', trace_id, {
+                'account_id': self.cfg.account_id, 'instrument_id': instrument_id,
+                'decision': {'as_of': snap.as_of.isoformat(),
+                             'price': str(decision_price) if decision_price is not None else None,
+                             'bar_time': decision_bar.isoformat() if decision_bar else None},
+                'recheck': {'as_of': recheck_at.isoformat(),
+                            'price': str(recheck_price) if recheck_price is not None else None,
+                            'bar_time': recheck_bar.isoformat() if recheck_bar else None},
+                'outcome': 'rejected' if reject_reason else 'passed',
+                **({'reason': classify_not_fresh_reason(reject_reason)} if reject_reason else {})})
+        except Exception:  # noqa: BLE001
+            pass
+        if reject_reason:
+            raise NotFresh(reject_reason)
+        ref_price = recheck_price
+        guard_result, qty = self.guard.check(pi, snap, ref_price, now=self._now(as_of))
+        result.guard_verdict = guard_result.verdict.value
+        result.guard_reasons = guard_result.reason_codes
+        if guard_result.verdict.value == "VETO":
+            return result
+
+        limit = pi.limit_price or ref_price
+        order = self.oms.submit(pi, guard_result, qty, limit, now=self._now(as_of))
+        result.order_id = order.order_id
+        result.qty = qty
+        self.outcomes.register(intent.decision_id, instrument_id, as_of)
+        return result
     def _no_jev_fallback(self, snap: ContextSnapshot, thesis: TradeThesis,
                          trace_id: str, as_of: datetime) -> TradeIntent:
         """Ablation-only path: trader without JEV batch. Never used in production."""

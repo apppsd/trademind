@@ -1,6 +1,5 @@
 """JEV narrow independent questions become a bounded action, not order authority."""
 from datetime import datetime, timedelta
-from decimal import Decimal
 from ..domain.strategy import DecisionOutcome
 from ..domain.base import new_id
 from ..domain.enums import TradeAction
@@ -9,17 +8,20 @@ from ..errors import ProviderError
 from .fast_prompts import FAST_PROMPT_VERSION, fast_questions
 
 class FastDecider:
-    def __init__(self,jev,cfg,clock):
+    def __init__(self,jev,cfg,clock,quote_max_age_seconds=180):
         self.jev,self.cfg,self.clock=jev,cfg,clock
+        # Effective quote deadline (B01): the configured stricter cap must gate
+        # the decision, not only the diagnostics; 180s stays the hard ceiling.
+        self._quote_max_age=timedelta(seconds=min(180,quote_max_age_seconds))
 
-    def decide(self,state,trace_id):
+    def decide(self,state,trace_id,before_model_call=None):
         now=self.clock()
         result=DecisionOutcome(decision_id=new_id('fast'),raw_action='WAIT',action=TradeAction.WAIT,
             reason='no valid answer',plan_id=state.plan.plan_id,context_id=state.context_id,
             account_version=state.account['version'],as_of=state.data_cutoff,
             prompt_version=FAST_PROMPT_VERSION,
-            valid_until=min(state.plan.valid_until,state.data_cutoff+timedelta(seconds=180),
-                            datetime.fromisoformat(state.bars[-1]['time'])+timedelta(seconds=180)),answers={},model=self.jev.model)
+            valid_until=min(state.plan.valid_until,state.data_cutoff+self._quote_max_age,
+                            datetime.fromisoformat(state.bars[-1]['time'])+self._quote_max_age),answers={},model=self.jev.model)
         if not state.plan.valid_at(now,state.instrument_id,state.rule_version) or now>=result.valid_until:
             result.reason='expired plan or context'
             return result
@@ -27,9 +29,18 @@ class FastDecider:
             result.reason='no actionable strategy conditions'
             return result
         questions=fast_questions(state.allowed_actions)
+        admission_error=None
+        def admit_request(role,reserve):
+            nonlocal admission_error
+            try:
+                return before_model_call(role,reserve)
+            except ProviderError as exc:
+                admission_error=exc
+                raise
+        admission={'admit_request':admit_request} if before_model_call is not None else {}
         try:
             body=self.jev.evaluate(state=state.model_dump(mode='json'),questions=questions,trace_id=trace_id,
-                                   question_version=FAST_PROMPT_VERSION)
+                                   question_version=FAST_PROMPT_VERSION,**admission)
             answers=body['answers']
             result.answers=answers
             result.raw_action=answers['action']['choice']
@@ -56,5 +67,8 @@ class FastDecider:
             result.action=action
             result.reason='typed JEV action with valid strategy and evidence'
         except (ProviderError,ValueError,KeyError,TypeError):
+            # Preserve pipeline admission diagnostics (not a JEV answer error).
+            if admission_error is not None:
+                raise admission_error
             result.reason='JEV provider or answer validation failed'
         return result

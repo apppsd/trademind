@@ -14,7 +14,7 @@ from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 
-from .base import MsgBase, require_tz, utcnow, new_id
+from .base import MsgBase, require_tz
 from .enums import DataQuality, Dataset
 
 

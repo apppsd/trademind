@@ -10,7 +10,6 @@ import sys
 import time
 
 from ..config import load_config
-from ..errors import CalendarCoverageError
 from ..market.base import BEIJING
 from ..market.calendar import TradingCalendar
 from ..observability.notify import notify_webhook

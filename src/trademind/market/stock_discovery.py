@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 # ARCH-028 proposal value; Task27-04 calibrates against real samples before
 # any decision-layer use. Observation layer only records it.

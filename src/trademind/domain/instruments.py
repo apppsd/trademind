@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, date
+from datetime import date
 from decimal import Decimal
 
 from pydantic import field_validator, model_validator
 
-from .base import DecimalStr, MsgBase, require_tz, utcnow, new_id
+from .base import DecimalStr, MsgBase, new_id
 from .enums import Market
 
 
