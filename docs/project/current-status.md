@@ -1,6 +1,8 @@
 # 当前状态（唯一当前事实入口）
 
-> 2026-11-11 14:55（Asia/Shanghai）按用户要求在 150 的 `D:\trademind` 执行 `git pull --ff-only`，磁盘从 `62b5be1` 快进到 `502cc9d`。拉取前的已跟踪改动收进 stash `150-dirty-before-502cc9d`，没有弹回。本地配置、`.env` 和账本库未动。监督器 pid 6004 仍在跑（`halted=false`，`phase=paper`，当时 `session_open=true`），本次没有重启。`run_local.py status` 里的 `code_version` 是查询当时的 `git rev-parse`，所以会显示 `502cc9d`，并不表示这个进程已经加载新代码。新代码要等监督器重启后才执行。见 [TASK-20261111-06](../tasks/TASK-20261111-06-在150拉取已推送代码.md)。
+> 2026-11-11 15:07（Asia/Shanghai）按用户要求重启 150 监督器以加载新代码。旧进程 pid 6004 已排空退出，没有强制结束，也没有进入 halted。新进程 pid 8504，启动时磁盘为 `17848d6`，账户 `paper-t0-local-1k`，`halted=false`，`calendar_covered=true`，`session_open=false`，健康为「等待开市」。新 SSH 会话看到心跳仍在更新。150 本机 `/workbench/` 与 `/api/workbench/overview` 均为 HTTP 200，`account_alias=paper-t0-local-1k`，`data_status=ok`。这是收盘后的服务恢复，不是盘中成交验收。见 [TASK-20261111-07](../tasks/TASK-20261111-07-重启150监督器加载新代码.md)。
+
+> 2026-11-11 14:55（Asia/Shanghai）按用户要求在 150 的 `D:\trademind` 执行 `git pull --ff-only`，磁盘从 `62b5be1` 快进到 `502cc9d`（随后文档提交为 `17848d6`）。拉取前的已跟踪改动收进 stash `150-dirty-before-502cc9d`，没有弹回。本地配置、`.env` 和账本库未动。见 [TASK-20261111-06](../tasks/TASK-20261111-06-在150拉取已推送代码.md)。
 
 > 当日时间线：09:30:01 起免费源 `sina_etf` 按约 5 分钟做启动门禁拉取（`started_at` 09:30 / 09:35 / 09:40 / 09:45）。约 09:44 健康为「行情不足」，`last_blocker_class=data_reject`，信息为启动门禁未通过、五分钟后重新检查，当时模型调用 0、持仓/委托 0；工作台 `/workbench/` 与 `/api/workbench/overview` 当时 HTTP 200，但 overview `as_of` 曾为 `2026-11-06T00:00:00+00:00`（约 5 天前），`data_status` 仍为 ok。09:50:48 进入连续决策，09:50:52 起出现当日首次模型调用（先探针后策略）。账户层最先放行的是 513050.SH / 518880.SH（09:51:00 首条 `t0_chain`：`data_age_seconds≈117.3`，门禁 180 秒，`continuous_1m_bars=19`）。513100.SH 仍拒绝至 10:47:19：09:50:54–10:31:54 共 395 次 `missing visible minute bars`（`reason_class=NotFresh`，`missing_fields.bars=no visible minute bars at as_of`），10:32:00–10:47:19 共 168 次 `incomplete minute features`（`WAIT_DATA_QUALITY`，连续 1m 根数从 1 增至 15，缺 `ret_15m` 所需 16 根）。10:47:25 起 513100 进入 `model_pending`。另有 513050 在 09:56:59 一次缺线、10:09:02 一次 `async model result expired or account changed`。控制审计当日 `data_reject` 共 565 条；路由目标全程 `minute_bars_1m->sina_etf`，当日审计未见 akshare。约 10:12 的账户健康已是放行后状态（当时已有策略 4 / 探针 2 / JEV 1），并不表示 513100 当时已够窗。11:21:49 最近一次策略成功；11:23:28 健康为「有效策略观望」，`last_blocker_class=global_cooldown`，当日请求 23（策略 15、探针 2、JEV 6），费用约 0.186 CNY，持仓/委托仍为 0，当时标的 518880.SH、连续 1m 112 根、数据年龄 82.7 秒（门禁 180 秒）。11:29:30 的 `intraday-health.json` 仍为 `global_cooldown`，最近标的已是 513100.SH（连续 1m 58 根，年龄 85.3 秒，`last_missing_fields` 空）。
 
@@ -12,8 +14,8 @@
 
 ## 当前运行（150 主机，本机只开发不运行）
 
-- 代码版本：150 磁盘与 `origin/main` 同为 `502cc9d`（2026-11-11 拉取）。正在跑的监督器仍是 pid 6004，启动后没有重启，进程内代码要等重启才换成这份。`status` 打印的 `code_version` 只是当时的 git HEAD。
-- 监督器：`scripts/run_local.py`，账户 `paper-t0-local-1k`，独立库 `D:\trademind\data\runtime\local-1k\trademind.db`，配置 `D:\trademind\config\t0-local.local.toml`（该文件在 150，本机仅有 example）。查状态必须带绝对路径与 `--config`，省略配置或从错误工作目录执行会落到 `paper-001` / `data/runtime/trademind.db` 并误报 `running=false`，详见 [operations](operations.md)。截至 11-11 14:55 核验：`halted=false`，脱终端存活，健康为「预算限制」（策略次数已到 30/30）。早盘曾从「行情不足」转到「有效策略观望」。
+- 代码版本：150 监督器 pid 8504 于 2026-11-11 15:07 启动，当时磁盘为 `17848d6`。`status` 的 `code_version` 仍是查询当时的 git HEAD；之后若只有文档提交，不必为此再重启。
+- 监督器：`scripts/run_local.py`，账户 `paper-t0-local-1k`，独立库 `D:\trademind\data\runtime\local-1k\trademind.db`，配置 `D:\trademind\config\t0-local.local.toml`（该文件在 150，本机仅有 example）。查状态必须带绝对路径与 `--config`，省略配置或从错误工作目录执行会落到 `paper-001` / `data/runtime/trademind.db` 并误报 `running=false`，详见 [operations](operations.md)。截至 11-11 15:07 重启后：`halted=false`，脱终端存活，健康为「等待开市」。重启前 14:55 的盘中健康是「预算限制」（策略次数已到 30/30）。
 - **影子盘资金：5000 元档**（2026-10-29 生效，[Task28-01](../tasks/TASK-20261028-01-影子盘资金上调至5000.md)）——初始 5000 / 单证券 1000 / 总持仓 1500 / 最低现金 500（原冻结表 20%/30%/10% 比例语义不变）。账本 deposit 4000 留痕，重放对账守恒。**版本化新 run：五日观察口径自 2026-10-29 重新起算**。
 - 模型费用红线：5 CNY/日、100 请求/日（资金调整不改变调用预算）。
 
@@ -50,7 +52,7 @@
 
 ## 下一步入口
 
-- **磁盘已是 `502cc9d`，进程未重启**：11-03、30-02/30-03、11-08 P0 和 11-11 的拆分都在这份提交里，但 pid 6004 仍在执行启动时加载的代码。收盘后若要让新代码生效，需要单独授权再重启监督器。盘中不重启，不换付费源。
+- **新代码已由 pid 8504 加载**：11-03、30-02/30-03、11-08 P0 和 11-11 的拆分都在 15:07 启动时的 `17848d6` 里。收盘后的「等待开市」只说明服务活着，不代替下一个交易日的决策验收。不换付费源。
 - **仍待用户批准的下一步**：收盘后可继续只读观察免费 `sina_etf` 的开盘质量（尤其 513100.SH 在 09:30–10:31 无可见 1m 线、10:32–10:47 根数从 1 增到 15 才放行）。版本钉扎观察仍针对 [Issue30-01](../issues/ISSUE-20261030-01-纸面长期零成交冷却与最小手买不起.md) 与 [Issue27-02](../issues/ISSUE-20261027-02-快速链JEV决策全天未发生全景就绪门禁与分钟线缺失.md)。在完成这次观察之前，不以股票 [Task27-06](../tasks/TASK-20261027-06-盘中验收与对照.md) 为当前主路径。
 - 股票 [Task27-04](../tasks/TASK-20261027-04-验证股票行情与可交易性.md) 收口余项与 Task27-06、启用 `stock_chain` 仍为后续可选轨道；当前 `stock_chain=false`、`paper-stock-1` 未建账，未经用户指示不启用。
 - 2026-11-10 恢复时有意未创建开机自启或计划任务；是否配置自启仍待用户决定。本文只记录该缺口，不新增自启。
